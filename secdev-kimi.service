@@ -1,0 +1,21 @@
+[Unit]
+Description=Secdev_kimi Enterprise Security Lab Orchestrator
+After=network.target
+
+[Service]
+Type=simple
+User=kirk
+Group=kirk
+WorkingDirectory=/home/kirk/.picoclaw/workspace/Secdev_kimi
+Environment=SECDEV_ENV=production
+Environment=SECDEV_SECRET_KEY=secdev-kimi-prod-key-static-2026
+Environment=PYTHONPATH=/home/kirk/.picoclaw/workspace/Secdev_kimi
+ExecStart=/home/kirk/.picoclaw/workspace/Secdev_kimi/venv/bin/python -m uvicorn api.server:app --host 0.0.0.0 --port 8765 --workers 4
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=secdev-kimi
+
+[Install]
+WantedBy=multi-user.target

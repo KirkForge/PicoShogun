@@ -1,0 +1,9 @@
+{
+  "name": "test_discord_notifier",
+  "version": "1.0.0",
+  "author": "Secdev_kimi",
+  "description": "Test plugin that logs project events to console",
+  "entry_point": "notifier",
+  "hooks": ["project_complete", "alert"],
+  "dependencies": []
+}

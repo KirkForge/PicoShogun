@@ -1,0 +1,21 @@
+{
+  "name": "shai-hulud-npm-worm",
+  "version": "1.0.0",
+  "description": "MALICIOUS: Shai-Hulud npm worm that propagates via postinstall scripts",
+  "ioc_type": "supply_chain_attack",
+  "attack_vector": "postinstall_propagation",
+  "references": [
+    "https://blog.phylum.io/shai-hulud-the-npm-worm-is-still-crawling/",
+    "https://blog.sandboxescaper.com/shai-hulud-npm-worm-analysis/"
+  ],
+  "indicators": {
+    "package_names": ["shai-hulud", "shai-hulud-1", "shai-hulud-2"],
+    "attack_pattern": "postinstall_self_propagation",
+    "what_happened": "Postinstall script cloned itself and published new variants, creating a self-propagating worm in the npm registry."
+  },
+  "expected_detections": [
+    "L2-POST-001",
+    "L2-OBFS-001",
+    "L2-CRED-001"
+  ]
+}

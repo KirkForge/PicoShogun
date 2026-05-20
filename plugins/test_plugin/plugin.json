@@ -1,0 +1,9 @@
+{
+  "name": "test_plugin",
+  "version": "0.1.0",
+  "author": "Secdev_kimi",
+  "description": "Test plugin to verify dynamic loading works end-to-end",
+  "entry_point": "test_handler",
+  "hooks": ["project_complete", "alert"],
+  "dependencies": []
+}

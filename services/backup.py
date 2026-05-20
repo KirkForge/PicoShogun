@@ -1,0 +1,185 @@
+"""Backup and restore system for database and logs."""
+import os
+import json
+import gzip
+import shutil
+import tarfile
+import logging
+from typing import Optional, List, Dict
+from datetime import datetime
+from pathlib import Path
+
+from config.settings import settings
+from database.manager import db
+
+logger = logging.getLogger("SecdevKimi.Backup")
+
+class BackupManager:
+    """Enterprise backup and restore for Secdev_kimi."""
+    
+    def __init__(self):
+        self.backup_dir = Path(settings.database.backup_dir)
+        self.db_path = Path(settings.database.path)
+        self.retention_days = getattr(settings.database, "backup_retention_days", 30)
+    
+    def create_backup(self, name: str = None, include_logs: bool = True) -> Optional[Dict]:
+        """Create a full backup of database and optionally logs."""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        name = name or f"secdev_{timestamp}"
+        backup_path = self.backup_dir / f"{name}.tar.gz"
+        
+        self.backup_dir.mkdir(parents=True, exist_ok=True)
+        
+        temp_dir = self.backup_dir / f"temp_{timestamp}"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        
+        try:
+            # Backup database
+            db_backup = temp_dir / "database.sqlite3"
+            shutil.copy2(str(self.db_path), str(db_backup))
+            
+            # Create metadata
+            meta = {
+                "version": "2.0.0",
+                "created": datetime.now().isoformat(),
+                "database_size": db_backup.stat().st_size,
+                "include_logs": include_logs
+            }
+            
+            with open(temp_dir / "metadata.json", "w") as f:
+                json.dump(meta, f, indent=2)
+            
+            # Backup logs if requested
+            if include_logs:
+                logs_dir = self.backup_dir.parent / "logs"
+                if logs_dir.exists():
+                    shutil.copytree(str(logs_dir), str(temp_dir / "logs"), dirs_exist_ok=True)
+            
+            # Create tarball
+            with tarfile.open(str(backup_path), "w:gz") as tar:
+                for item in temp_dir.iterdir():
+                    tar.add(str(item), arcname=item.name)
+            
+            backup_size = backup_path.stat().st_size
+            
+            logger.info(f"Backup created: {backup_path} ({backup_size} bytes)")
+            
+            return {
+                "path": str(backup_path),
+                "name": name,
+                "size": backup_size,
+                "metadata": meta
+            }
+        
+        except Exception as e:
+            logger.error(f"Backup failed: {e}")
+            return None
+        
+        finally:
+            # Cleanup temp
+            if temp_dir.exists():
+                shutil.rmtree(str(temp_dir))
+    
+    def restore_backup(self, backup_path: str, force: bool = False) -> bool:
+        """Restore from a backup archive."""
+        backup_path = Path(backup_path)
+        
+        if not backup_path.exists():
+            logger.error(f"Backup not found: {backup_path}")
+            return False
+        
+        # Safety check
+        if not force:
+            current_db_size = self.db_path.stat().st_size if self.db_path.exists() else 0
+            logger.warning(f"About to restore over database ({current_db_size} bytes). Use force=True to confirm.")
+            return False
+        
+        temp_dir = self.backup_dir / f"restore_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        try:
+            # Extract backup
+            with tarfile.open(str(backup_path), "r:gz") as tar:
+                tar.extractall(str(temp_dir))
+            
+            # Verify metadata
+            meta_path = temp_dir / "metadata.json"
+            if meta_path.exists():
+                with open(meta_path) as f:
+                    meta = json.load(f)
+                logger.info(f"Restoring backup from {meta['created']}")
+            
+            # Restore database
+            db_backup = temp_dir / "database.sqlite3"
+            if db_backup.exists():
+                # Backup current first
+                current_backup = f"{self.db_path}.pre_restore_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                shutil.copy2(str(self.db_path), current_backup)
+                
+                # Restore
+                shutil.copy2(str(db_backup), str(self.db_path))
+                logger.info("Database restored")
+            
+            # Restore logs
+            logs_backup = temp_dir / "logs"
+            if logs_backup.exists():
+                logs_dir = self.backup_dir.parent / "logs"
+                if logs_dir.exists():
+                    shutil.rmtree(str(logs_dir))
+                shutil.copytree(str(logs_backup), str(logs_dir))
+                logger.info("Logs restored")
+            
+            return True
+        
+        except Exception as e:
+            logger.error(f"Restore failed: {e}")
+            return False
+        
+        finally:
+            if temp_dir.exists():
+                shutil.rmtree(str(temp_dir))
+    
+    def list_backups(self) -> List[Dict]:
+        """List all available backups."""
+        backups = []
+        
+        if not self.backup_dir.exists():
+            return backups
+        
+        for backup_file in self.backup_dir.glob("*.tar.gz"):
+            stat = backup_file.stat()
+            backups.append({
+                "name": backup_file.stem.replace(".tar", ""),
+                "path": str(backup_file),
+                "size": stat.st_size,
+                "created": datetime.fromtimestamp(stat.st_ctime).isoformat()
+            })
+        
+        return sorted(backups, key=lambda x: x["created"], reverse=True)
+    
+    def cleanup_old_backups(self) -> int:
+        """Remove backups older than retention period."""
+        if not self.backup_dir.exists() or self.retention_days <= 0:
+            return 0
+        
+        cutoff = datetime.now().timestamp() - (self.retention_days * 86400)
+        removed = 0
+        
+        for backup_file in self.backup_dir.glob("*.tar.gz"):
+            if backup_file.stat().st_ctime < cutoff:
+                backup_file.unlink()
+                removed += 1
+                logger.info(f"Removed old backup: {backup_file.name}")
+        
+        return removed
+    
+    def auto_backup(self) -> Optional[Dict]:
+        """Create automated daily backup with cleanup."""
+        result = self.create_backup(
+            name=f"auto_{datetime.now().strftime('%Y%m%d')}",
+            include_logs=True
+        )
+        
+        if result:
+            self.cleanup_old_backups()
+        
+        return result

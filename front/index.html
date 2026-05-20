@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secdev_kimi — Status</title>
+<style>
+  :root { --bg:#0b0f19; --card:#121929; --text:#c9d1d9; --muted:#8b949e; --ok:#3fb950; --warn:#d29922; --err:#f85149; --accent:#58a6ff; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--text); display:flex; align-items:center; justify-content:center; min-height:100vh; padding:24px; }
+  .card { background:var(--card); border:1px solid #21262d; border-radius:12px; padding:28px 32px; max-width:420px; width:100%; box-shadow:0 10px 30px rgba(0,0,0,.35); }
+  h1 { margin:0 0 8px; font-size:22px; letter-spacing:.2px; }
+  .version { color:var(--muted); font-size:12px; margin-bottom:18px; }
+  .badge { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:600; padding:6px 10px; border-radius:999px; background:rgba(63,185,80,.12); color:var(--ok); border:1px solid rgba(63,185,80,.25); }
+  .badge::before { content:""; width:8px; height:8px; border-radius:50%; background:var(--ok); box-shadow:0 0 8px var(--ok); }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:20px; }
+  .metric { background:#0d1117; border:1px solid #21262d; border-radius:8px; padding:12px 14px; }
+  .metric .label { font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); }
+  .metric .value { font-size:20px; font-weight:700; margin-top:4px; }
+  .time { margin-top:16px; font-size:12px; color:var(--muted); }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Secdev_kimi</h1>
+    <div class="version">Enterprise API v2.4.0</div>
+    <div class="badge" id="statusBadge">Operational</div>
+    <div class="grid">
+      <div class="metric">
+        <div class="label">Projects</div>
+        <div class="value" id="projTotal">—</div>
+      </div>
+      <div class="metric">
+        <div class="label">Active</div>
+        <div class="value" id="projActive">—</div>
+      </div>
+      <div class="metric">
+        <div class="label">Failed</div>
+        <div class="value" id="projFailed">—</div>
+      </div>
+      <div class="metric">
+        <div class="label">Alerts</div>
+        <div class="value" id="pendingAlerts">—</div>
+      </div>
+    </div>
+    <div class="time">Last checked: <span id="lastRun">—</span></div>
+    <div class="time"><a href="/docs">API Docs</a> · <a href="/health">Health</a> · <a href="/metrics">Metrics</a></div>
+  </div>
+  <script>
+    async function refresh() {
+      try {
+        const r = await fetch('/health');
+        const h = await r.json();
+        const db = h.find(c => c.component === 'database');
+        const badge = document.getElementById('statusBadge');
+        if (db && db.status === 'healthy') {
+          badge.textContent = 'Operational';
+          badge.style.color = 'var(--ok)';
+          badge.style.background = 'rgba(63,185,80,.12)';
+        } else {
+          badge.textContent = 'Degraded';
+          badge.style.color = 'var(--warn)';
+          badge.style.background = 'rgba(210,153,34,.12)';
+        }
+        // Try /status (needs auth, may 401 — that's ok, keep counts blank)
+        fetch('/status', {headers:{'Accept':'application/json'}})
+          .then(r => r.ok ? r.json() : null)
+          .then(s => {
+            if (!s) return;
+            document.getElementById('projTotal').textContent = s.projects_total ?? '—';
+            document.getElementById('projActive').textContent = s.projects_active ?? '—';
+            document.getElementById('projFailed').textContent = s.projects_failed ?? '—';
+            document.getElementById('pendingAlerts').textContent = s.pending_alerts ?? '—';
+            if (s.timestamp) document.getElementById('lastRun').textContent = new Date(s.timestamp).toLocaleString();
+          }).catch(()=>{});
+        document.getElementById('lastRun').textContent = new Date().toLocaleString();
+      } catch(e) { console.error(e); }
+    }
+    refresh();
+    setInterval(refresh, 30000);
+  </script>
+</body>
+</html>

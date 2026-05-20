@@ -1,0 +1,6 @@
+"""Allow running PicoSentry CLI as: python -m picosentry"""
+from picosentry.cli import main
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(main())

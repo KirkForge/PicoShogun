@@ -1,0 +1,50 @@
+[
+  {
+    "id": "high_error_rate",
+    "metric_name": "api_requests_total",
+    "labels": {
+      "status": "5xx"
+    },
+    "threshold": 10,
+    "comparison": "gt",
+    "duration_seconds": 300,
+    "alert_channel": "all",
+    "description": "Error rate > 10 in 5 minutes"
+  },
+  {
+    "id": "high_latency",
+    "metric_name": "api_request_duration_seconds",
+    "threshold": 5.0,
+    "comparison": "gt",
+    "duration_seconds": 60,
+    "alert_channel": "all",
+    "description": "API latency > 5s sustained for 1 minute"
+  },
+  {
+    "id": "disk_space_low",
+    "metric_name": "disk_used_pct",
+    "threshold": 85,
+    "comparison": "gt",
+    "duration_seconds": 0,
+    "alert_channel": "all",
+    "description": "Disk usage > 85%"
+  },
+  {
+    "id": "project_failures",
+    "metric_name": "project_failures_total",
+    "threshold": 5,
+    "comparison": "gt",
+    "duration_seconds": 600,
+    "alert_channel": "all",
+    "description": "More than 5 project failures in 10 minutes"
+  },
+  {
+    "id": "health_degraded",
+    "metric_name": "health_status",
+    "threshold": 1,
+    "comparison": "gte",
+    "duration_seconds": 0,
+    "alert_channel": "all",
+    "description": "Any health check shows warning or critical status"
+  }
+]

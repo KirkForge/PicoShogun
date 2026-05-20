@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "supply-chain-scanner"
+version = "0.1.0"
+description = "Deterministic supply-chain scanner for npm/pnpm — offline, safe for ML pipelines"
+readme = "scanner/README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "55N10E"},
+]
+keywords = ["supply-chain", "security", "npm", "pnpm", "scanner", "deterministic", "ml-safe"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
+]
+
+[project.scripts]
+supply-chain-scanner = "scanner.cli:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["scanner*"]
+
+[tool.setuptools.package-data]
+scanner = ["corpus/*.json", "corpus/ioc/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["scanner/tests"]
+python_files = ["test_*.py"]

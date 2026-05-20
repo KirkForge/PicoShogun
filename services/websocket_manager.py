@@ -1,0 +1,76 @@
+"""Real-time WebSocket events for live monitoring."""
+import json
+import asyncio
+from typing import Set, Dict, Any
+from fastapi import WebSocket, WebSocketDisconnect
+
+from services.event_bus import event_bus, Event
+
+class ConnectionManager:
+    """Manage WebSocket connections with channel-based subscriptions."""
+    
+    def __init__(self):
+        self.connections: Dict[str, Set[WebSocket]] = {}
+        self.client_channels: Dict[WebSocket, Set[str]] = {}
+    
+    async def connect(self, websocket: WebSocket, channels: list = None):
+        await websocket.accept()
+        channels = set(channels or ["*"])
+        self._add_sub(websocket, channels)
+
+    def _add_sub(self, websocket: WebSocket, channels: set):
+        self.client_channels[websocket] = channels
+        for channel in channels:
+            if channel not in self.connections:
+                self.connections[channel] = set()
+            self.connections[channel].add(websocket)
+
+    def subscribe(self, websocket: WebSocket, channels: list):
+        """Update subscription channels without re-accepting."""
+        # Remove from old channels
+        if websocket in self.client_channels:
+            for ch in self.client_channels[websocket]:
+                self.connections[ch].discard(websocket)
+        self._add_sub(websocket, set(channels or ["*"]))
+    
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.client_channels:
+            for channel in self.client_channels[websocket]:
+                if channel in self.connections:
+                    self.connections[channel].discard(websocket)
+            del self.client_channels[websocket]
+    
+    async def broadcast(self, event_type: str, payload: Dict):
+        """Broadcast event to all clients subscribed to matching channels."""
+        message = json.dumps({
+            "type": event_type,
+            "payload": payload,
+            "timestamp": __import__('datetime').datetime.now().isoformat()
+        })
+        
+        # Send to wildcard subscribers
+        for ws in self.connections.get("*", set()).copy():
+            try:
+                await ws.send_text(message)
+            except:
+                pass
+        
+        # Send to specific channel subscribers
+        for ws in self.connections.get(event_type, set()).copy():
+            try:
+                await ws.send_text(message)
+            except:
+                pass
+
+ws_manager = ConnectionManager()
+
+def websocket_event_handler(event: Event):
+    """Bridge event bus to WebSocket clients."""
+    asyncio.create_task(ws_manager.broadcast(event.type, {
+        "source": event.source,
+        "payload": event.payload,
+        "priority": event.priority
+    }))
+
+# Auto-subscribe event bus to WebSocket
+event_bus.subscribe("*", websocket_event_handler)
