@@ -1,0 +1,8 @@
+.venv/
+iron_dome/
+picosentry/
+architecture/
+secdev_kimi\.db
+__pycache__/
+\.git/
+node_modules/
