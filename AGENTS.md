@@ -1,3 +1,6 @@
+
+**See also**: [REPORULES.md](../REPORULES.md) — multi-machine sync, git identity, PAT handling, and new-repo bootstrap.
+
 # AGENTS.md — Shogun
 
 ## ⚠️ Mandatory Rules — Read Before Editing
