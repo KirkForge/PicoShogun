@@ -6,7 +6,6 @@ import importlib
 import inspect
 import logging
 from typing import Dict, List, Any, Optional
-from pathlib import Path
 from dataclasses import dataclass
 
 logger = logging.getLogger("SecdevKimi.Plugins")

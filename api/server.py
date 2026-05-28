@@ -1,14 +1,13 @@
 """Enterprise REST API for Secdev_kimi with FastAPI."""
 from fastapi import Response, FastAPI, APIRouter, HTTPException, Depends, Query, Header, BackgroundTasks, status, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
-from datetime import datetime
-import asyncio
+from datetime import datetime, timezone
 import json
 import logging
 from pathlib import Path
@@ -25,18 +24,19 @@ from services.scheduler import scheduler
 from services.backup import BackupManager
 from services.log_manager import log_manager
 from services.event_bus import event_bus
-from services.websocket_manager import ws_manager, websocket_event_handler
+from services.websocket_manager import ws_manager
 from services.anomaly_detector import AnomalyDetector
 from middleware.rate_limit import RateLimitMiddleware
 from middleware.audit import AuditMiddleware
 from middleware.ddos_shield import DDoSShieldMiddleware
+from services.observability import init_telemetry, setup_fastapi_instrumentation
 
 logger = logging.getLogger("SecdevKimi.API")
 
 app = FastAPI(
     title="Secdev_kimi Enterprise API",
     description="Enterprise-grade security lab orchestration and intelligence platform",
-    version="2.12.0",
+    version="2.13.0",
     docs_url=settings.api.docs_url,
     redoc_url=settings.api.redoc_url,
 )
@@ -78,7 +78,7 @@ class ProjectRunRequest(BaseModel):
     parameters: Optional[Dict[str, Any]] = Field(None)
 
 class BatchRunRequest(BaseModel):
-    project_ids: List[str] = Field(..., min_items=1, max_items=20)
+    project_ids: List[str] = Field(..., min_length=1, max_length=20)
     timeout: Optional[int] = Field(300, ge=10, le=3600)
 
 class RegisterRequest(BaseModel):
@@ -210,7 +210,47 @@ async def root():
     try:
         return html_path.read_text(encoding="utf-8")
     except Exception:
-        return {"service": "Secdev_kimi Enterprise API", "version": "2.4.0", "status": "operational", "timestamp": datetime.utcnow().isoformat()}
+        return {"service": "Shogun Enterprise API", "version": "2.13.0", "status": "operational", "timestamp": datetime.now(timezone.utc).isoformat()}
+
+@app.get("/dashboard", tags=["Dashboard"], response_class=HTMLResponse)
+async def dashboard():
+    """Serve the enterprise command centre dashboard."""
+    import pathlib
+    html_path = pathlib.Path(__file__).parent.parent / "front" / "index.html"
+    try:
+        return html_path.read_text(encoding="utf-8")
+    except Exception:
+        raise HTTPException(status_code=404, detail="Dashboard not found")
+
+@app.get("/api/v1/dashboard/summary", tags=["Dashboard"])
+async def dashboard_summary(user: dict = Depends(get_current_user)):
+    """Aggregated dashboard data — single-call overview for the command centre."""
+    status = orchestrator.get_status()
+    health = orchestrator.get_health_checks()
+    recent_projects = orchestrator.list_projects(limit=10)
+    recent_intel = db.execute(
+        "SELECT id, source_project, intel_type, severity, confidence, created_at FROM intelligence ORDER BY created_at DESC LIMIT 10",
+        ()
+    )
+    recent_alerts = db.execute(
+        "SELECT id, project_id, alert_type, severity, message, channel, sent, created_at FROM alerts ORDER BY created_at DESC LIMIT 10",
+        ()
+    )
+    pending_alerts = db.execute_one("SELECT COUNT(*) as c FROM alerts WHERE sent = 0")
+    health_overall = "healthy"
+    if any(c["status"] == "critical" for c in health):
+        health_overall = "critical"
+    elif any(c["status"] in ("warning", "degraded") for c in health):
+        health_overall = "degraded"
+    return {
+        "status": status,
+        "health": {"overall": health_overall, "checks": health},
+        "recent_projects": [dict(p) for p in recent_projects],
+        "recent_intelligence": [dict(i) for i in recent_intel] if recent_intel else [],
+        "recent_alerts": [dict(a) for a in recent_alerts] if recent_alerts else [],
+        "pending_alerts_count": pending_alerts["c"] if pending_alerts else 0,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
 
 @app.get("/health", response_model=HealthReadiness, tags=["Health"])
 async def health_check():
@@ -226,7 +266,7 @@ async def health_check():
     return {
         "overall": overall,
         "checks": checks,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
 @app.get("/health/history", tags=["Health"])
@@ -356,7 +396,7 @@ async def export_project(
     
     export_data = {
         "export_version": "2.9.0",
-        "exported_at": datetime.utcnow().isoformat(),
+        "exported_at": datetime.now(timezone.utc).isoformat(),
         "project_id": project_id,
         "project_config": project,
         "project_runs": [dict(r) for r in runs],
@@ -649,7 +689,6 @@ async def get_logs(
 ):
     """Read log file contents with filtering and pagination."""
     import re
-    from pathlib import Path
 
     log_file = log_manager.log_dir / (file or "orchestrator.log")
     if not log_file.exists() or not str(log_file).startswith(str(log_manager.log_dir)):
@@ -679,8 +718,7 @@ async def get_logs(
             continue
         if cutoff and log_dt_str:
             try:
-                from datetime import datetime as _dt
-                log_dt = _dt.fromisoformat(log_dt_str.replace(" ", "T"))
+                log_dt = datetime.fromisoformat(log_dt_str.replace(" ", "T"))
                 if log_dt < cutoff:
                     break
             except Exception:
@@ -708,7 +746,6 @@ async def get_logs(
 @app.get("/metrics/prometheus", tags=["Metrics"])
 async def get_prometheus_metrics():
     """Prometheus scraper endpoint — unauthenticated by design."""
-    from fastapi import Response
     return Response(content=metrics.to_prometheus(), media_type="text/plain")
 
 @app.get("/metrics/json", tags=["Metrics"])
@@ -867,9 +904,15 @@ async def update_anomaly_rule(rule_id: str, enabled: Optional[bool] = None, thre
 
 # ─── Startup ──────────────────────────────────────────────────────────────
 
+# TODO: Migrate startup/shutdown to FastAPI lifespan (on_event is deprecated in FastAPI 0.100+)
 @app.on_event("startup")
 async def startup_event():
     """Start background services on API startup."""
+    # Initialize OpenTelemetry (gracefully no-ops if not configured)
+    init_telemetry(service_name="shogun")
+    setup_fastapi_instrumentation(app)
+    logger.info("OpenTelemetry initialized (if endpoint configured)")
+    
     anomaly_detector.start()
     logger.info("Anomaly detector started (60s check interval)")
 

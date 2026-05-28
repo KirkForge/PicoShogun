@@ -5,10 +5,9 @@ import sched
 import time
 import threading
 import logging
-from typing import Dict, List, Optional, Callable
+from typing import Dict, List, Optional
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from croniter import croniter
 
 from database.manager import db
 
@@ -144,7 +143,6 @@ class JobScheduler:
         
         try:
             status = "failed"
-            output = ""
             
             if job.command == "batch":
                 import subprocess
@@ -155,7 +153,7 @@ class JobScheduler:
                     timeout=3600
                 )
                 status = "completed" if result.returncode == 0 else "failed"
-                output = result.stdout + result.stderr
+                _output = result.stdout + result.stderr
             
             elif job.command == "run":
                 from services.orchestrator import EnhancedOrchestrator
@@ -163,12 +161,12 @@ class JobScheduler:
                 result = orch.run_project(job.params.get("project_id"), 
                                          job.params.get("timeout", 300))
                 status = result.get("status", "failed")
-                output = str(result)
+                _output = str(result)
             
             elif job.command == "report":
                 from services.orchestrator import EnhancedOrchestrator
                 orch = EnhancedOrchestrator()
-                output = orch.generate_summary_report()
+                _report = orch.generate_summary_report()
                 status = "completed"
             
             elif job.command == "backup":
@@ -176,8 +174,8 @@ class JobScheduler:
                 bm = BackupManager()
                 result = bm.create_backup()
                 status = "completed" if result else "failed"
-                output = str(result)
-            
+                _output = str(result)
+
             # Update job status
             db.execute_insert("""
                 UPDATE scheduled_jobs 

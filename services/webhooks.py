@@ -6,9 +6,9 @@ import secrets
 import logging
 import ipaddress
 from urllib.parse import urlparse
-from typing import Dict, List, Any, Optional
+from typing import Dict, List
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 try:
     import requests
@@ -146,7 +146,7 @@ class WebhookManager:
             
             event_payload = {
                 "event": event,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "data": payload
             }
             

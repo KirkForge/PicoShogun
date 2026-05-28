@@ -2,10 +2,9 @@
 import json
 import time
 import threading
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 from collections import defaultdict
-from dataclasses import dataclass, asdict
-from datetime import datetime
+from dataclasses import dataclass
 
 @dataclass
 class Metric:
@@ -96,8 +95,8 @@ class MetricsCollector:
         lines = []
         
         # Add uptime
-        lines.append(f"# HELP secdev_uptime_seconds Total uptime in seconds")
-        lines.append(f"# TYPE secdev_uptime_seconds gauge")
+        lines.append("# HELP secdev_uptime_seconds Total uptime in seconds")
+        lines.append("# TYPE secdev_uptime_seconds gauge")
         lines.append(f"secdev_uptime_seconds {self.uptime_seconds()}")
         
         with self._lock:

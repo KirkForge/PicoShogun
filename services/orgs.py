@@ -1,7 +1,7 @@
 """Organization model — multi-tenancy foundation."""
 import secrets
 from typing import Optional, List, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 
 from database.manager import db
 
@@ -31,13 +31,13 @@ class Organization:
         org_id = db.execute_insert("""
             INSERT INTO orgs (name, slug, owner_id, tier, api_key, is_active, created_at)
             VALUES (?, ?, ?, ?, ?, 1, ?)
-        """, (name, slug, owner_user_id, tier, api_key, datetime.utcnow()))
+        """, (name, slug, owner_user_id, tier, api_key, datetime.now(timezone.utc)))
         
         # Add owner as member
         db.execute_insert("""
             INSERT INTO org_users (org_id, user_id, role, invited_at, joined_at)
             VALUES (?, ?, 'admin', ?, ?)
-        """, (org_id, owner_user_id, datetime.utcnow(), datetime.utcnow()))
+        """, (org_id, owner_user_id, datetime.now(timezone.utc), datetime.now(timezone.utc)))
         
         return org_id
     
@@ -111,7 +111,7 @@ class Organization:
             return False
         db.execute_insert(
             "UPDATE orgs SET tier = ?, updated_at = ? WHERE id = ?",
-            (new_tier, datetime.utcnow(), org_id)
+            (new_tier, datetime.now(timezone.utc), org_id)
         )
         return True
     

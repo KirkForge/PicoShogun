@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Renumber duplicate project dirs to eliminate collisions."""
 
-import os
 import shutil
 from pathlib import Path
 

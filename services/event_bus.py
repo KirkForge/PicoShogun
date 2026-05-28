@@ -1,12 +1,11 @@
 """Event bus for pub/sub communication between components."""
-import json
 import uuid
 import logging
 import threading
-from typing import Dict, List, Callable, Any, Optional
+from typing import Dict, List, Callable, Any
 from collections import defaultdict
-from dataclasses import dataclass, asdict
-from datetime import datetime
+from dataclasses import dataclass
+from datetime import datetime, timezone
 
 logger = logging.getLogger("SecdevKimi.EventBus")
 
@@ -62,7 +61,7 @@ class EventBus:
             type=event_type,
             source=source,
             payload=payload,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(timezone.utc),
             priority=priority
         )
         

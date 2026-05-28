@@ -12,8 +12,6 @@ Schedule design:
 """
 
 import json
-import subprocess
-import sys
 from pathlib import Path
 
 CONFIG = Path("/home/kirk/.picoclaw/workspace/Secdev_kimi/config")
@@ -63,7 +61,7 @@ for pid, meta in registry.items():
         # Derive offset from project number to spread load
         try:
             num = int(pid.split("_", 1)[0])
-        except:
+        except (ValueError, TypeError):
             num = 0
         
         # Map interval to cron expression

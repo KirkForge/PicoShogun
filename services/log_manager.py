@@ -1,5 +1,4 @@
 """Log rotation and management for Secdev_kimi."""
-import os
 import gzip
 import shutil
 import logging

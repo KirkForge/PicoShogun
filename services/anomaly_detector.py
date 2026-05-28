@@ -3,14 +3,17 @@
 import json
 import time
 import threading
-import statistics
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict, field
-from datetime import datetime
+import logging
+from datetime import datetime, timezone
 
 from services.metrics import metrics
+
 from database.manager import DatabaseManager
+
+logger = logging.getLogger("SecdevKimi.Anomaly")
 
 CONFIG_PATH = Path(__file__).parent.parent / "config" / "anomaly_rules.json"
 
@@ -230,7 +233,7 @@ class AnomalyDetector:
                     value=value,
                     threshold=rule.threshold,
                     comparison=rule.comparison,
-                    timestamp=datetime.utcnow().isoformat(),
+                    timestamp=datetime.now(timezone.utc).isoformat(),
                     description=rule.description,
                     severity=severity
                 )
@@ -298,7 +301,7 @@ class AnomalyDetector:
             # Deduplicate: don't fire same rule within 5 minutes
             recent = [a for a in self.alert_history
                        if a.rule_id == alert.rule_id
-                       and (datetime.utcnow() - datetime.fromisoformat(a.timestamp)).total_seconds() < 300]
+                       and (datetime.now(timezone.utc) - datetime.fromisoformat(a.timestamp)).total_seconds() < 300]
             if not recent:
                 self._fire_alert(alert)
 

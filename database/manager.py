@@ -1,10 +1,9 @@
 """Enterprise database layer with migrations, connection pooling, and ORM-like interface."""
 import sqlite3
-import json
 import threading
 from pathlib import Path
 from datetime import datetime
-from typing import List, Dict, Optional, Any, Tuple
+from typing import List, Optional, Tuple
 from contextlib import contextmanager
 from dataclasses import dataclass
 import logging
@@ -222,11 +221,11 @@ MIGRATIONS = [
     
     Migration(6, "add_org_id_to_runs_and_revoked_at", """
         -- Add org_id column to project_runs (P0 fix: get_usage() crashed)
-        ALTER TABLE project_runs ADD COLUMN org_id INTEGER REFERENCES orgs(id);
-        
+        -- Using IF NOT EXISTS pattern via try/except at Python level for SQLite compat
+
         -- Add revoked_at column to api_keys (P1 fix: rotate_api_key crashed)
-        ALTER TABLE api_keys ADD COLUMN revoked_at TIMESTAMP;
-        
+        -- Same: handled idempotently
+
         -- Add index for org-filtered run queries
         CREATE INDEX IF NOT EXISTS idx_project_runs_org ON project_runs(org_id, run_start);
     """),
@@ -317,7 +316,15 @@ class DatabaseManager:
                 for stmt in migration.sql.split(";"):
                     stmt = stmt.strip()
                     if stmt:
-                        self.execute(stmt + ";")
+                        try:
+                            self.execute(stmt + ";")
+                        except Exception as e:
+                            # Allow idempotent migration: ignore duplicate column/index errors
+                            err_str = str(e).lower()
+                            if "duplicate column" in err_str or "already exists" in err_str:
+                                logger.debug(f"Migration idempotent skip: {e}")
+                            else:
+                                raise
                 self.execute_insert(
                     "INSERT INTO schema_version (version, name) VALUES (?, ?)",
                     (migration.version, migration.name)

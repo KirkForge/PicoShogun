@@ -1,7 +1,6 @@
 """Rate limiting middleware."""
 import time
 import threading
-from typing import Dict, List
 from collections import defaultdict
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -68,11 +67,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
             # ── Per-Org limit (check first — org keys have higher quota) ──
             org_api_key = request.headers.get("X-Org-API-Key", "")
+            rate_limited = False
             if org_api_key and isinstance(org_api_key, str) and (org_api_key.startswith("sk_") or org_api_key.startswith("pk_")):
                 org_count = self._clean_and_count(self.org_requests, org_api_key, now)
                 if org_count >= self.max_requests_per_org:
                     retry_after = int(self.window - (now - self.org_requests[org_api_key][0]) + 1)
-                    return JSONResponse(
+                    rate_limited = True
+                    rate_limit_response = JSONResponse(
                         {
                             "error": "Organization rate limit exceeded",
                             "limit": self.max_requests_per_org,
@@ -81,21 +82,27 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                         status_code=429,
                         headers={"Retry-After": str(max(retry_after, 1))},
                     )
-                self.org_requests[org_api_key].append(now)
+                else:
+                    self.org_requests[org_api_key].append(now)
 
             # ── Per-IP limit ──
-            ip_count = self._clean_and_count(self.ip_requests, client_ip, now)
-            if ip_count >= self.max_requests_per_ip:
-                retry_after = int(self.window - (now - self.ip_requests[client_ip][0]) + 1)
-                return JSONResponse(
-                    {
-                        "error": "Rate limit exceeded",
-                        "limit": self.max_requests_per_ip,
-                        "window": f"{self.window}s",
-                    },
-                    status_code=429,
-                    headers={"Retry-After": str(max(retry_after, 1))},
-                )
+            if not rate_limited:
+                ip_count = self._clean_and_count(self.ip_requests, client_ip, now)
+                if ip_count >= self.max_requests_per_ip:
+                    retry_after = int(self.window - (now - self.ip_requests[client_ip][0]) + 1)
+                    rate_limited = True
+                    rate_limit_response = JSONResponse(
+                        {
+                            "error": "Rate limit exceeded",
+                            "limit": self.max_requests_per_ip,
+                            "window": f"{self.window}s",
+                        },
+                        status_code=429,
+                        headers={"Retry-After": str(max(retry_after, 1))},
+                    )
+                else:
+                    self.ip_requests[client_ip].append(now)
 
-            self.ip_requests[client_ip].append(now)
+        if rate_limited:
+            return rate_limit_response
         return await call_next(request)

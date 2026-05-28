@@ -1,9 +1,7 @@
 """Enterprise alert hub with multi-channel delivery and deduplication."""
-import os
-import json
 import logging
 from typing import List, Dict, Optional, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 from collections import defaultdict
 import threading
 
@@ -37,7 +35,7 @@ class AlertHub:
         
         # Deduplication check
         with self._lock:
-            now = datetime.now()
+            now = datetime.now(timezone.utc)
             key = f"{project_id}:{alert_type}"
             
             # Clean old entries
@@ -119,13 +117,13 @@ class AlertHub:
         }
         
         embed = {
-            "title": f"🛡️ Secdev_kimi Alert",
+            "title": "🛡️ Secdev_kimi Alert",
             "description": message,
             "color": colors.get(severity, 3447003),
             "fields": [
                 {"name": "Project", "value": project_id, "inline": True},
                 {"name": "Severity", "value": severity.upper(), "inline": True},
-                {"name": "Time", "value": datetime.now().isoformat(), "inline": True}
+                {"name": "Time", "value": datetime.now(timezone.utc).isoformat(), "inline": True}
             ],
             "footer": {"text": "Secdev_kimi Enterprise"}
         }
@@ -172,7 +170,7 @@ class AlertHub:
                 "text": message,
                 "fields": [
                     {"title": "Severity", "value": severity.upper(), "short": True},
-                    {"title": "Time", "value": datetime.now().isoformat(), "short": True}
+                    {"title": "Time", "value": datetime.now(timezone.utc).isoformat(), "short": True}
                 ]
             }]
         }
@@ -208,7 +206,7 @@ Secdev_kimi Alert
 
 Project: {project_id}
 Severity: {severity.upper()}
-Time: {datetime.now().isoformat()}
+Time: {datetime.now(timezone.utc).isoformat()}
 
 {message}
             """)
@@ -276,7 +274,7 @@ Time: {datetime.now().isoformat()}
                 sent,
                 COUNT(*) as count
             FROM alerts
-            WHERE created_at > datetime('now', '-? hours')
+            WHERE created_at > datetime('now', '-' || ? || ' hours')
             GROUP BY severity, channel, sent
         """, (hours,))
         

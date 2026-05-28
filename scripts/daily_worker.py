@@ -2,8 +2,6 @@
 """Daily SaaS gap worker — picks top task from backlog, executes, commits."""
 import subprocess
 import re
-import sys
-import os
 from datetime import datetime
 from pathlib import Path
 

@@ -1,10 +1,9 @@
 """Authentication and authorization service with JWT and API keys."""
-import os
 import hashlib
 import secrets
 import logging
 from typing import Optional, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 try:
     import jwt
@@ -72,7 +71,7 @@ class AuthService:
         # Update last login
         db.execute_insert(
             "UPDATE users SET last_login = ? WHERE id = ?",
-            (datetime.utcnow(), user["id"])
+            (datetime.now(timezone.utc), user["id"])
         )
         
         # Generate token
@@ -85,7 +84,7 @@ class AuthService:
         """Generate JWT token."""
         if not HAS_JWT:
             # Fallback to simple signed token
-            payload = f"{user_id}:{username}:{role}:{int(datetime.utcnow().timestamp())}"
+            payload = f"{user_id}:{username}:{role}:{int(datetime.now(timezone.utc).timestamp())}"
             signature = hashlib.sha256(f"{payload}:{self.secret_key}".encode()).hexdigest()
             return f"simple:{payload}:{signature}"
         
@@ -93,8 +92,8 @@ class AuthService:
             "user_id": user_id,
             "username": username,
             "role": role,
-            "exp": datetime.utcnow() + timedelta(hours=self.expiration_hours),
-            "iat": datetime.utcnow()
+            "exp": datetime.now(timezone.utc) + timedelta(hours=self.expiration_hours),
+            "iat": datetime.now(timezone.utc)
         }
         
         return jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
@@ -102,13 +101,22 @@ class AuthService:
     def validate_token(self, token: str) -> Optional[Dict[str, Any]]:
         """Validate and decode JWT token."""
         if token.startswith("simple:"):
-            # Validate simple token
-            _, payload, signature = token.split(":", 2)
+            # Validate simple token — signature is the last colon-separated field
+            without_prefix = token[len("simple:"):]
+            last_colon = without_prefix.rfind(":")
+            if last_colon < 0:
+                return None
+            payload = without_prefix[:last_colon]
+            signature = without_prefix[last_colon + 1:]
             expected = hashlib.sha256(f"{payload}:{self.secret_key}".encode()).hexdigest()
             if signature != expected:
                 return None
             
-            parts = payload.split(":")
+            # Split with maxsplit=3: user_id, username, role, timestamp
+            # This allows username to contain colons
+            parts = payload.split(":", 3)
+            if len(parts) < 4:
+                return None
             return {
                 "id": int(parts[0]),
                 "user_id": int(parts[0]),
@@ -158,7 +166,7 @@ class AuthService:
         api_key = secrets.token_urlsafe(32)
         key_hash = hashlib.sha256(api_key.encode()).hexdigest()
         
-        expires = datetime.utcnow() + timedelta(days=90)
+        expires = datetime.now(timezone.utc) + timedelta(days=90)
         
         db.execute_insert("""
             INSERT INTO api_keys (key_hash, user_id, name, permissions, expires_at)
@@ -178,7 +186,7 @@ class AuthService:
             JOIN users u ON ak.user_id = u.id
             WHERE ak.key_hash = ? AND ak.is_active = 1
             AND (ak.expires_at IS NULL OR ak.expires_at > ?)
-        """, (key_hash, datetime.utcnow()))
+        """, (key_hash, datetime.now(timezone.utc)))
         
         if not key:
             return None
@@ -186,7 +194,7 @@ class AuthService:
         # Update last used
         db.execute_insert(
             "UPDATE api_keys SET last_used = ? WHERE id = ?",
-            (datetime.utcnow(), key["id"])
+            (datetime.now(timezone.utc), key["id"])
         )
         
         return {
@@ -202,7 +210,7 @@ class AuthService:
         with db.transaction() as conn:
             conn.execute(
                 "UPDATE api_keys SET is_active = 0, revoked_at = ? WHERE id = ?",
-                (datetime.utcnow(), key_id)
+                (datetime.now(timezone.utc), key_id)
             )
         return True
     
@@ -220,13 +228,13 @@ class AuthService:
         with db.transaction() as conn:
             conn.execute(
                 "UPDATE api_keys SET is_active = 0, revoked_at = ? WHERE id = ?",
-                (datetime.utcnow(), key_id)
+                (datetime.now(timezone.utc), key_id)
             )
         
         # Create new with same permissions
         new_api_key = secrets.token_urlsafe(32)
         key_hash = hashlib.sha256(new_api_key.encode()).hexdigest()
-        expires = datetime.utcnow() + timedelta(days=90)
+        expires = datetime.now(timezone.utc) + timedelta(days=90)
         
         db.execute_insert("""
             INSERT INTO api_keys (key_hash, user_id, name, permissions, expires_at)

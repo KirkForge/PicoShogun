@@ -39,3 +39,5 @@ coverage.xml
 
 # Env
 .env.*
+secdev_kimi.db
+secdev_kimi.db-*

@@ -18,15 +18,12 @@ import sys
 import json
 import sqlite3
 import logging
-import asyncio
-import threading
 import subprocess
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime
 from dataclasses import dataclass, asdict
-from typing import Dict, List, Optional, Any, Callable
+from typing import Dict, List, Any
 from collections import defaultdict
-import importlib.util
 
 # ─── Paths ──────────────────────────────────────────────────────────────────
 BASE_DIR = Path(__file__).parent.parent
@@ -202,7 +199,7 @@ class ProjectRegistry:
                 category=cat,
                 priority=5,
                 dependencies=[],
-                cron_schedule=f"*/10 * * * *",  # Every 10 min (placeholder)
+                cron_schedule="*/10 * * * *",  # Every 10 min (placeholder)
                 estimated_duration=10,
                 status="pending"
             )

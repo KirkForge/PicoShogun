@@ -1,16 +1,14 @@
 """Backup and restore system for database and logs."""
-import os
 import json
-import gzip
+import os
 import shutil
 import tarfile
 import logging
 from typing import Optional, List, Dict
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from config.settings import settings
-from database.manager import db
 
 logger = logging.getLogger("SecdevKimi.Backup")
 
@@ -24,7 +22,7 @@ class BackupManager:
     
     def create_backup(self, name: str = None, include_logs: bool = True) -> Optional[Dict]:
         """Create a full backup of database and optionally logs."""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         name = name or f"secdev_{timestamp}"
         backup_path = self.backup_dir / f"{name}.tar.gz"
         
@@ -41,7 +39,7 @@ class BackupManager:
             # Create metadata
             meta = {
                 "version": "2.0.0",
-                "created": datetime.now().isoformat(),
+                "created": datetime.now(timezone.utc).isoformat(),
                 "database_size": db_backup.stat().st_size,
                 "include_logs": include_logs
             }
@@ -94,12 +92,18 @@ class BackupManager:
             logger.warning(f"About to restore over database ({current_db_size} bytes). Use force=True to confirm.")
             return False
         
-        temp_dir = self.backup_dir / f"restore_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        temp_dir = self.backup_dir / f"restore_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
         
         try:
             # Extract backup
             with tarfile.open(str(backup_path), "r:gz") as tar:
-                tar.extractall(str(temp_dir))
+                # Safe extraction: filter out paths with .. or absolute paths
+                for member in tar.getmembers():
+                    member_path = os.path.normpath(member.name)
+                    if member_path.startswith('..') or os.path.isabs(member.name):
+                        logger.warning(f"Skipping unsafe path in archive: {member.name}")
+                        continue
+                    tar.extract(member, str(temp_dir))
             
             # Verify metadata
             meta_path = temp_dir / "metadata.json"
@@ -112,7 +116,7 @@ class BackupManager:
             db_backup = temp_dir / "database.sqlite3"
             if db_backup.exists():
                 # Backup current first
-                current_backup = f"{self.db_path}.pre_restore_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                current_backup = f"{self.db_path}.pre_restore_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
                 shutil.copy2(str(self.db_path), current_backup)
                 
                 # Restore
@@ -161,7 +165,7 @@ class BackupManager:
         if not self.backup_dir.exists() or self.retention_days <= 0:
             return 0
         
-        cutoff = datetime.now().timestamp() - (self.retention_days * 86400)
+        cutoff = datetime.now(timezone.utc).timestamp() - (self.retention_days * 86400)
         removed = 0
         
         for backup_file in self.backup_dir.glob("*.tar.gz"):
@@ -175,7 +179,7 @@ class BackupManager:
     def auto_backup(self) -> Optional[Dict]:
         """Create automated daily backup with cleanup."""
         result = self.create_backup(
-            name=f"auto_{datetime.now().strftime('%Y%m%d')}",
+            name=f"auto_{datetime.now(timezone.utc).strftime('%Y%m%d')}",
             include_logs=True
         )
         

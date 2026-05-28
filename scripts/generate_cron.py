@@ -5,8 +5,6 @@ Smart filtering: only creates entries for projects with executable scripts.
 """
 
 import json
-import subprocess
-import sys
 from pathlib import Path
 
 BASE = Path("/home/kirk/.picoclaw/workspace")
@@ -76,7 +74,7 @@ for pid, meta in registry.items():
         # Derive offset from project number
         try:
             num = int(pid.split("_", 1)[0])
-        except:
+        except (ValueError, TypeError):
             num = 0
         
         if interval == 30:

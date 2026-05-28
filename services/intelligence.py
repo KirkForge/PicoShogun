@@ -2,9 +2,8 @@
 import json
 import re
 import logging
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional
 from collections import defaultdict
-from datetime import datetime
 
 from database.manager import db
 
@@ -132,7 +131,7 @@ class IntelligenceEngine:
         """Check if a match is inside a file path (e.g., /home/user/project.py)."""
         # Look for path separators around the match
         before = text[max(0, match_start - 50):match_start]
-        after = text[match_end:min(len(text), match_end + 50)]
+        # Check for file extension after match
         # If there's a / or \ within 20 chars before and .py or similar after
         if '/' in before[-20:] or '\\' in before[-20:]:
             return True
@@ -246,8 +245,6 @@ class IntelligenceEngine:
     
     def classify_failure(self, project_id: str, output: str) -> Optional[Dict[str, Any]]:
         """Classify script failure type from stderr/stdout. Returns intelligence dict or None."""
-        text = output.lower()
-        
         signatures = [
             ("syntax_error", r"(indentationerror|syntaxerror|unexpected token|invalid syntax)", "critical", "Python syntax/indentation error — code will never run"),
             ("permission_denied", r"(permission denied|operation not permitted|eacces|access is denied)", "high", "Insufficient privileges for operation"),
@@ -313,9 +310,12 @@ class IntelligenceEngine:
         logger.info(f"Aggregate threat: {total:.1f} [{level}] ({len(self.threat_scores)} sources)")
     
     def _threat_level(self, score: float) -> str:
-        if score >= 50: return "critical"
-        if score >= 20: return "high"
-        if score >= 5: return "medium"
+        if score >= 50:
+            return "critical"
+        if score >= 20:
+            return "high"
+        if score >= 5:
+            return "medium"
         return "low"
     
     def get_aggregate_score(self) -> float:

@@ -49,14 +49,14 @@ class TestModels:
 
     def test_scan_result_deterministic_id(self):
         """Same target + corpus = same scan_id."""
-        from scanner.models import ScanResult, ScanStats
+        from scanner.models import ScanResult
         r1 = ScanResult(target="/foo", engine_version="0.1.0", corpus_version="0.1.0")
         r2 = ScanResult(target="/foo", engine_version="0.1.0", corpus_version="0.1.0")
         assert r1.scan_id == r2.scan_id
 
     def test_scan_result_different_target(self):
         """Different target = different scan_id."""
-        from scanner.models import ScanResult, ScanStats
+        from scanner.models import ScanResult
         r1 = ScanResult(target="/foo", engine_version="0.1.0", corpus_version="0.1.0")
         r2 = ScanResult(target="/bar", engine_version="0.1.0", corpus_version="0.1.0")
         assert r1.scan_id != r2.scan_id
@@ -123,7 +123,7 @@ class TestEngine:
         result = engine.scan(str(CLEAN))
         # Clean project should have minimal findings (no critical/high)
         critical = [f for f in result.findings if f.severity == Severity.CRITICAL]
-        high = [f for f in result.findings if f.severity == Severity.HIGH]
+        # high findings are not asserted separately — the critical check is sufficient
         # May have INFO findings (provenance) but no critical ones
         assert len(critical) == 0, f"Unexpected critical findings: {critical}"
 

@@ -2,15 +2,13 @@
 import os
 import sys
 import json
-import asyncio
 import threading
 import subprocess
 import logging
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, asdict
-from collections import defaultdict
+from dataclasses import dataclass
 import time
 
 from config.settings import settings
@@ -97,21 +95,23 @@ class EnhancedOrchestrator:
         
         # Determine system health
         health = "healthy"
-        if conn_stats and conn_stats["failed"] > conn_stats["completed"] * 0.3:
+        failed = (conn_stats["failed"] or 0) if conn_stats else 0
+        completed = (conn_stats["completed"] or 0) if conn_stats else 0
+        if failed > completed * 0.3 and completed > 0:
             health = "degraded"
-        if threats and threats["count"] > 10:
+        if threats and (threats["count"] or 0) > 10:
             health = "critical"
         
         return {
             "projects_total": len(self.registry),
             "projects_active": db.execute_one("SELECT COUNT(*) as c FROM project_runs WHERE status = 'running'")["c"] or 0,
-            "projects_failed": conn_stats["failed"] if conn_stats else 0,
-            "active_threats": threats["count"] if threats else 0,
-            "pending_alerts": pending["count"] if pending else 0,
+            "projects_failed": failed,
+            "active_threats": (threats["count"] or 0) if threats else 0,
+            "pending_alerts": (pending["count"] or 0) if pending else 0,
             "threat_score": self.intel.get_aggregate_score(),
             "system_health": health,
             "uptime_seconds": time.time() - self._start_time,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
     
     def list_projects(self, category: Optional[str] = None, 
@@ -171,7 +171,7 @@ class EnhancedOrchestrator:
         run_id = db.execute_insert("""
             INSERT INTO project_runs (project_id, run_start, status)
             VALUES (?, ?, ?)
-        """, (project_id, datetime.utcnow(), "running"))
+        """, (project_id, datetime.now(timezone.utc), "running"))
         
         event_bus.publish(
             "project.run.started",
@@ -224,7 +224,7 @@ class EnhancedOrchestrator:
                     intelligence_extracted = ?, alerts_generated = ?
                 WHERE id = ?
             """, (
-                datetime.utcnow(), status, result.returncode,
+                datetime.now(timezone.utc), status, result.returncode,
                 result.stdout, result.stderr, duration,
                 json.dumps(intel_data), len(intel_data),
                 run_id
@@ -300,7 +300,7 @@ class EnhancedOrchestrator:
                 UPDATE project_runs 
                 SET run_end = ?, status = ?, duration_seconds = ?
                 WHERE id = ?
-            """, (datetime.utcnow(), "timeout", duration, run_id))
+            """, (datetime.now(timezone.utc), "timeout", duration, run_id))
             
             self.alerts.send(project_id, "timeout", "high",
                            f"Project timed out after {timeout}s")
@@ -327,7 +327,7 @@ class EnhancedOrchestrator:
                 UPDATE project_runs 
                 SET run_end = ?, status = ?, duration_seconds = ?
                 WHERE id = ?
-            """, (datetime.utcnow(), "failed", duration, run_id))
+            """, (datetime.now(timezone.utc), "failed", duration, run_id))
             
             self.alerts.send(project_id, "execution_error", "high", str(e))
             
@@ -364,7 +364,7 @@ class EnhancedOrchestrator:
                 UPDATE projects 
                 SET last_run = ?, run_count = ?, success_rate = ?, avg_duration = ?
                 WHERE id = ?
-            """, (datetime.utcnow(), stats["total"], success_rate, 
+            """, (datetime.now(timezone.utc), stats["total"], success_rate, 
                    stats["avg_dur"] or 0, project_id))
     
     def run_batch(self, project_ids: List[str], timeout: Optional[int] = None) -> Dict[str, Dict]:
@@ -420,9 +420,12 @@ class EnhancedOrchestrator:
         }
     
     def _threat_level(self, score: float) -> str:
-        if score >= 50: return "critical"
-        if score >= 20: return "high"
-        if score >= 5: return "medium"
+        if score >= 50:
+            return "critical"
+        if score >= 20:
+            return "high"
+        if score >= 5:
+            return "medium"
         return "low"
     
     def list_alerts(self, sent: Optional[bool] = None,
@@ -486,7 +489,7 @@ class EnhancedOrchestrator:
                 "status": "healthy",
                 "message": "Connected",
                 "latency_ms": round(latency, 2),
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
         except Exception as e:
             checks.append({
@@ -494,7 +497,7 @@ class EnhancedOrchestrator:
                 "status": "critical",
                 "message": str(e),
                 "latency_ms": 0,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
         
         # Disk space check
@@ -510,7 +513,7 @@ class EnhancedOrchestrator:
                 "status": status,
                 "message": f"{free_gb:.1f}GB free of {total_gb:.1f}GB ({used_pct:.1f}% used)",
                 "latency_ms": 0,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
         except Exception as e:
             checks.append({
@@ -518,7 +521,7 @@ class EnhancedOrchestrator:
                 "status": "unknown",
                 "message": str(e),
                 "latency_ms": 0,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
         
         # Project directories check
@@ -529,7 +532,7 @@ class EnhancedOrchestrator:
                 "status": "healthy",
                 "message": f"{project_count} projects available",
                 "latency_ms": 0,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
         
         # Store health checks
@@ -557,7 +560,7 @@ class EnhancedOrchestrator:
                         "status": "healthy",
                         "message": "SMTP reachable",
                         "latency_ms": round(latency, 2),
-                        "timestamp": datetime.utcnow().isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat()
                     })
             else:
                 checks.append({
@@ -565,7 +568,7 @@ class EnhancedOrchestrator:
                     "status": "disabled",
                     "message": "SMTP not configured",
                     "latency_ms": 0,
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 })
         except Exception as e:
             checks.append({
@@ -573,7 +576,7 @@ class EnhancedOrchestrator:
                 "status": "critical",
                 "message": f"SMTP unreachable: {e}",
                 "latency_ms": 0,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
         
         return checks

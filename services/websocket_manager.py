@@ -1,8 +1,9 @@
 """Real-time WebSocket events for live monitoring."""
 import json
 import asyncio
-from typing import Set, Dict, Any
-from fastapi import WebSocket, WebSocketDisconnect
+from typing import Set, Dict
+from datetime import datetime
+from fastapi import WebSocket
 
 from services.event_bus import event_bus, Event
 
@@ -45,32 +46,38 @@ class ConnectionManager:
         message = json.dumps({
             "type": event_type,
             "payload": payload,
-            "timestamp": __import__('datetime').datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat()
         })
         
         # Send to wildcard subscribers
         for ws in self.connections.get("*", set()).copy():
             try:
                 await ws.send_text(message)
-            except:
+            except Exception:
                 pass
         
         # Send to specific channel subscribers
         for ws in self.connections.get(event_type, set()).copy():
             try:
                 await ws.send_text(message)
-            except:
+            except Exception:
                 pass
 
 ws_manager = ConnectionManager()
 
 def websocket_event_handler(event: Event):
-    """Bridge event bus to WebSocket clients."""
-    asyncio.create_task(ws_manager.broadcast(event.type, {
-        "source": event.source,
-        "payload": event.payload,
-        "priority": event.priority
-    }))
+    """Bridge event bus to WebSocket clients — thread-safe."""
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(ws_manager.broadcast(event.type, {
+            "source": event.source,
+            "payload": event.payload,
+            "priority": event.priority
+        }))
+    except RuntimeError:
+        # No running event loop — skip WebSocket broadcast
+        # (e.g. during startup or when called from sync code)
+        pass
 
 # Auto-subscribe event bus to WebSocket
 event_bus.subscribe("*", websocket_event_handler)
