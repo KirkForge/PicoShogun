@@ -1,66 +1,54 @@
 # Shogun — Project Scope & Prompt Pack
 
 ## Project Identity
-**Shogun** is a security lab orchestrator: FastAPI API + SQLite backend that runs 75 Hivemind-projects, extracts intelligence from their output, alerts on findings, and exposes it all via REST/WebSocket/CLI. Version 2.4.0.
+**Shogun** is an enterprise security orchestration and intelligence platform: FastAPI API + SQLite backend that runs 75+ security projects, extracts intelligence from their output, alerts on findings, and exposes it all via REST/WebSocket/CLI. Version 2.15.0.
 
 ## What's REAL (functional, deployed, battle-tested)
 
-- **API server** (`api/server.py`, 704 lines): Full FastAPI with 40+ endpoints, JWT auth middleware, CORS, GZip, rate limiting, audit logging, WebSocket `/ws`, org management. Serves real traffic (239 audit entries in DB).
-- **Database** (`database/manager.py`, 337 lines): Thread-safe SQLite with WAL mode, 4 migrations (v1→v4), 15 tables, connection pooling, backup/restore. Real data: 9 project runs, 14 intel entries, 8 alerts, 5 users.
-- **Orchestrator** (`services/orchestrator.py`, 598 lines): Loads project registry, runs projects via subprocess, captures output, extracts intelligence, generates alerts, tracks run history. Has actually run projects and logged results.
-- **Intelligence engine** (`services/intelligence.py`, 227 lines): 16 regex patterns, failure classification, cross-project correlation queries. Works but is **noisy** — matches filenames as domains, `0.0.0.0` as threat IPs, banner text as auth failures. `classify_failure()` is the most useful part.
-- **Auth** (`services/auth.py`, 213 lines): JWT + bcrypt with PBKDF2 fallback, API key management, RBAC (viewer/operator/admin). 5 real users in DB.
-- **Alert hub** (`services/alert_hub.py`, 291 lines): Discord/Slack/Email/Syslog channels with cooldown, dedup, retry. 8 real alerts logged (all via syslog from actual failures).
-- **Config** (`config/settings.py`, 124 lines): Dataclass-based with env var support, JSON persistence, production validation. Clean and functional.
-- **Metrics** (`services/metrics.py`, 150 lines): Prometheus-compatible counters/gauges/histograms. Exports via `/metrics/prometheus` and `/metrics/json`.
-- **Webhooks** (`services/webhooks.py`, 154 lines): HMAC-signed outgoing webhooks with retry logic. Code is complete, 0 rows in DB (unused but real).
-- **Scheduler** (`services/scheduler.py`, 271 lines): Cron-based job daemon with `croniter`. 0 jobs in DB (unused but real).
-- **Backup** (`services/backup.py`, 185 lines): Creates real `.tar.gz` archives of DB + logs with metadata.
-- **Event bus** (`services/event_bus.py`, 125 lines): Thread-safe pub/sub with priority levels and wildcard subscriptions.
-- **WebSocket** (`services/websocket_manager.py`, 76 lines): Connection manager with channel subscriptions and event bus bridge.
-- **Plugin system** (`services/plugin_manager.py`, 183 lines): Dynamic loading with `plugin.json` manifests, hook registration, event dispatch.
-- **Middleware**: Rate limiting (per-IP) and audit logging (every request logged to DB).
-- **Frontend** (`front/index.html`): Minimal status dashboard that polls `/health` and `/status`.
-- **DevOps**: Dockerfile, docker-compose with Prometheus/Grafana profiles, nginx reverse proxy, systemd unit, `.env.example`, `requirements.txt`.
-- **Hivemind-projects**: 75 project directories (51 Python files, 12,727 total lines). The honeypot, sniffer, forensics, etc. are real working scripts. The orchestrator runs them via subprocess.
+- **API server** (`api/server.py`, 1100+ lines): FastAPI with 55+ endpoints, 12-layer middleware stack, JWT auth, CORS (with SHOGUN_CORS_ORIGINS env var), GZip, rate limiting (per-IP + per-org with SQLite persistence), audit logging, WebSocket `/ws` with auth, org management, API key rotation/expiration enforcement. Serves real traffic.
+- **Database** (`database/manager.py`, 410+ lines): Thread-safe SQLite with WAL mode, 7 migrations, 15+ tables, `ConnectionPool` abstraction for Postgres migration path, backup/restore. Real data: project runs, intel entries, alerts, users.
+- **Orchestrator** (`services/orchestrator.py`): Loads project registry, runs projects via subprocess, captures output, extracts intelligence, generates alerts, tracks run history.
+- **Intelligence engine** (`services/intelligence.py`): 16 regex patterns, failure classification, cross-project correlation queries.
+- **Auth** (`services/auth.py`): JWT + bcrypt with PBKDF2 fallback, API key management with rotation + expiration enforcement, RBAC (viewer/operator/admin).
+- **Alert hub** (`services/alert_hub.py`): Discord/Slack/Email/Syslog channels with cooldown, dedup, retry.
+- **Config** (`config/settings.py`): Dataclass-based with `SHOGUN_*` env var support, JSON persistence, production validation (warns on insecure defaults, wildcard CORS, missing SSL).
+- **Middleware** (12 layers): SecurityHeaders → RequestID → RequestSizeLimit → DDoSShield → GZip → CORS → CORSHardening → RateLimit → Audit → Timeout → HTTPS → DocsRestriction.
+- **Rate limiting** (`middleware/rate_limit.py`): Per-IP (100/min) + per-org (1000/min) with optional SQLite persistence (`persist=True`). Eviction + flush every 60s.
+- **CORS** (`middleware/cors_hardening.py`): `SHOGUN_CORS_ORIGINS` env var for explicit origins. `CORSHardeningMiddleware` warns on wildcard in production, optionally blocks.
+- **Graceful shutdown**: SIGTERM/SIGINT handlers stop anomaly detector, scheduler, event bus, plugins, and close DB connections.
+- **Audit log management**: Per-severity retention (critical=365d, high=180d, medium=90d, low=30d), purge API with dry_run support.
+- **Metrics** (`services/metrics.py`): Prometheus-compatible counters/gauges/histograms.
+- **Webhooks** (`services/webhooks.py`): HMAC-signed outgoing webhooks with retry.
+- **Scheduler** (`services/scheduler.py`): Cron-based job daemon with `croniter`.
+- **Backup** (`services/backup.py`): Creates `.tar.gz` archives of DB + logs with metadata.
+- **Event bus** (`services/event_bus.py`): Thread-safe pub/sub with priority levels and wildcard subscriptions.
+- **WebSocket** (`services/websocket_manager.py`): Connection manager with channel subscriptions and event bus bridge.
+- **Plugin system** (`services/plugin_manager.py`): Dynamic loading with `plugin.json` manifests.
+- **OpenTelemetry** (`services/observability.py`): Tracing + meter with graceful no-op fallback.
+- **Frontend** (`front/index.html`): Enterprise Command Centre SPA with Canvas charts, theme toggle, keyboard shortcuts.
+- **DevOps**: Dockerfile (multi-stage, non-root), docker-compose with Prometheus/Grafana/OTel profiles, GitHub Actions CI (lint → test → security → Docker).
 
 ## What's COSPLAY (aspirational, stub, or misleading)
 
-- **IRON_DOME architecture** (`architecture/IRON_DOME.md`): Describes a 5-layer defense system. Only Layer 1 (`ddos_shield.py`) has code — and it's **not imported anywhere**. Layers 2–5 (Validation Shield, Execution Shield, Behavioral Shield, LLM Guardrails) exist only as documentation. The entire `iron_dome/` directory is an island.
-- **DDoS Shield** (`iron_dome/L1_perimeter/ddos_shield.py`, 228 lines): Sophisticated adaptive rate limiter with trust scoring, graduated response, circuit breakers. Real code, but **zero integration** — no middleware imports it, no config references it, no test exercises it. Dead code.
+- **Organization system** (`services/orgs.py`): Complete multi-tenant code with tiers, API keys, member management. DB tables exist but contain minimal data — the code works but is not heavily used.
 - **Discord notifier plugin** (`plugins/test_discord_notifier/`): Named as if it sends Discord messages. Actually just logs to Python `logger`. Misleading.
-- **Intelligence engine output quality**: The regex patterns produce mostly false positives. `"suspicious_domain"` matches Python filenames ending in `.com`/`.io`/`.dev`. `"threat_ip"` matches `0.0.0.0` in banner text. `"auth_failure"` matches the word "crack" in project titles. It works, but the signal-to-noise ratio is terrible.
-- **Organization system** (`services/orgs.py`, 165 lines): Complete multi-tenant code with tiers, API keys, member management. DB tables exist but are **empty** — zero orgs, zero members, zero API keys.
-- **Master CLI** (`orchestrator/master.py`, 646 lines): v1 orchestrator that duplicates DB init and project loading. Superseded by `services/orchestrator.py` but still importable. Legacy cruft.
-- **Orgs/Webhooks/Scheduler DB tables**: Created by migrations but contain 0 rows. The code works; nobody's used them yet.
-
-## Scope to Finished Product
-
-### Must-Have (Production-Ready Security Lab)
-1. **Fix intelligence signal quality**: Add context-aware filtering — exclude matches inside quoted strings, file paths, and known-safe patterns (`0.0.0.0`, `127.0.0.1`, `localhost`). Add a `min_confidence` threshold parameter. Deduplicate across runs. This is the #1 value gap.
-2. **Integrate DDoS shield**: Wire `AdaptiveRateLimiter` into `api/server.py` as middleware (replacing or augmenting the simple `RateLimitMiddleware`). Add config toggle in `settings.py`.
-3. **Real Discord alerts**: Replace the test notifier plugin with an actual Discord webhook sender using `requests.post`. Use the webhook URL already configured in `settings.py:AlertConfig.discord_webhook`.
-4. **Seed org + user data**: Create a default `admin` org on first run. Add a `setup_admin` CLI command. Make the org system actually usable.
-5. **Integration tests**: Add `tests/` directory with pytest fixtures that hit the API, validate auth flow, test intelligence extraction with real project output, verify alert delivery.
-
-### Should-Have (Hardened Enterprise)
-6. **Project output validation**: Before feeding output to intelligence engine, filter known-bad patterns (tracebacks, Python module paths, `0.0.0.0`). Add `classify_failure()` results as first-class intelligence entries.
-7. **WebSocket auth**: The `/ws` endpoint has zero authentication. Add token-based auth on connect.
-8. **Health check depth**: `/health` only checks DB connectivity. Add orchestrator readiness, project registry load status, and alert channel connectivity checks.
-9. **Rate limit per-role**: Current `RateLimitMiddleware` is per-IP flat 100/min. Make it per-role (admin=500, operator=200, viewer=100).
-10. **Remove master.py v1**: Delete `orchestrator/master.py` and its duplicate DB init. All orchestration goes through `services/orchestrator.py`.
-
-### Nice-to-Have (Growth)
-11. **Grafana dashboard config**: The `docker-compose.yml` references Prometheus/Grafana profiles but `monitoring/grafana/` has no dashboard JSON. Create a Shogun dashboard with project status, alert rates, and threat scores.
-12. **Webhook delivery UI**: Admin page to create/manage outgoing webhooks (currently API-only, 0 rows in DB).
-13. **Scheduled project runs**: Wire `services/scheduler.py` into the API so users can schedule recurring project runs via the UI.
-14. **Alert deduplication in intelligence**: When the same pattern fires across multiple runs of the same project, collapse into a single intelligence entry with a count, not N separate entries.
+- **Intelligence engine output quality**: The regex patterns produce some false positives. `"suspicious_domain"` matches filenames, `"threat_ip"` matches `0.0.0.0` in banner text. The `classify_failure()` function is the most useful part.
+- **Master CLI** (`orchestrator/master.py`): v1 orchestrator, marked as deprecated. Superseded by `services/orchestrator.py`.
 
 ## Architecture Constraints
 - Python 3.12, FastAPI, SQLite (WAL mode), no ORM
 - All project execution via subprocess (`Hivemind-projects/` directory)
-- Configuration: dataclass + env vars, no YAML/JSON config files
-- Auth: JWT (PyJWT) with bcrypt, API keys in DB
+- Configuration: dataclass + `SHOGUN_*` env vars, no YAML/JSON config files
+- Auth: JWT (PyJWT) with bcrypt, API keys in DB with rotation + expiration
 - Deployment: Docker Compose or systemd + uvicorn
 - Frontend: single `index.html` SPA, no build step
-- Database migrations are sequential SQL strings — no Alembic
+- Database migrations: sequential SQL strings — no Alembic
+
+## Remaining Gaps (for next session)
+1. Enable `persist=True` for rate limit in production (currently opt-in)
+2. Enable `block_wildcard_in_production=True` for CORS hardening
+3. Schedule `cleanup_expired_keys()` as periodic cron job
+4. Load testing / benchmarks (k6 or Locust)
+5. MyPy strict type checking (currently `--ignore-missing-imports --no-strict-optional`)
+6. Dashboard E2E tests (Playwright/Cypress)
+7. Docker CI end-to-end with `SHOGUN_*` env vars
