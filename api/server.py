@@ -30,6 +30,7 @@ from config.logging_config import configure_logging
 from config.settings import settings
 from database.manager import db
 from middleware.audit import AuditMiddleware
+from middleware.cors_hardening import CORSHardeningMiddleware
 from middleware.ddos_shield import DDoSShieldMiddleware
 from middleware.docs_restriction import DocsRestrictionMiddleware
 from middleware.https_enforcement import HTTPSEnforcementMiddleware
@@ -39,6 +40,7 @@ from middleware.request_size_limit import RequestSizeLimitMiddleware
 from middleware.request_timeout import RequestTimeoutMiddleware
 from middleware.security_headers import SecurityHeadersMiddleware
 from services.anomaly_detector import AnomalyDetector
+from services.audit_cleanup import get_audit_stats, purge_audit_logs
 from services.auth import AuthService
 from services.backup import BackupManager
 from services.event_bus import event_bus
@@ -176,6 +178,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RequestTimeoutMiddleware, timeout_seconds=30)
 app.add_middleware(HTTPSEnforcementMiddleware, enabled=settings.is_production())
 app.add_middleware(DocsRestrictionMiddleware, enabled=settings.is_production())
+app.add_middleware(CORSHardeningMiddleware, block_wildcard_in_production=False)
 
 # ─── Pydantic Models ──────────────────────────────────────────────────────
 
@@ -714,6 +717,27 @@ async def get_logs(
     user: dict = Depends(get_current_user),
 ):
     return {"logs": log_manager.get_logs(level=level, source=source, search=search, limit=limit)}
+
+# ─── Audit Log Management ────────────────────────────────────────────────
+
+@app.get("/audit/stats", tags=["Audit"])
+async def audit_stats(user: dict = Depends(get_current_user)):
+    """Get audit log statistics and retention policy."""
+    return get_audit_stats()
+
+@app.post("/audit/purge", tags=["Audit"])
+async def purge_audit(
+    retention_days: int | None = None,
+    dry_run: bool = False,
+    user: dict = Depends(require_role("admin")),
+):
+    """Purge audit logs older than retention period.
+
+    Admin-only. Default uses per-severity retention policy.
+    Set dry_run=true to preview what would be deleted.
+    """
+    return purge_audit_logs(retention_days=retention_days, dry_run=dry_run)
+
 
 # ─── Event Bus ────────────────────────────────────────────────────────────
 

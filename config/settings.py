@@ -13,6 +13,7 @@ class DatabaseConfig:
     max_connections: int = 10
     timeout: int = 30
     backup_retention_days: int = 30
+    audit_retention_days: int = 90
     journal_mode: str = "WAL"  # WAL | DELETE | TRUNCATE | PERSIST | MEMORY
     synchronous: str = "NORMAL"  # OFF | NORMAL | FULL
     wal_checkpoint_threshold: int = 1000  # pages before auto-checkpoint
@@ -105,6 +106,8 @@ class Settings:
                 issues.append("SECURITY: Debug mode enabled in production")
             if "*" in self.security.allowed_hosts:
                 issues.append("SECURITY: Wildcard allowed hosts in production")
+            if "*" in self.api.cors_origins and self.api.cors_origins == ["*"]:
+                issues.append("SECURITY: Wildcard CORS origin in production — specify explicit origins")
 
         return issues
 

@@ -10,4 +10,5 @@ __all__ = [
     "RequestSizeLimitMiddleware",
     "RequestTimeoutMiddleware",
     "SecurityHeadersMiddleware",
+    "CORSHardeningMiddleware",
 ]
