@@ -162,6 +162,40 @@ Shogun/
 - **Project config**: Comprehensive `pyproject.toml` with all dependencies, linting, and test config.
 - **Deprecation**: `orchestrator/master.py` marked deprecated — will be removed in v3.0.
 
+## Enterprise Hardening (v2.15.0)
+
+### Middleware Stack (execution order, outermost → innermost)
+1. **SecurityHeadersMiddleware** — HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy
+2. **RequestIDMiddleware** — X-Request-ID propagation for distributed tracing
+3. **RequestSizeLimitMiddleware** — 10 MB body size limit
+4. **DDoSShieldMiddleware** — Adaptive rate limiting with trust scoring
+5. **GZipMiddleware** — Response compression
+6. **CORSMiddleware** — Cross-origin resource sharing
+7. **CORSHardeningMiddleware** — Production CORS wildcard detection + blocking
+8. **RateLimitMiddleware** — Per-IP (100/min) + per-org (1000/min) rate limiting
+9. **AuditMiddleware** — Request audit logging to DB
+10. **RequestTimeoutMiddleware** — 30s timeout (504 on overrun)
+11. **HTTPSEnforcementMiddleware** — HTTP→HTTPS redirect in production
+12. **DocsRestrictionMiddleware** — Block /docs and /redoc in production
+
+### Audit Log Management
+- **GET /audit/stats** — Audit log statistics + retention policy
+- **POST /audit/purge** — Purge audit logs (admin-only, supports dry_run)
+- Per-severity retention: critical=365d, high=180d, medium=90d, low=30d, default=90d
+- Configurable via settings.database.audit_retention_days
+
+### Configuration Validation
+- Production mode warns on: default secret key, no SSL cert, debug enabled, wildcard hosts, wildcard CORS
+- CORS wildcard with credentials is explicitly flagged as a security misconfiguration
+
+### API Key Rotation
+- **POST /auth/api-key/{id}/rotate** — Rotate API keys preserving permissions
+- **DELETE /auth/api-key/{id}** — Revoke API keys
+
+### PicoSentry Scanner (246 tests, 0 failures)
+- All fixture data complete: pnpm-lock.yaml and package-lock.json added
+- L2-PNPM-001 rule now correctly detects dangerous pnpm configurations
+
 ## Deployment
 
 ### Docker
