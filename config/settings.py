@@ -6,6 +6,18 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).parent.parent
 
+def _parse_cors_origins() -> list[str]:
+    """Parse SHOGUN_CORS_ORIGINS env var into a list of origins.
+
+    Accepts comma-separated origins, e.g. ``https://app.example.com,https://admin.example.com``.
+    Falls back to ``["*"]`` when the env var is unset.
+    """
+    raw = os.environ.get("SHOGUN_CORS_ORIGINS", "").strip()
+    if not raw:
+        return ["*"]
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]
+
+
 @dataclass
 class DatabaseConfig:
     path: Path = BASE_DIR / "shogun.db"
@@ -24,7 +36,7 @@ class APIConfig:
     port: int = 8765
     workers: int = 4
     reload: bool = False
-    cors_origins: list[str] = field(default_factory=lambda: ["*"])
+    cors_origins: list[str] = field(default_factory=_parse_cors_origins)
     api_prefix: str = "/api/v1"
     docs_url: str = "/docs"
     redoc_url: str = "/redoc"

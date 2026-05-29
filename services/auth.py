@@ -253,3 +253,29 @@ class AuthService:
             "admin": ["read", "run", "write", "admin"]
         }
         return required in permissions.get(role, [])
+
+    def cleanup_expired_keys(self) -> int:
+        """Deactivate API keys past their expires_at timestamp.
+
+        Called at startup and periodically by the scheduler.
+        Returns the number of keys deactivated.
+        """
+        now = datetime.now(timezone.utc)
+        expired = db.execute(
+            "SELECT id, name, user_id FROM api_keys WHERE is_active = 1 AND expires_at IS NOT NULL AND expires_at <= ?",
+            (now.isoformat(),)
+        )
+        count = 0
+        for key in expired:
+            db.execute_insert(
+                "UPDATE api_keys SET is_active = 0, revoked_at = ? WHERE id = ?",
+                (now.isoformat(), key["id"])
+            )
+            logger.info(
+                "Expired API key deactivated: id=%d name=%s user_id=%s",
+                key["id"], key["name"], key["user_id"]
+            )
+            count += 1
+        if count:
+            logger.info("Deactivated %d expired API key(s)", count)
+        return count

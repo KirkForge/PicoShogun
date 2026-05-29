@@ -104,6 +104,11 @@ async def lifespan(app: FastAPI):
     scheduler.start()
     logger.info("Anomaly detector and scheduler started")
 
+    # Cleanup expired API keys on startup
+    expired_count = auth_service.cleanup_expired_keys()
+    if expired_count:
+        logger.info("Startup: deactivated %d expired API key(s)", expired_count)
+
     yield  # Application is running
 
     # ── Graceful shutdown ──
@@ -1092,7 +1097,25 @@ async def websocket_endpoint(websocket: WebSocket, token: str | None = None):
         ws_manager.disconnect(websocket)
 
 if __name__ == "__main__":
+    import signal
+
     import uvicorn
+
+    def _graceful_shutdown(signum, frame):
+        """Handle SIGTERM/SIGINT by stopping background services before exit."""
+        sig_name = signal.strsignal(signum) or str(signum)
+        logger.info("Received %s — initiating graceful shutdown", sig_name)
+        anomaly_detector.stop()
+        scheduler.stop()
+        event_bus.shutdown()
+        plugin_manager.unload_all()
+        db.close()
+        logger.info("Graceful shutdown complete — exiting")
+        raise SystemExit(0)
+
+    signal.signal(signal.SIGTERM, _graceful_shutdown)
+    signal.signal(signal.SIGINT, _graceful_shutdown)
+
     uvicorn.run(
         app,
         host=settings.api.host,

@@ -31,6 +31,29 @@ sqlite3.register_converter("TIMESTAMP", _convert_timestamp)
 
 logger = logging.getLogger("shogun.DB")
 
+
+# ─── Abstract connection interface for future Postgres migration ────────
+class ConnectionPool:
+    """Abstract interface for database connection pooling.
+
+    The current SQLite implementation uses thread-local connections.
+    For a Postgres migration, implement this interface with
+    ``asyncpg`` or ``psycopg`` connection pooling.
+    """
+
+    def acquire(self):
+        """Get a connection from the pool."""
+        raise NotImplementedError
+
+    def release(self, conn):
+        """Return a connection to the pool."""
+        raise NotImplementedError
+
+    def close_all(self):
+        """Close all connections in the pool."""
+        raise NotImplementedError
+
+
 @dataclass
 class Migration:
     version: int
