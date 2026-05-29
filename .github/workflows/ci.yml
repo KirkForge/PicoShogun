@@ -58,7 +58,7 @@ jobs:
           SHOGUN_ENV: test
           SHOGUN_SECRET_KEY: ci-test-key
       - name: Upload coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: matrix.python-version == '3.12'
         with:
           name: coverage-report
