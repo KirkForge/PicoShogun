@@ -1,4 +1,4 @@
-# Iron Dome Architecture — Secdev_kimi v3.0
+# Iron Dome Architecture — Shogun v3.0
 
 ## Philosophy
 

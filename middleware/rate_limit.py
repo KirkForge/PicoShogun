@@ -1,10 +1,12 @@
 """Rate limiting middleware."""
-import time
 import threading
+import time
 from collections import defaultdict
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """In-memory rate limiter: per-IP + per-org token."""
@@ -33,17 +35,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if now - self._last_eviction < 60:
             return
         self._last_eviction = now
-        
+
         # Remove buckets with no recent activity
         cutoff = now - self.window
         stale_ips = [k for k, v in self.ip_requests.items() if not v or v[-1] < cutoff]
         stale_orgs = [k for k, v in self.org_requests.items() if not v or v[-1] < cutoff]
-        
+
         for k in stale_ips:
             del self.ip_requests[k]
         for k in stale_orgs:
             del self.org_requests[k]
-        
+
         # Hard cap
         if len(self.ip_requests) > self.max_buckets:
             sorted_keys = sorted(self.ip_requests, key=lambda k: self.ip_requests[k][-1] if self.ip_requests[k] else 0)

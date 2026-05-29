@@ -11,7 +11,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from .engine import ScanEngine, create_default_engine
+from .engine import create_default_engine
 from .formatters import format_json, format_sarif, format_table
 
 

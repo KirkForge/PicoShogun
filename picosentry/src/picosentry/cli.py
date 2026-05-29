@@ -15,17 +15,18 @@ Usage:
 Deterministic: same target + same corpus = same output. Every time.
 """
 import argparse
+import contextlib
 import hashlib
 import json
 import sys
 from pathlib import Path
 
 from picosentry import __version__
+from picosentry.config import load_config
 from picosentry.engine import create_default_engine
-from picosentry.formatters import format_json, format_sarif, format_table, format_ml_context
+from picosentry.formatters import format_json, format_ml_context, format_sarif, format_table
 from picosentry.formatters.table import _PINCH_LABELS
-from picosentry.models import ScanResult, Severity, BaselineResult, load_baseline, apply_baseline
-from picosentry.config import load_config, PicoSentryConfig
+from picosentry.models import ScanResult, Severity, apply_baseline, load_baseline
 
 
 def main() -> int:
@@ -245,7 +246,7 @@ def _cmd_diff(args: argparse.Namespace) -> int:
     # Compare deterministically by re-serializing with sorted keys
     # Exclude duration_ms from comparison (timing is inherently non-deterministic)
     deterministic_fields = {"scan_id", "engine_version", "corpus_version", "target", "findings"}
-    
+
     json_a = json.dumps(data_a, sort_keys=True, indent=2)
     json_b = json.dumps(data_b, sort_keys=True, indent=2)
 
@@ -356,10 +357,8 @@ def _cmd_update(args: argparse.Namespace) -> int:
         # Merge with existing corpus
         existing = set()
         if output_path.is_file():
-            try:
+            with contextlib.suppress(json.JSONDecodeError, OSError):
                 existing = set(json.loads(output_path.read_text(encoding="utf-8")))
-            except (json.JSONDecodeError, OSError):
-                pass
 
         merged = sorted(existing | set(packages))
 
@@ -516,7 +515,7 @@ def _cmd_scan(args: argparse.Namespace) -> int:
     if config.baseline and config.baseline_update:
         baseline_path = Path(config.baseline)
         # Load original baseline fingerprints
-        old_fingerprints = load_baseline(baseline_path)
+        load_baseline(baseline_path)
         # Re-scan to get ALL findings (before baseline filtering)
         full_result = engine.scan(target, rules=config.rules)
         # Apply severity overrides

@@ -1,17 +1,17 @@
 """Cross-project intelligence engine with correlation and threat scoring."""
 import json
-import re
 import logging
-from typing import Dict, List, Any, Optional
+import re
 from collections import defaultdict
+from typing import Any
 
 from database.manager import db
 
-logger = logging.getLogger("SecdevKimi.Intelligence")
+logger = logging.getLogger("shogun.Intelligence")
 
 class IntelligenceEngine:
     """Enterprise intelligence engine with pattern matching and correlation."""
-    
+
     # Core pattern database — tightened to reduce false positives
     PATTERNS = {
         "threat_ip": (r"(?<![a-zA-Z0-9._-])(?:(?:25[0-5]|2[0-4]\d|1\d\d|\d{1,2})\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|\d{1,2})(?![a-zA-Z0-9._-])", "low"),
@@ -31,7 +31,7 @@ class IntelligenceEngine:
         "ddos_signal": (r"ddos|flood|syn\s*flood|amplification", "high"),
         "dns_hijack": (r"dns\s*hijack|spoof|cache\s*poison", "high"),
     }
-    
+
     # Known-safe patterns to exclude from matches
     SAFE_IPS = {"0.0.0.0", "127.0.0.1", "127.0.1.1", "255.255.255.255", "::1", "localhost"}
     SAFE_DOMAINS = {
@@ -99,12 +99,12 @@ class IntelligenceEngine:
         "homeshick", "vcsh", "myrepos", "etckeeper", "git-annex", "git-lfs",
         "git-crypt", "git-secret", "transcrypt",
     }
-    
+
     def __init__(self):
         self.patterns = defaultdict(list)
         self.threat_scores = defaultdict(float)
         self._load_historical()
-    
+
     def _load_historical(self):
         """Load historical threat scores from database."""
         rows = db.execute("""
@@ -116,7 +116,7 @@ class IntelligenceEngine:
         for row in rows:
             weight = self._severity_weight(row["severity"])
             self.threat_scores[row["source_project"]] += weight * row["count"]
-    
+
     def _severity_weight(self, severity: str) -> float:
         weights = {
             "critical": 10.0,
@@ -126,7 +126,7 @@ class IntelligenceEngine:
             "info": 0.1
         }
         return weights.get(severity.lower(), 0)
-    
+
     def _is_inside_path(self, text: str, match_start: int, match_end: int) -> bool:
         """Check if a match is inside a file path (e.g., /home/user/project.py)."""
         # Look for path separators around the match
@@ -137,11 +137,8 @@ class IntelligenceEngine:
             return True
         # If match ends with .com, .io, etc and is preceded by a known module name
         match_text = text[match_start:match_end].lower()
-        for mod in self.MODULE_FALSE_POSITIVES:
-            if match_text.startswith(mod + '.'):
-                return True
-        return False
-    
+        return any(match_text.startswith(mod + '.') for mod in self.MODULE_FALSE_POSITIVES)
+
     def _is_inside_quotes(self, text: str, match_start: int, match_end: int) -> bool:
         """Check if match is inside a quoted string."""
         # Simple heuristic: count quotes before match
@@ -151,67 +148,64 @@ class IntelligenceEngine:
         # Odd number of unescaped quotes suggests we're inside a string
         # This is imperfect but catches most cases
         return (single_quotes % 2 == 1) or (double_quotes % 2 == 1)
-    
+
     def _is_safe_ip(self, ip: str) -> bool:
         """Check if IP is known-safe."""
         return ip.strip() in self.SAFE_IPS
-    
+
     def _is_safe_domain(self, domain: str) -> bool:
         """Check if domain is known-safe."""
         d = domain.strip().lower()
         if d in self.SAFE_DOMAINS:
             return True
         # Check if it starts with a known false-positive module name
-        for mod in self.MODULE_FALSE_POSITIVES:
-            if d.startswith(mod + '.'):
-                return True
-        return False
-    
-    def extract_from_output(self, project_id: str, output: str, min_confidence: float = 0.3) -> List[Dict[str, Any]]:
+        return any(d.startswith(mod + '.') for mod in self.MODULE_FALSE_POSITIVES)
+
+    def extract_from_output(self, project_id: str, output: str, min_confidence: float = 0.3) -> list[dict[str, Any]]:
         """Parse project output for intelligence signals with context-aware filtering."""
         intel = []
         if not output:
             return intel
-        
+
         # Failure signature classification FIRST — always include
         failure_intel = self.classify_failure(project_id, output)
         if failure_intel:
             intel.append(failure_intel)
-        
+
         for intel_type, (pattern, severity) in self.PATTERNS.items():
             matches = re.finditer(pattern, output, re.IGNORECASE)
             valid_matches = []
-            
+
             for match in matches:
                 match_text = match.group(0)
                 start, end = match.start(), match.end()
-                
+
                 # Skip if inside a file path
                 if self._is_inside_path(output, start, end):
                     continue
-                
+
                 # Skip if inside quoted string
                 if self._is_inside_quotes(output, start, end):
                     continue
-                
+
                 # Type-specific filtering
                 if intel_type == "threat_ip" and self._is_safe_ip(match_text):
                     continue
-                
+
                 if intel_type == "suspicious_domain" and self._is_safe_domain(match_text):
                     continue
-                
+
                 valid_matches.append(match_text)
-            
+
             if valid_matches:
                 unique_matches = list(set(valid_matches))[:10]
                 # Confidence: base 0.5 for any match + 0.1 per extra, capped at 1.0
                 confidence = min(0.5 + (len(valid_matches) - 1) * 0.1, 1.0)
-                
+
                 # Apply min_confidence threshold
                 if confidence < min_confidence:
                     continue
-                
+
                 intel.append({
                     "type": intel_type,
                     "severity": severity,
@@ -224,7 +218,7 @@ class IntelligenceEngine:
                     "related": [],
                     "confidence": confidence
                 })
-        
+
         # Extract metrics if present in JSON format
         try:
             json_blocks = re.findall(r'\{[^}]*"metrics"[^}]*\}', output)
@@ -240,10 +234,10 @@ class IntelligenceEngine:
                     })
         except (json.JSONDecodeError, re.error):
             pass
-        
+
         return intel
-    
-    def classify_failure(self, project_id: str, output: str) -> Optional[Dict[str, Any]]:
+
+    def classify_failure(self, project_id: str, output: str) -> dict[str, Any] | None:
         """Classify script failure type from stderr/stdout. Returns intelligence dict or None."""
         signatures = [
             ("syntax_error", r"(indentationerror|syntaxerror|unexpected token|invalid syntax)", "critical", "Python syntax/indentation error — code will never run"),
@@ -256,7 +250,7 @@ class IntelligenceEngine:
             ("timeout", r"(timeout|timed out|connection timed out)", "medium", "Operation exceeded time limit"),
             ("connection_refused", r"(connection refused|errno 111|errconnrefused)", "medium", "Target service not listening"),
         ]
-        
+
         for sig_type, pattern, severity, description in signatures:
             if re.search(pattern, output, re.IGNORECASE):
                 return {
@@ -272,43 +266,43 @@ class IntelligenceEngine:
                     "related": [],
                     "confidence": 0.95
                 }
-        
+
         return None
-    
-    def ingest(self, project_id: str, data: Dict[str, Any]):
+
+    def ingest(self, project_id: str, data: dict[str, Any]):
         """Ingest intelligence from a project run."""
         intel_type = data.get("type", "unknown")
         severity = data.get("severity", "info")
         intel_data = json.dumps(data.get("data", {}))
         related = json.dumps(data.get("related", []))
         confidence = data.get("confidence", 0.0)
-        
+
         db.execute_insert("""
-            INSERT INTO intelligence 
+            INSERT INTO intelligence
             (source_project, intel_type, severity, data, related_projects, confidence)
             VALUES (?, ?, ?, ?, ?, ?)
         """, (project_id, intel_type, severity, intel_data, related, confidence))
-        
+
         self._update_threat_score(project_id, severity, data)
-        
+
         logger.info(f"Intelligence from {project_id}: {intel_type} [{severity}] (conf: {confidence:.2f})")
-    
-    def _update_threat_score(self, project_id: str, severity: str, data: Dict):
+
+    def _update_threat_score(self, project_id: str, severity: str, data: dict):
         """Update composite threat score with exponential decay."""
         weight = self._severity_weight(severity)
-        
+
         # Decay old scores
         for pid in self.threat_scores:
             self.threat_scores[pid] *= 0.95
-        
+
         # Add new score based on match count
         match_count = data.get("data", {}).get("match_count", 1)
         self.threat_scores[project_id] += weight * match_count
-        
+
         total = sum(self.threat_scores.values())
         level = self._threat_level(total)
         logger.info(f"Aggregate threat: {total:.1f} [{level}] ({len(self.threat_scores)} sources)")
-    
+
     def _threat_level(self, score: float) -> str:
         if score >= 50:
             return "critical"
@@ -317,14 +311,14 @@ class IntelligenceEngine:
         if score >= 5:
             return "medium"
         return "low"
-    
+
     def get_aggregate_score(self) -> float:
         return sum(self.threat_scores.values())
-    
-    def find_correlations(self, time_window_hours: int = 24) -> List[Dict[str, Any]]:
+
+    def find_correlations(self, time_window_hours: int = 24) -> list[dict[str, Any]]:
         """Find correlated intelligence across projects."""
         rows = db.execute("""
-            SELECT 
+            SELECT
                 i1.source_project as project1,
                 i2.source_project as project2,
                 i1.intel_type,
@@ -339,13 +333,13 @@ class IntelligenceEngine:
             HAVING correlation_count >= 2
             ORDER BY correlation_count DESC
         """, (time_window_hours, str(time_window_hours)))
-        
+
         return [dict(row) for row in rows]
-    
-    def get_trends(self, hours: int = 24) -> Dict[str, Any]:
+
+    def get_trends(self, hours: int = 24) -> dict[str, Any]:
         """Get intelligence trends over time."""
         rows = db.execute("""
-            SELECT 
+            SELECT
                 intel_type,
                 severity,
                 strftime('%H', created_at) as hour,
@@ -355,9 +349,9 @@ class IntelligenceEngine:
             GROUP BY intel_type, severity, hour
             ORDER BY hour, count DESC
         """, (str(hours),))
-        
+
         trends = defaultdict(lambda: defaultdict(int))
         for row in rows:
             trends[row["intel_type"]][row["severity"]] += row["count"]
-        
+
         return dict(trends)

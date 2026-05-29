@@ -8,16 +8,16 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Sequence
 
-from .models import Finding, ScanResult, ScanStats, Severity
+from .models import Finding, ScanResult, ScanStats
 
 logger = logging.getLogger("iron_dome.L2.engine")
 
 # Type alias: a detector rule is a callable that takes a target path
 # and returns a list of Findings.
-DetectorRule = Callable[[Path], List[Finding]]
+DetectorRule = Callable[[Path], list[Finding]]
 
 
 class ScanEngine:
@@ -29,9 +29,9 @@ class ScanEngine:
     """
 
     def __init__(self) -> None:
-        self._rules: Dict[str, DetectorRule] = {}
+        self._rules: dict[str, DetectorRule] = {}
 
-    def register(self, rule_id: str, rule: DetectorRule) -> "ScanEngine":
+    def register(self, rule_id: str, rule: DetectorRule) -> ScanEngine:
         """Register a detector rule. Returns self for chaining."""
         self._rules[rule_id] = rule
         return self
@@ -40,14 +40,14 @@ class ScanEngine:
         """Remove a detector rule."""
         self._rules.pop(rule_id, None)
 
-    def list_rules(self) -> List[str]:
+    def list_rules(self) -> list[str]:
         """Return sorted list of registered rule IDs."""
         return sorted(self._rules.keys())
 
     def scan(
         self,
         target: str | Path,
-        rules: Optional[Sequence[str]] = None,
+        rules: Sequence[str] | None = None,
     ) -> ScanResult:
         """
         Run a scan on target path.
@@ -89,7 +89,7 @@ class ScanEngine:
         )
 
         start_ms = _now_ms()
-        all_findings: List[Finding] = []
+        all_findings: list[Finding] = []
         packages_scanned = 0
         files_scanned = 0
 
@@ -113,16 +113,11 @@ class ScanEngine:
         duration = _now_ms() - start_ms
 
         # Count files scanned (best-effort)
-        if target_path.is_dir():
-            files_scanned = sum(
-                1 for _ in target_path.rglob("*") if _.is_file()
-            )
-        else:
-            files_scanned = 1
+        files_scanned = sum(1 for _ in target_path.rglob("*") if _.is_file()) if target_path.is_dir() else 1
 
         # Build stats
-        by_severity: Dict[str, int] = {}
-        by_rule: Dict[str, int] = {}
+        by_severity: dict[str, int] = {}
+        by_rule: dict[str, int] = {}
         for f in all_findings:
             sev = f.severity.value
             by_severity[sev] = by_severity.get(sev, 0) + 1
@@ -153,12 +148,12 @@ class ScanEngine:
 
 def create_default_engine() -> ScanEngine:
     """Create a ScanEngine with all built-in detector rules registered."""
-    from .rules.post_install import detect_post_install_scripts
-    from .rules.obfuscation import detect_obfuscation
     from .rules.dep_confusion import detect_dep_confusion
-    from .rules.typosquat import detect_typosquat
-    from .rules.manifest import detect_manifest_issues
     from .rules.fork_drift import detect_fork_drift
+    from .rules.manifest import detect_manifest_issues
+    from .rules.obfuscation import detect_obfuscation
+    from .rules.post_install import detect_post_install_scripts
+    from .rules.typosquat import detect_typosquat
 
     engine = ScanEngine()
     engine.register("L2-POST-001", detect_post_install_scripts)

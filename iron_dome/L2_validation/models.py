@@ -10,7 +10,6 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Dict, List, Optional
 
 
 class Severity(str, Enum):
@@ -39,10 +38,10 @@ class Finding:
     message: str
     evidence: str
     remediation: str
-    references: List[str] = field(default_factory=list)
-    line: Optional[int] = None
+    references: list[str] = field(default_factory=list)
+    line: int | None = None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "rule_id": self.rule_id,
             "severity": self.severity.value,
@@ -63,10 +62,10 @@ class ScanStats:
     packages_scanned: int = 0
     files_scanned: int = 0
     duration_ms: int = 0
-    findings_by_severity: Dict[str, int] = field(default_factory=dict)
-    findings_by_rule: Dict[str, int] = field(default_factory=dict)
+    findings_by_severity: dict[str, int] = field(default_factory=dict)
+    findings_by_rule: dict[str, int] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "packages_scanned": self.packages_scanned,
             "files_scanned": self.files_scanned,
@@ -85,10 +84,10 @@ class ScanResult:
     )
     target: str = ""
     engine_version: str = "0.1.0"
-    findings: List[Finding] = field(default_factory=list)
+    findings: list[Finding] = field(default_factory=list)
     stats: ScanStats = field(default_factory=ScanStats)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "scan_id": self.scan_id,
             "timestamp": self.timestamp,

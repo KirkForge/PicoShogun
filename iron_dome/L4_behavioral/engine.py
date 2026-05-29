@@ -10,27 +10,25 @@ from __future__ import annotations
 
 import logging
 import time
-from pathlib import Path
-from typing import Callable, Dict, List, Optional, Sequence
+from collections.abc import Callable, Sequence
 
+from .baseline import load_all_baselines
+from .differ import find_best_baseline
 from .models import (
     AnalysisResult,
     AnalysisStats,
+    Baseline,
     BehavioralProfile,
     BehavioralVerdict,
-    Baseline,
     DriftResult,
     Finding,
     Severity,
 )
-from .profiler import profile_from_trace, profile_from_sandbox_result
-from .baseline import load_all_baselines, load_baseline
-from .differ import compare_profile_to_baseline, find_best_baseline
 
 logger = logging.getLogger("iron_dome.L4.engine")
 
 # Type alias: a detector rule takes a profile and optional baselines dict, returns findings.
-DetectorRule = Callable[..., List[Finding]]
+DetectorRule = Callable[..., list[Finding]]
 
 
 class L4Engine:
@@ -42,9 +40,9 @@ class L4Engine:
     """
 
     def __init__(self) -> None:
-        self._rules: Dict[str, DetectorRule] = {}
+        self._rules: dict[str, DetectorRule] = {}
 
-    def register(self, rule_id: str, rule: DetectorRule) -> "L4Engine":
+    def register(self, rule_id: str, rule: DetectorRule) -> L4Engine:
         """Register a detector rule. Returns self for chaining."""
         self._rules[rule_id] = rule
         return self
@@ -53,15 +51,15 @@ class L4Engine:
         """Remove a detector rule."""
         self._rules.pop(rule_id, None)
 
-    def list_rules(self) -> List[str]:
+    def list_rules(self) -> list[str]:
         """Return sorted list of registered rule IDs."""
         return sorted(self._rules.keys())
 
     def analyze(
         self,
         profile: BehavioralProfile,
-        baselines: Optional[Dict[str, Baseline]] = None,
-        rules: Optional[Sequence[str]] = None,
+        baselines: dict[str, Baseline] | None = None,
+        rules: Sequence[str] | None = None,
     ) -> AnalysisResult:
         """
         Run behavioral analysis on a profile.
@@ -98,7 +96,7 @@ class L4Engine:
         )
 
         start_ms = _now_ms()
-        all_findings: List[Finding] = []
+        all_findings: list[Finding] = []
 
         for rule_id, rule_fn in selected_rules.items():
             try:
@@ -106,10 +104,7 @@ class L4Engine:
                 import inspect
                 sig = inspect.signature(rule_fn)
                 params = list(sig.parameters.keys())
-                if len(params) >= 2:
-                    findings = rule_fn(profile, baselines)
-                else:
-                    findings = rule_fn(profile)
+                findings = rule_fn(profile, baselines) if len(params) >= 2 else rule_fn(profile)
                 all_findings.extend(findings)
                 logger.debug("Rule %s: %d findings", rule_id, len(findings))
             except Exception:
@@ -118,7 +113,7 @@ class L4Engine:
         duration = int(_now_ms() - start_ms)
 
         # Compute drift results against best baseline
-        drift_results: List[DriftResult] = []
+        drift_results: list[DriftResult] = []
         best_match = find_best_baseline(profile, baselines)
         if best_match:
             _, drift = best_match
@@ -128,8 +123,8 @@ class L4Engine:
         overall_verdict = _compute_verdict(all_findings)
 
         # Build stats
-        by_severity: Dict[str, int] = {}
-        by_rule: Dict[str, int] = {}
+        by_severity: dict[str, int] = {}
+        by_rule: dict[str, int] = {}
         for f in all_findings:
             sev = f.severity.value
             by_severity[sev] = by_severity.get(sev, 0) + 1
@@ -167,11 +162,11 @@ class L4Engine:
 
 def create_default_engine() -> L4Engine:
     """Create an L4Engine with all built-in detector rules registered."""
-    from .rules.timing import detect_timing_anomalies
-    from .rules.exfil import detect_exfiltration
-    from .rules.entropy_rules import detect_entropy_anomalies
-    from .rules.honeypot_rules import detect_honeypot_touches
     from .rules.baseline_rules import detect_baseline_drift
+    from .rules.entropy_rules import detect_entropy_anomalies
+    from .rules.exfil import detect_exfiltration
+    from .rules.honeypot_rules import detect_honeypot_touches
+    from .rules.timing import detect_timing_anomalies
 
     engine = L4Engine()
     engine.register("L4-TIME", detect_timing_anomalies)
@@ -182,7 +177,7 @@ def create_default_engine() -> L4Engine:
     return engine
 
 
-def _compute_verdict(findings: List[Finding]) -> BehavioralVerdict:
+def _compute_verdict(findings: list[Finding]) -> BehavioralVerdict:
     """
     Compute overall verdict from findings.
     - Any CRITICAL or HIGH finding → MALICIOUS

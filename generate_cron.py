@@ -49,7 +49,7 @@ print()
 for pid, meta in registry.items():
     short_name = pid.split("_", 1)[1]
     cat = meta.get("category", "unknown")
-    
+
     if short_name in DAILY_OFFPEAK:
         # Once daily at off-peak hour (01:00 + offset)
         hour = DAILY_OFFPEAK[short_name]
@@ -57,13 +57,13 @@ for pid, meta in registry.items():
     else:
         # Staggered interval
         interval = CATEGORY_RULES.get(cat, CATEGORY_RULES["unknown"])["interval"]
-        
+
         # Derive offset from project number to spread load
         try:
             num = int(pid.split("_", 1)[0])
         except (ValueError, TypeError):
             num = 0
-        
+
         # Map interval to cron expression
         if interval == 30:
             # Every 30 min, offset by project number
@@ -92,9 +92,9 @@ for pid, meta in registry.items():
             minute_offset = (num * 7) % 60
             hour_offset = num % 8
             cron = f"{minute_offset} {hour_offset}-23/8 * * *"
-    
+
     cmd = f"cd {Path('/home/kirk/.picoclaw/workspace/Hivemind-projects') / short_name} && python3 *.py 2>>1 | logger -t secdev-{short_name}"
-    
+
     # Check if main script is Python or Shell
     project_dir = Path("/home/kirk/.picoclaw/workspace/Hivemind-projects") / short_name
     main_script = None
@@ -104,14 +104,14 @@ for pid, meta in registry.items():
             if candidates:
                 main_script = candidates[0]
                 break
-    
+
     if main_script and main_script.suffix == ".sh":
         cmd = f"cd {project_dir} && bash {main_script.name} 2>>1 | logger -t secdev-{short_name}"
     elif main_script:
         cmd = f"cd {project_dir} && python3 {main_script.name} 2>>1 | logger -t secdev-{short_name}"
     else:
         cmd = f"# No main script found for {short_name}"
-    
+
     print(f"{cron} {cmd}")
 
 print()

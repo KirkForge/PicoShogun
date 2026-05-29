@@ -1,21 +1,17 @@
 """Unit tests for L2 Supply Chain Scanner."""
 import json
-import os
-import tempfile
 from pathlib import Path
 
 import pytest
 
-from ..models import Confidence, Finding, ScanResult, ScanStats, Severity
 from ..engine import ScanEngine, create_default_engine
-from ..rules.post_install import detect_post_install_scripts
-from ..rules.obfuscation import detect_obfuscation
-from ..rules.dep_confusion import detect_dep_confusion
-from ..rules.typosquat import detect_typosquat, _edit_distance
-from ..rules.manifest import detect_manifest_issues
-from ..rules.fork_drift import detect_fork_drift
 from ..formatters import format_json, format_sarif, format_table
-
+from ..models import Confidence, Finding, ScanResult, ScanStats, Severity
+from ..rules.dep_confusion import detect_dep_confusion
+from ..rules.manifest import detect_manifest_issues
+from ..rules.obfuscation import detect_obfuscation
+from ..rules.post_install import detect_post_install_scripts
+from ..rules.typosquat import _edit_distance, detect_typosquat
 
 # ─── Helpers ────────────────────────────────────────────────────────────
 

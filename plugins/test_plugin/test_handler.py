@@ -1,7 +1,7 @@
 """Test plugin for PLUGIN-01 acceptance criteria."""
 import logging
-from typing import Dict, Any, Optional
 import sys
+from typing import Any
 
 # Need to import PluginInterface — add project root to path
 sys.path.insert(0, '/home/kirk/.picoclaw/workspace/Secdev_kimi')
@@ -11,17 +11,17 @@ logger = logging.getLogger("SecdevKimi.Plugin.Test")
 
 class TestHandler(PluginInterface):
     """Minimal plugin that verifies hook dispatch works."""
-    
-    def initialize(self, config: Dict[str, Any]) -> bool:
+
+    def initialize(self, config: dict[str, Any]) -> bool:
         logger.info("TestHandler initialized")
         return True
-    
-    def on_project_complete(self, project_id: str, result: Dict) -> None:
+
+    def on_project_complete(self, project_id: str, result: dict) -> None:
         logger.info(f"[TestPlugin] Project {project_id} completed: {result.get('status')}")
-    
-    def on_alert(self, alert: Dict) -> Optional[Dict]:
+
+    def on_alert(self, alert: dict) -> dict | None:
         logger.info(f"[TestPlugin] Alert: {alert.get('message', '')}")
         return alert
-    
-    def health_check(self) -> Dict:
+
+    def health_check(self) -> dict:
         return {"status": "ok", "plugin": "test_plugin"}

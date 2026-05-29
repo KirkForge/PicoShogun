@@ -9,12 +9,10 @@ Deterministic: same profile = same findings.
 """
 from __future__ import annotations
 
-import math
 import logging
-from typing import Dict, List, Optional
 
-from ..models import Baseline, BehavioralProfile, Finding, Severity, Confidence
 from ..entropy import shannon_entropy_string
+from ..models import Baseline, BehavioralProfile, Confidence, Finding, Severity
 
 logger = logging.getLogger("iron_dome.L4.rules.exfil")
 
@@ -34,24 +32,24 @@ EXFIL_BYTES_THRESHOLD = 10000
 
 def detect_exfiltration(
     profile: BehavioralProfile,
-    baselines: Optional[Dict[str, Baseline]] = None,
-) -> List[Finding]:
+    baselines: dict[str, Baseline] | None = None,
+) -> list[Finding]:
     """
     Detect covert channel exfiltration in a behavioral profile.
     """
-    findings: List[Finding] = []
+    findings: list[Finding] = []
     findings.extend(_detect_dns_exfiltration(profile))
     findings.extend(_detect_https_exfiltration(profile))
     findings.extend(_detect_error_channel_exfiltration(profile))
     return findings
 
 
-def _detect_dns_exfiltration(profile: BehavioralProfile) -> List[Finding]:
+def _detect_dns_exfiltration(profile: BehavioralProfile) -> list[Finding]:
     """L4-EXFIL-001: Detect DNS-based data exfiltration."""
     if not profile.dns_queries:
         return []
 
-    suspicious_queries: List[str] = []
+    suspicious_queries: list[str] = []
 
     for dq in profile.dns_queries:
         domain = dq.domain
@@ -97,7 +95,7 @@ def _detect_dns_exfiltration(profile: BehavioralProfile) -> List[Finding]:
     )]
 
 
-def _detect_https_exfiltration(profile: BehavioralProfile) -> List[Finding]:
+def _detect_https_exfiltration(profile: BehavioralProfile) -> list[Finding]:
     """L4-EXFIL-002: Detect HTTPS header-based exfiltration."""
     if not profile.network_calls:
         return []
@@ -125,7 +123,7 @@ def _detect_https_exfiltration(profile: BehavioralProfile) -> List[Finding]:
     )]
 
 
-def _detect_error_channel_exfiltration(profile: BehavioralProfile) -> List[Finding]:
+def _detect_error_channel_exfiltration(profile: BehavioralProfile) -> list[Finding]:
     """L4-EXFIL-003: Detect error-channel data exfiltration."""
     total_sent = profile.total_bytes_sent
     if total_sent < EXFIL_BYTES_THRESHOLD:

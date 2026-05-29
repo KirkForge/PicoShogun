@@ -8,8 +8,7 @@ from __future__ import annotations
 import json
 from typing import IO
 
-from ..models import AnalysisResult, BehavioralVerdict
-
+from ..models import AnalysisResult
 
 _VERDICT_TO_SARIF_LEVEL = {
     "CLEAN": "note",

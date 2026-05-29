@@ -8,16 +8,16 @@ Flags:
 - pnpm overrides that bypass integrity
 - pnpm patchedDependencies that modify package code
 """
+import contextlib
 import json
 from pathlib import Path
-from typing import List
 
-from ..models import Finding, Severity, Confidence
+from ..models import Confidence, Finding, Severity
 
 
-def scan(target_path: Path, corpus_dir: Path) -> List[Finding]:
+def scan(target_path: Path, corpus_dir: Path) -> list[Finding]:
     """Scan for dangerous pnpm configurations."""
-    findings: List[Finding] = []
+    findings: list[Finding] = []
 
     target = Path(target_path)
     has_pnpm_lock = (target / "pnpm-lock.yaml").exists()
@@ -30,10 +30,8 @@ def scan(target_path: Path, corpus_dir: Path) -> List[Finding]:
     # Check package.json for pnpm config
     pkg_data = {}
     if pkg_path.exists():
-        try:
+        with contextlib.suppress(json.JSONDecodeError, UnicodeDecodeError):
             pkg_data = json.loads(pkg_path.read_text(encoding="utf-8", errors="ignore"))
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            pass
 
     pnpm_config = pkg_data.get("pnpm", {})
     pnpm_overrides = pnpm_config.get("overrides", {})

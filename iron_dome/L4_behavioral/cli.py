@@ -13,15 +13,15 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Dict, Optional
 
-from .models import (
-    AnalysisResult, BehavioralProfile, Baseline, BehavioralVerdict,
-)
-from .engine import L4Engine, create_default_engine
 from .baseline import load_all_baselines, load_baseline, save_baseline
-from .profiler import profile_from_trace, profile_from_sandbox_result
+from .engine import create_default_engine
 from .formatters import format_json, format_sarif, format_table
+from .models import (
+    Baseline,
+    BehavioralProfile,
+)
+from .profiler import profile_from_sandbox_result, profile_from_trace
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -139,7 +139,7 @@ def main(argv: list[str] | None = None) -> int:
 
 def _cmd_analyze(args: argparse.Namespace) -> int:
     """Execute the 'analyze' subcommand."""
-    profile: Optional[BehavioralProfile] = None
+    profile: BehavioralProfile | None = None
 
     # Load profile from trace or pre-built
     if args.trace:
@@ -152,7 +152,8 @@ def _cmd_analyze(args: argparse.Namespace) -> int:
         # Try to detect format: SandboxResult (from L3) or raw trace
         if "events" in trace_data and "command" in trace_data:
             # L3 SandboxResult format
-            from ..L3_execution.models import SandboxResult, SandboxEvent, Verdict as L3Verdict, Policy
+            from ..L3_execution.models import SandboxEvent, SandboxResult
+            from ..L3_execution.models import Verdict as L3Verdict
 
             # Reconstruct minimal SandboxResult for profiling
             events = []
@@ -216,7 +217,7 @@ def _cmd_analyze(args: argparse.Namespace) -> int:
         return 2
 
     # Load baselines
-    baselines: Dict[str, Baseline] = {}
+    baselines: dict[str, Baseline] = {}
     if args.baselines_dir:
         # Load custom baselines
         import yaml

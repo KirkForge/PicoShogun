@@ -7,11 +7,12 @@ L4 detector rules can operate on.
 """
 from __future__ import annotations
 
+import contextlib
 import logging
-from datetime import datetime, timezone
-from typing import List, Optional
+from datetime import datetime
 
-from ..L3_execution.models import SandboxResult, SandboxEvent, Verdict as L3Verdict
+from ..L3_execution.models import SandboxEvent, SandboxResult
+from .entropy import shannon_entropy
 from .models import (
     BehavioralProfile,
     DNSQuery,
@@ -21,12 +22,11 @@ from .models import (
     ResourceSample,
     TimingPoint,
 )
-from .entropy import shannon_entropy
 
 logger = logging.getLogger("iron_dome.L4.profiler")
 
 
-def _parse_timestamp_ms(timestamp: Optional[str]) -> Optional[float]:
+def _parse_timestamp_ms(timestamp: str | None) -> float | None:
     """Parse an ISO timestamp string to milliseconds since epoch.
 
     Falls back to None if parsing fails.
@@ -45,7 +45,7 @@ def _parse_timestamp_ms(timestamp: Optional[str]) -> Optional[float]:
 def profile_from_sandbox_result(
     result: SandboxResult,
     package: str = "",
-    egress_data: Optional[bytes] = None,
+    egress_data: bytes | None = None,
 ) -> BehavioralProfile:
     """
     Convert an L3 SandboxResult into a BehavioralProfile.
@@ -106,10 +106,10 @@ def profile_from_sandbox_result(
 
 def profile_from_trace(
     package: str,
-    command: List[str],
-    events: List[dict],
+    command: list[str],
+    events: list[dict],
     duration_ms: int = 0,
-    egress_data: Optional[bytes] = None,
+    egress_data: bytes | None = None,
 ) -> BehavioralProfile:
     """
     Create a BehavioralProfile from a raw trace (list of event dicts).
@@ -148,10 +148,8 @@ def profile_from_trace(
         if op in ("connect", "network", "outbound"):
             host, _, port_str = detail.partition(":")
             port = 0
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 port = int(port_str)
-            except (ValueError, TypeError):
-                pass
             profile.network_calls.append(NetworkCall(
                 host=host,
                 port=port,
@@ -240,10 +238,8 @@ def _classify_event(event: SandboxEvent, profile: BehavioralProfile) -> None:
         raw_address = event.address or detail
         host, _, port_str = raw_address.partition(":")
         port = 0
-        try:
+        with contextlib.suppress(ValueError, TypeError):
             port = int(port_str)
-        except (ValueError, TypeError):
-            pass
         profile.network_calls.append(NetworkCall(
             host=host, port=port, timestamp_ms=ts_approx,
         ))

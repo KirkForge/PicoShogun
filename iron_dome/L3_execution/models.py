@@ -10,7 +10,6 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Dict, List, Optional
 
 
 class Verdict(str, Enum):
@@ -46,7 +45,7 @@ class PolicyRule:
     rule_id: RuleID
     action: Verdict
     description: str = ""
-    patterns: List[str] = field(default_factory=list)
+    patterns: list[str] = field(default_factory=list)
     severity: Severity = Severity.HIGH
 
 
@@ -56,20 +55,20 @@ class Policy:
     name: str = "default"
     version: str = "1.0"
     description: str = ""
-    rules: List[PolicyRule] = field(default_factory=list)
+    rules: list[PolicyRule] = field(default_factory=list)
     # Allowlists
-    network_allowlist: List[str] = field(default_factory=list)
-    filesystem_write_allowlist: List[str] = field(default_factory=list)
-    filesystem_read_allowlist: List[str] = field(default_factory=list)
-    process_allowlist: List[str] = field(default_factory=list)
+    network_allowlist: list[str] = field(default_factory=list)
+    filesystem_write_allowlist: list[str] = field(default_factory=list)
+    filesystem_read_allowlist: list[str] = field(default_factory=list)
+    process_allowlist: list[str] = field(default_factory=list)
     # Resource limits
     cpu_limit_seconds: float = 30.0
     memory_limit_mb: int = 512
     wall_time_limit_seconds: float = 60.0
     # DNS settings
-    dns_allowlist: List[str] = field(default_factory=list)
+    dns_allowlist: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "name": self.name,
             "version": self.version,
@@ -96,8 +95,8 @@ class SandboxEvent:
     verdict: Verdict
     operation: str
     detail: str
-    path: Optional[str] = None
-    address: Optional[str] = None
+    path: str | None = None
+    address: str | None = None
 
 
 @dataclass
@@ -107,16 +106,16 @@ class SandboxResult:
     timestamp: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
-    command: List[str] = field(default_factory=list)
-    policy: Optional[Policy] = None
-    events: List[SandboxEvent] = field(default_factory=list)
+    command: list[str] = field(default_factory=list)
+    policy: Policy | None = None
+    events: list[SandboxEvent] = field(default_factory=list)
     overall_verdict: Verdict = Verdict.ALLOW
-    exit_code: Optional[int] = None
+    exit_code: int | None = None
     duration_ms: int = 0
     peak_memory_mb: float = 0.0
     cpu_time_seconds: float = 0.0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "run_id": self.run_id,
             "timestamp": self.timestamp,

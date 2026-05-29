@@ -1,22 +1,16 @@
 """
 Tests for pnpm_lock_parser — Parse pnpm-lock.yaml v6+ for lockfile analysis.
 """
-import tempfile
-from pathlib import Path
 
-import pytest
 
 from picosentry.rules.pnpm_lock_parser import (
-    PnpmLockfile,
-    PnpmPackage,
+    _parse_pnpm_pkg_key,
     find_missing_integrity,
     find_weak_integrity,
     get_pnpm_importer_deps,
     get_pnpm_package,
     parse_pnpm_lockfile,
-    _parse_pnpm_pkg_key,
 )
-
 
 # Sample pnpm-lock.yaml v6 content
 PNPM_LOCK_V6 = """lockfileVersion: '6.0'

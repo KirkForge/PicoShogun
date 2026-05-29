@@ -1,9 +1,8 @@
 """OpenTelemetry tracing & metrics integration for Shogun."""
-import os
 import logging
-from typing import Optional
+import os
 
-logger = logging.getLogger("SecdevKimi.Observability")
+logger = logging.getLogger("shogun.Observability")
 
 # ── Tracer setup ─────────────────────────────────────────────────────
 
@@ -12,40 +11,40 @@ _meter_provider = None
 _tracer = None
 _meter = None
 
-def init_telemetry(service_name: str = "shogun", endpoint: Optional[str] = None) -> bool:
+def init_telemetry(service_name: str = "shogun", endpoint: str | None = None) -> bool:
     """Initialize OpenTelemetry tracing and metrics.
-    
+
     Returns True if OTEL is available and configured, False otherwise.
     Gracefully degrades — if opentelemetry packages aren't installed, no-op.
     """
     global _tracer_provider, _meter_provider, _tracer, _meter
-    
+
     endpoint = endpoint or os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
     if not endpoint:
         logger.info("No OTEL endpoint configured — tracing disabled")
         return False
 
     try:
-        from opentelemetry import trace, metrics
-        from opentelemetry.sdk.trace import TracerProvider
-        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+        from opentelemetry import metrics, trace
         from opentelemetry.sdk.metrics import MeterProvider
         from opentelemetry.sdk.resources import Resource
-        
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
         # OTLP exporters
         try:
-            from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
             from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+            from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
             use_grpc = True
         except ImportError:
-            from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
             from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+            from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
             use_grpc = False
 
         resource = Resource.create({
             "service.name": service_name,
             "service.version": "2.13.0",
-            "deployment.environment": os.environ.get("SECDEV_ENV", "development"),
+            "deployment.environment": os.environ.get("SHOGUN_ENV", "development"),
         })
 
         # Tracing
@@ -99,7 +98,7 @@ class NoOpTracer:
     def start_as_current_span(self, name, **kwargs):
         from contextlib import nullcontext
         return nullcontext(NoOpSpan())
-    
+
     def start_span(self, name, **kwargs):
         return NoOpSpan()
 
@@ -126,13 +125,13 @@ class NoOpMeter:
     """No-op meter when OTEL is not configured."""
     def create_counter(self, name, **kwargs):
         return NoOpInstrument()
-    
+
     def create_histogram(self, name, **kwargs):
         return NoOpInstrument()
-    
+
     def create_gauge(self, name, **kwargs):
         return NoOpInstrument()
-    
+
     def create_up_down_counter(self, name, **kwargs):
         return NoOpInstrument()
 

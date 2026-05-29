@@ -8,7 +8,6 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
 
 from ..models import Confidence, Finding, Severity
 
@@ -16,7 +15,7 @@ logger = logging.getLogger("iron_dome.L2.rules.typosquat")
 
 # Top-50 most popular npm packages (by weekly downloads, 2024-2025).
 # These are the most attractive typosquatting targets.
-TOP_PACKAGES: Tuple[str, ...] = (
+TOP_PACKAGES: tuple[str, ...] = (
     "react", "lodash", "express", "next", "typescript",
     "axios", "moment", "prop-types", "react-dom", "eslint",
     "node-sass", "tailwindcss", "date-fns", "core-js", "vue",
@@ -68,9 +67,9 @@ def _normalize(name: str) -> str:
     return name.lower().replace("-", "").replace("_", "")
 
 
-def _load_installed_packages(target: Path) -> Set[str]:
+def _load_installed_packages(target: Path) -> set[str]:
     """Load package names from root package.json and node_modules."""
-    packages: Set[str] = set()
+    packages: set[str] = set()
 
     # Root package.json
     root_pkg = target / "package.json"
@@ -111,21 +110,21 @@ def _load_package_json(path: Path) -> dict:
         return {}
 
 
-def detect_typosquat(target: Path) -> List[Finding]:
+def detect_typosquat(target: Path) -> list[Finding]:
     """
     Detect packages that are typosquats of popular npm packages.
 
     Compares installed package names against the top-50 list
     using normalized edit distance.
     """
-    findings: List[Finding] = []
+    findings: list[Finding] = []
 
     installed = _load_installed_packages(target)
     if not installed:
         return findings
 
     # Pre-normalize top packages for comparison
-    top_normalized: Dict[str, str] = {}
+    top_normalized: dict[str, str] = {}
     for pkg in TOP_PACKAGES:
         top_normalized[_normalize(pkg)] = pkg
 

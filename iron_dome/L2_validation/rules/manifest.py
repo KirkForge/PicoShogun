@@ -9,7 +9,6 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import List
 
 from ..models import Confidence, Finding, Severity
 
@@ -27,9 +26,9 @@ def _load_package_json(path: Path) -> dict:
         return {}
 
 
-def _check_version_ranges(pkg: dict, pkg_json: Path) -> List[Finding]:
+def _check_version_ranges(pkg: dict, pkg_json: Path) -> list[Finding]:
     """L2-MANI-001: Flag overly permissive version constraints."""
-    findings: List[Finding] = []
+    findings: list[Finding] = []
     pkg_name = pkg.get("name", pkg_json.parent.name)
     pkg_version = pkg.get("version", "unknown")
     pkg_label = f"{pkg_name}@{pkg_version}"
@@ -96,9 +95,9 @@ def _check_version_ranges(pkg: dict, pkg_json: Path) -> List[Finding]:
     return findings
 
 
-def _check_optional_with_scripts(pkg: dict, pkg_json: Path) -> List[Finding]:
+def _check_optional_with_scripts(pkg: dict, pkg_json: Path) -> list[Finding]:
     """L2-MANI-002: Optional deps with install scripts are a risk vector."""
-    findings: List[Finding] = []
+    findings: list[Finding] = []
     pkg_name = pkg.get("name", pkg_json.parent.name)
     pkg_version = pkg.get("version", "unknown")
     pkg_label = f"{pkg_name}@{pkg_version}"
@@ -145,13 +144,13 @@ def _check_optional_with_scripts(pkg: dict, pkg_json: Path) -> List[Finding]:
     return findings
 
 
-def detect_manifest_issues(target: Path) -> List[Finding]:
+def detect_manifest_issues(target: Path) -> list[Finding]:
     """
     Detect package manifest integrity issues.
 
     Scans root package.json and every node_modules/*/package.json.
     """
-    findings: List[Finding] = []
+    findings: list[Finding] = []
 
     # Root package.json
     root_pkg = target / "package.json"

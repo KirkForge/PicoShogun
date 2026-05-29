@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import List
 
 from ..models import Confidence, Finding, Severity
 
@@ -42,9 +41,9 @@ def _extract_author_name(author) -> str:
     return ""
 
 
-def _extract_author_names(pkg: dict) -> List[str]:
+def _extract_author_names(pkg: dict) -> list[str]:
     """Extract all author/maintainer/contributor names from a package.json."""
-    names: List[str] = []
+    names: list[str] = []
 
     # Single author field
     author = pkg.get("author")
@@ -90,9 +89,9 @@ def _extract_npm_user_name(pkg: dict) -> str:
     return ""
 
 
-def _extract_maintainer_domains(pkg: dict) -> List[str]:
+def _extract_maintainer_domains(pkg: dict) -> list[str]:
     """Extract email domains from maintainers list."""
-    domains: List[str] = []
+    domains: list[str] = []
     for m in pkg.get("maintainers", []):
         if isinstance(m, dict):
             email = m.get("email", "")
@@ -104,7 +103,7 @@ def _extract_maintainer_domains(pkg: dict) -> List[str]:
 
 
 def _check_maintainer_signals(
-    pkg: dict, pkg_json: Path, findings: List[Finding]
+    pkg: dict, pkg_json: Path, findings: list[Finding]
 ) -> None:
     """Check a single package.json for maintainer change signals."""
     pkg_name = pkg.get("name", pkg_json.parent.name)
@@ -187,7 +186,7 @@ def _check_maintainer_signals(
                     f"Package '{pkg_name}' has no author/maintainer info but "
                     f"has install scripts — unaccountable code execution"
                 ),
-                evidence=f"no author field, scripts: {', '.join(s for s in pkg.get('scripts', {}).keys() if s in {'install', 'postinstall', 'preinstall', 'prepare'})}",
+                evidence=f"no author field, scripts: {', '.join(s for s in pkg.get('scripts', {}) if s in {'install', 'postinstall', 'preinstall', 'prepare'})}",
                 remediation=(
                     "Packages without author information that run code on install "
                     "are a critical supply chain risk. Verify the package source, "
@@ -270,12 +269,12 @@ def _check_maintainer_signals(
                 )
 
 
-def detect_maintainer_changes(target: Path, corpus_dir: Path) -> List[Finding]:
+def detect_maintainer_changes(target: Path, corpus_dir: Path) -> list[Finding]:
     """
     Detect packages with maintainer change signals.
     No network calls. Pure filesystem scan.
     """
-    findings: List[Finding] = []
+    findings: list[Finding] = []
 
     # Check root package.json
     root_pkg = target / "package.json"

@@ -14,12 +14,9 @@ from __future__ import annotations
 import logging
 import os
 import resource
-import signal
 import subprocess
-import sys
 import time
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
 
 from ..models import (
     Policy,
@@ -57,14 +54,14 @@ class SubprocessBackend(SandboxBackend):
 
     def run(
         self,
-        command: List[str],
+        command: list[str],
         policy: Policy,
-        timeout: Optional[float] = None,
-        cwd: Optional[str] = None,
-        env: Optional[dict] = None,
+        timeout: float | None = None,
+        cwd: str | None = None,
+        env: dict | None = None,
     ) -> SandboxResult:
         engine = VerdictEngine(policy)
-        events: List[SandboxEvent] = []
+        events: list[SandboxEvent] = []
         wall_time = timeout or policy.wall_time_limit_seconds
 
         # Pre-flight checks
@@ -83,7 +80,7 @@ class SubprocessBackend(SandboxBackend):
 
         # Set up resource limits
         start_time = time.monotonic()
-        mem_limit_bytes = policy.memory_limit_mb * 1024 * 1024
+        policy.memory_limit_mb * 1024 * 1024
 
         run_env = env or os.environ.copy()
 
@@ -124,7 +121,7 @@ class SubprocessBackend(SandboxBackend):
                 operation="wall_time",
                 detail=f"Exceeded {wall_time}s wall-time limit",
             ))
-            stdout, stderr = b"", b""
+            _stdout, _stderr = b"", b""
             exit_code = -9
 
         elapsed_ms = int((time.monotonic() - start_time) * 1000)
@@ -141,10 +138,10 @@ class SubprocessBackend(SandboxBackend):
         return result
 
     def _preflight_checks(
-        self, command: List[str], policy: Policy, engine: VerdictEngine
-    ) -> List[SandboxEvent]:
+        self, command: list[str], policy: Policy, engine: VerdictEngine
+    ) -> list[SandboxEvent]:
         """Check policy before executing."""
-        events: List[SandboxEvent] = []
+        events: list[SandboxEvent] = []
 
         # Check spawn allowlist
         spawn_event = engine.evaluate_spawn(command[0])

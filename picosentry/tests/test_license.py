@@ -7,7 +7,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from picosentry.engine import create_default_engine
 from picosentry.rules.license import detect_license_issues
 

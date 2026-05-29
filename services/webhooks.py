@@ -1,14 +1,13 @@
 """Webhook system for external integrations."""
-import json
 import hashlib
 import hmac
-import secrets
-import logging
 import ipaddress
-from urllib.parse import urlparse
-from typing import Dict, List
+import json
+import logging
+import secrets
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 try:
     import requests
@@ -18,7 +17,7 @@ except ImportError:
 
 from database.manager import db
 
-logger = logging.getLogger("SecdevKimi.Webhooks")
+logger = logging.getLogger("shogun.Webhooks")
 
 # Blocked URL patterns for SSRF protection
 SSRF_BLOCKED_SCHEMES = {"file", "ftp", "data", "javascript", "vbscript"}
@@ -35,22 +34,22 @@ SSRF_BLOCKED_NETWORKS = [
 
 def _is_safe_webhook_url(url: str) -> tuple:
     """Validate webhook URL against SSRF attacks.
-    
+
     Returns (is_safe, reason) tuple.
     """
     try:
         parsed = urlparse(url)
     except Exception:
         return False, "Invalid URL format"
-    
+
     # Only allow HTTP/HTTPS
     if parsed.scheme not in ("http", "https"):
         return False, f"Scheme '{parsed.scheme}' not allowed. Only http/https."
-    
+
     # Must have a hostname
     if not parsed.hostname:
         return False, "URL must have a hostname"
-    
+
     # Resolve hostname and check against blocked networks
     import socket
     try:
@@ -62,7 +61,7 @@ def _is_safe_webhook_url(url: str) -> tuple:
                     return False, f"Target IP {ip} is in blocked network {network}"
     except socket.gaierror:
         return False, f"Cannot resolve hostname '{parsed.hostname}'"
-    
+
     return True, "OK"
 
 @dataclass
@@ -71,18 +70,18 @@ class Webhook:
     name: str
     url: str
     secret: str
-    events: List[str]
+    events: list[str]
     active: bool
     retries: int
     created_at: datetime
 
 class WebhookManager:
     """Manage outgoing webhooks with HMAC signing and retry logic."""
-    
+
     def __init__(self):
-        self.webhooks: Dict[str, Webhook] = {}
+        self.webhooks: dict[str, Webhook] = {}
         self._load_webhooks()
-    
+
     def _load_webhooks(self):
         """Load active webhooks from database."""
         rows = db.execute("SELECT * FROM webhooks WHERE active = 1")
@@ -98,32 +97,32 @@ class WebhookManager:
                 created_at=row["created_at"]
             )
             self.webhooks[row["name"]] = webhook
-    
-    def create(self, name: str, url: str, events: List[str], secret: str = None) -> int:
+
+    def create(self, name: str, url: str, events: list[str], secret: str = None) -> int:
         """Create a new webhook endpoint."""
         # SSRF protection: validate URL
         is_safe, reason = _is_safe_webhook_url(url)
         if not is_safe:
             raise ValueError(f"Webhook URL rejected: {reason}")
-        
+
         secret = secret or secrets.token_urlsafe(32)
-        
+
         webhook_id = db.execute_insert("""
             INSERT INTO webhooks (name, url, secret, events, active, retries)
             VALUES (?, ?, ?, ?, 1, 0)
         """, (name, url, secret, json.dumps(events)))
-        
+
         self._load_webhooks()
         logger.info(f"Webhook created: {name} -> {url}")
         return webhook_id
-    
+
     def delete(self, webhook_id: int) -> bool:
         """Deactivate a webhook."""
         db.execute("UPDATE webhooks SET active = 0 WHERE id = ?", (webhook_id,))
         self._load_webhooks()
         return True
-    
-    def _sign_payload(self, payload: Dict, secret: str) -> str:
+
+    def _sign_payload(self, payload: dict, secret: str) -> str:
         """Generate HMAC-SHA256 signature for payload."""
         payload_json = json.dumps(payload, sort_keys=True)
         return hmac.new(
@@ -131,27 +130,27 @@ class WebhookManager:
             payload_json.encode(),
             hashlib.sha256
         ).hexdigest()
-    
-    def dispatch(self, event: str, payload: Dict) -> List[Dict]:
+
+    def dispatch(self, event: str, payload: dict) -> list[dict]:
         """Dispatch event to all matching webhooks."""
         results = []
-        
+
         if not HAS_REQUESTS:
             logger.warning("requests library not available, skipping webhooks")
             return results
-        
+
         for name, webhook in self.webhooks.items():
             if event not in webhook.events:
                 continue
-            
+
             event_payload = {
                 "event": event,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "data": payload
             }
-            
+
             signature = self._sign_payload(event_payload, webhook.secret)
-            
+
             try:
                 response = requests.post(
                     webhook.url,
@@ -160,19 +159,19 @@ class WebhookManager:
                         "Content-Type": "application/json",
                         "X-Secdev-Signature": f"sha256={signature}",
                         "X-Secdev-Event": event,
-                        "User-Agent": "Secdev_kimi-Webhook/2.0"
+                        "User-Agent": "Shogun-Webhook/2.0"
                     },
                     timeout=10
                 )
-                
+
                 results.append({
                     "webhook": name,
                     "status": response.status_code,
                     "success": 200 <= response.status_code < 300
                 })
-                
+
                 logger.info(f"Webhook {name}: {response.status_code}")
-                
+
             except Exception as e:
                 logger.error(f"Webhook {name} failed: {e}")
                 results.append({
@@ -181,9 +180,9 @@ class WebhookManager:
                     "success": False,
                     "error": str(e)
                 })
-        
+
         return results
-    
+
     def verify_signature(self, payload: bytes, signature: str, secret: str) -> bool:
         """Verify incoming webhook signature using constant-time comparison."""
         expected = hmac.new(
@@ -191,7 +190,7 @@ class WebhookManager:
             payload,
             hashlib.sha256
         ).hexdigest()
-        
+
         # Use hmac.compare_digest for constant-time comparison (prevents timing attacks)
         return hmac.compare_digest(signature, expected)
 

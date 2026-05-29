@@ -9,15 +9,15 @@ from __future__ import annotations
 import hashlib
 import logging
 import time
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Sequence
 
-from .models import Finding, ScanResult, ScanStats, Severity
+from .models import Finding, ScanResult, ScanStats
 
 logger = logging.getLogger("picosentry.engine")
 
 # A detector rule is a pure function: (target_path, corpus_dir) → List[Finding]
-DetectorRule = Callable[[Path, Path], List[Finding]]
+DetectorRule = Callable[[Path, Path], list[Finding]]
 
 
 class ScanEngine:
@@ -29,8 +29,8 @@ class ScanEngine:
     Rules receive (target_path, corpus_dir) — no HTTP, no global state.
     """
 
-    def __init__(self, corpus_dir: Optional[Path] = None) -> None:
-        self._rules: Dict[str, DetectorRule] = {}
+    def __init__(self, corpus_dir: Path | None = None) -> None:
+        self._rules: dict[str, DetectorRule] = {}
         self._corpus_dir = corpus_dir or Path(__file__).parent / "corpus"
         self._corpus_version = self._compute_corpus_version()
 
@@ -51,7 +51,7 @@ class ScanEngine:
                 continue
         return h.hexdigest()[:12]
 
-    def register(self, rule_id: str, rule: DetectorRule) -> "ScanEngine":
+    def register(self, rule_id: str, rule: DetectorRule) -> ScanEngine:
         """Register a detector rule. Returns self for chaining."""
         self._rules[rule_id] = rule
         return self
@@ -60,14 +60,14 @@ class ScanEngine:
         """Remove a detector rule."""
         self._rules.pop(rule_id, None)
 
-    def list_rules(self) -> List[str]:
+    def list_rules(self) -> list[str]:
         """Return sorted list of registered rule IDs."""
         return sorted(self._rules.keys())
 
     def scan(
         self,
         target: str | Path,
-        rules: Optional[Sequence[str]] = None,
+        rules: Sequence[str] | None = None,
     ) -> ScanResult:
         """
         Run a deterministic scan on target path.
@@ -102,7 +102,7 @@ class ScanEngine:
         )
 
         start_ms = _now_ms()
-        all_findings: List[Finding] = []
+        all_findings: list[Finding] = []
         packages_scanned = 0
 
         # Count packages if node_modules or similar structure
@@ -124,16 +124,11 @@ class ScanEngine:
         duration = _now_ms() - start_ms
 
         # Count files scanned (best-effort)
-        if target_path.is_dir():
-            files_scanned = sum(
-                1 for _ in target_path.rglob("*") if _.is_file()
-            )
-        else:
-            files_scanned = 1
+        files_scanned = sum(1 for _ in target_path.rglob("*") if _.is_file()) if target_path.is_dir() else 1
 
         # Build stats
-        by_severity: Dict[str, int] = {}
-        by_rule: Dict[str, int] = {}
+        by_severity: dict[str, int] = {}
+        by_rule: dict[str, int] = {}
         for f in all_findings:
             sev = f.severity.value
             by_severity[sev] = by_severity.get(sev, 0) + 1
@@ -163,23 +158,23 @@ class ScanEngine:
         return result
 
 
-def create_default_engine(corpus_dir: Optional[Path] = None) -> ScanEngine:
+def create_default_engine(corpus_dir: Path | None = None) -> ScanEngine:
     """Create a ScanEngine with all built-in detector rules registered."""
-    from .rules.post_install import detect_post_install_scripts
-    from .rules.obfuscation import detect_obfuscation
-    from .rules.dep_confusion import detect_dep_confusion
-    from .rules.typosquat import detect_typosquat
-    from .rules.manifest import detect_manifest_issues
-    from .rules.fork_drift import detect_fork_drift
-    from .rules.credential_read import detect_credential_reading
-    from .rules.lockfile_drift import detect_lockfile_drift
     from .rules.bundled_shadow import detect_bundled_shadows
-    from .rules.maintainer_change import detect_maintainer_changes
-    from .rules.provenance import detect_provenance_issues
-    from .rules.pnpm_config import scan as detect_pnpm_config
-    from .rules.license import detect_license_issues
+    from .rules.credential_read import detect_credential_reading
+    from .rules.dep_confusion import detect_dep_confusion
     from .rules.engine import detect_engine_issues
+    from .rules.fork_drift import detect_fork_drift
+    from .rules.license import detect_license_issues
+    from .rules.lockfile_drift import detect_lockfile_drift
+    from .rules.maintainer_change import detect_maintainer_changes
+    from .rules.manifest import detect_manifest_issues
+    from .rules.obfuscation import detect_obfuscation
+    from .rules.pnpm_config import scan as detect_pnpm_config
+    from .rules.post_install import detect_post_install_scripts
+    from .rules.provenance import detect_provenance_issues
     from .rules.sideloading import detect_sideloading
+    from .rules.typosquat import detect_typosquat
 
     engine = ScanEngine(corpus_dir=corpus_dir)
     engine.register("L2-POST-001", detect_post_install_scripts)

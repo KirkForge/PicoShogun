@@ -6,12 +6,8 @@ Tests that .picosentry.yml is loaded and merged with CLI args during scan.
 import json
 import subprocess
 import sys
-from pathlib import Path
 
-import pytest
-
-from picosentry.models import Finding, Severity, Confidence
-
+from picosentry.models import Severity
 
 # ── Config file integration with scan ──
 
@@ -39,8 +35,8 @@ class TestConfigFileIntegration:
         )
 
         # Run scan with config
-        from picosentry.engine import create_default_engine
         from picosentry.config import load_config
+        from picosentry.engine import create_default_engine
 
         config = load_config(project)
         engine = create_default_engine()
@@ -74,8 +70,8 @@ class TestConfigFileIntegration:
             "  - test-pkg\n"
         )
 
-        from picosentry.engine import create_default_engine
         from picosentry.config import load_config
+        from picosentry.engine import create_default_engine
 
         config = load_config(project)
         engine = create_default_engine()
@@ -111,8 +107,8 @@ class TestConfigFileIntegration:
             "  - L2-POST-001\n"
         )
 
-        from picosentry.engine import create_default_engine
         from picosentry.config import load_config
+        from picosentry.engine import create_default_engine
 
         config = load_config(project)
         engine = create_default_engine()
@@ -173,8 +169,8 @@ class TestConfigFileIntegration:
             "  L2-POST-001: HIGH\n"
         )
 
-        from picosentry.engine import create_default_engine
         from picosentry.config import load_config
+        from picosentry.engine import create_default_engine
 
         config_a = load_config(project)
         config_b = load_config(project)
@@ -236,7 +232,7 @@ class TestConfigExamples:
         project.mkdir()
         config_file = project / ".picosentry.yml"
         config_file.write_text("version: 1\n")
-        
+
         from picosentry.config import load_config
         config = load_config(project)
         assert config.format == "table"  # default
@@ -266,7 +262,7 @@ class TestConfigExamples:
             "  - L2-POST-001\n"
             "  - L2-TYPO-001\n"
         )
-        
+
         from picosentry.config import load_config
         config = load_config(project)
         assert config.format == "json"

@@ -10,12 +10,16 @@ Deterministic: same profile + same baseline = same drift score.
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional
 
+from ..differ import find_best_baseline
 from ..models import (
-    Baseline, BehavioralProfile, DriftResult, Finding, Severity, Confidence,
+    Baseline,
+    BehavioralProfile,
+    Confidence,
+    DriftResult,
+    Finding,
+    Severity,
 )
-from ..differ import compare_profile_to_baseline, find_best_baseline, overall_drift_score
 
 logger = logging.getLogger("iron_dome.L4.rules.baseline")
 
@@ -27,8 +31,8 @@ OVERALL_DRIFT_THRESHOLD = 0.3
 
 def detect_baseline_drift(
     profile: BehavioralProfile,
-    baselines: Optional[Dict[str, Baseline]] = None,
-) -> List[Finding]:
+    baselines: dict[str, Baseline] | None = None,
+) -> list[Finding]:
     """Detect behavioral drift from baselines."""
     from ..baseline import load_all_baselines
 
@@ -43,7 +47,7 @@ def detect_baseline_drift(
         return []
 
     baseline, drift = result
-    findings: List[Finding] = []
+    findings: list[Finding] = []
     findings.extend(_detect_call_frequency_drift(profile, baseline, drift))
     findings.extend(_detect_network_drift(profile, baseline, drift))
     findings.extend(_detect_resource_drift(profile, baseline, drift))
@@ -54,7 +58,7 @@ def _detect_call_frequency_drift(
     profile: BehavioralProfile,
     baseline: Baseline,
     drift: DriftResult,
-) -> List[Finding]:
+) -> list[Finding]:
     """L4-BASE-001: Detect call frequency drift from baseline."""
     if not baseline.call_frequencies:
         return []
@@ -73,7 +77,7 @@ def _detect_call_frequency_drift(
         severity = Severity.LOW
         confidence = Confidence.MEDIUM
 
-    evidence_parts: List[str] = []
+    evidence_parts: list[str] = []
     for op, stats in baseline.call_frequencies.items():
         observed = profile.call_frequencies.get(op, 0)
         expected_mean = stats.get("mean", 0.0)
@@ -100,7 +104,7 @@ def _detect_network_drift(
     profile: BehavioralProfile,
     baseline: Baseline,
     drift: DriftResult,
-) -> List[Finding]:
+) -> list[Finding]:
     """L4-BASE-002: Detect network profile drift from baseline."""
     if drift.network_drift < NETWORK_DRIFT_THRESHOLD:
         return []
@@ -116,7 +120,7 @@ def _detect_network_drift(
         severity = Severity.LOW
         confidence = Confidence.MEDIUM
 
-    unexpected_hosts: List[str] = []
+    unexpected_hosts: list[str] = []
     for nc in profile.network_calls:
         if baseline.network_hosts:
             if not any(nc.host.endswith(h) or nc.host == h for h in baseline.network_hosts):
@@ -152,7 +156,7 @@ def _detect_resource_drift(
     profile: BehavioralProfile,
     baseline: Baseline,
     drift: DriftResult,
-) -> List[Finding]:
+) -> list[Finding]:
     """L4-BASE-003: Detect resource curve drift from baseline (DTW)."""
     if not baseline.resource_curve:
         return []

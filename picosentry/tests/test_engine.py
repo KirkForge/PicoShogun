@@ -4,12 +4,9 @@ test_engine.py — Tests for L2-ENGIN-001 engine constraint detection.
 import json
 from pathlib import Path
 
-import pytest
-
 from picosentry.engine import create_default_engine
-from picosentry.rules.engine import detect_engine_issues
 from picosentry.models import Severity
-
+from picosentry.rules.engine import detect_engine_issues
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 

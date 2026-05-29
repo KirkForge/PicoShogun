@@ -15,6 +15,7 @@ SubprocessBackend is used as fallback.
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import platform
@@ -22,7 +23,6 @@ import signal
 import subprocess
 import time
 from datetime import datetime, timezone
-from typing import List, Optional
 
 from ..models import (
     Policy,
@@ -44,8 +44,7 @@ DANGEROUS_SYSCALLS = frozenset({
     "init_module", "delete_module", "finit_module",
     "keyctl", "request_key", "add_key",
     "swapon", "swapoff", "syslog",
-    "iopl", "ioperm", "iopl",
-    "chroot", "acct", "sethostname", "setdomainname",
+    "iopl", "ioperm", "chroot", "acct", "sethostname", "setdomainname",
     "bpf",  # Prevent loading new BPF programs
 })
 
@@ -70,14 +69,14 @@ class SeccompBackend(SandboxBackend):
 
     def run(
         self,
-        command: List[str],
+        command: list[str],
         policy: Policy,
-        timeout: Optional[float] = None,
-        cwd: Optional[str] = None,
-        env: Optional[dict] = None,
+        timeout: float | None = None,
+        cwd: str | None = None,
+        env: dict | None = None,
     ) -> SandboxResult:
         engine = VerdictEngine(policy)
-        events: List[SandboxEvent] = []
+        events: list[SandboxEvent] = []
         wall_time = timeout or policy.wall_time_limit_seconds
 
         # Pre-flight checks
@@ -175,8 +174,8 @@ class SeccompBackend(SandboxBackend):
         3. Sets resource limits
         """
         def preexec():
-            import resource as _resource
             import ctypes
+            import resource as _resource
 
             # Set NO_NEW_PRIVS — required for unprivileged seccomp
             PR_SET_NO_NEW_PRIVS = 38
@@ -188,7 +187,6 @@ class SeccompBackend(SandboxBackend):
             # Install seccomp filter using ctypes
             # This installs a strict seccomp filter that kills on violation
             SECCOMP_MODE_STRICT = 1
-            SECCOMP_SET_MODE_STRICT = 0  # prctl arg
             PR_SET_SECCOMP = 22
 
             # Try to install a basic strict filter
@@ -203,10 +201,8 @@ class SeccompBackend(SandboxBackend):
 
             # Set resource limits regardless of seccomp success
             mem_bytes = policy.memory_limit_mb * 1024 * 1024
-            try:
+            with contextlib.suppress(ValueError, OSError):
                 _resource.setrlimit(_resource.RLIMIT_AS, (mem_bytes, mem_bytes))
-            except (ValueError, OSError):
-                pass
 
             try:
                 cpu_limit = int(policy.cpu_limit_seconds)
@@ -214,9 +210,7 @@ class SeccompBackend(SandboxBackend):
             except (ValueError, OSError):
                 pass
 
-            try:
+            with contextlib.suppress(ValueError, OSError):
                 _resource.setrlimit(_resource.RLIMIT_CORE, (0, 0))
-            except (ValueError, OSError):
-                pass
 
         return preexec

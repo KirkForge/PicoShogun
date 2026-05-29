@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 from ..models import Confidence, Finding, Severity
 
@@ -24,7 +23,7 @@ DEP_FIELDS = (
 )
 
 # Protocol patterns and their risk levels
-PROTOCOL_PATTERNS: List[Tuple[str, str, Severity, str]] = [
+PROTOCOL_PATTERNS: list[tuple[str, str, Severity, str]] = [
     # (prefix, description, severity, remediation_hint)
     (
         "git+ssh://",
@@ -71,9 +70,9 @@ PROTOCOL_PATTERNS: List[Tuple[str, str, Severity, str]] = [
 ]
 
 
-def _extract_protocol_deps(pkg_data: dict, pkg_name: str) -> List[Finding]:
+def _extract_protocol_deps(pkg_data: dict, pkg_name: str) -> list[Finding]:
     """Extract all non-registry dependencies from a package.json."""
-    findings: List[Finding] = []
+    findings: list[Finding] = []
 
     for field in DEP_FIELDS:
         deps = pkg_data.get(field)
@@ -106,14 +105,14 @@ def _extract_protocol_deps(pkg_data: dict, pkg_name: str) -> List[Finding]:
     return findings
 
 
-def detect_sideloading(target: Path, corpus_dir: Path) -> List[Finding]:
+def detect_sideloading(target: Path, corpus_dir: Path) -> list[Finding]:
     """
     Detect dependencies using non-registry protocols.
 
     Scans root package.json for git://, file://, link:, github: protocols.
     These bypass npm registry integrity and are a supply chain attack vector.
     """
-    findings: List[Finding] = []
+    findings: list[Finding] = []
 
     # Root package.json
     root_pkg = target / "package.json"

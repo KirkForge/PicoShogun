@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Test AUTH-01 (registration) and AUTH-02 (RBAC) end-to-end."""
-import subprocess
 import json
+import subprocess
 import sys
 
 BASE_URL = "http://192.168.1.225:8765"

@@ -10,9 +10,8 @@ Deterministic: same profile = same findings. No ML, no guessing.
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional
 
-from ..models import Baseline, BehavioralProfile, Finding, Severity, Confidence
+from ..models import Baseline, BehavioralProfile, Confidence, Finding, Severity
 
 logger = logging.getLogger("iron_dome.L4.rules.timing")
 
@@ -27,17 +26,17 @@ BURST_COUNT_THRESHOLD = 50
 
 def detect_timing_anomalies(
     profile: BehavioralProfile,
-    baselines: Optional[Dict[str, Baseline]] = None,
-) -> List[Finding]:
+    baselines: dict[str, Baseline] | None = None,
+) -> list[Finding]:
     """Detect timing anomalies: sleep evasion, side-channels, bursts."""
-    findings: List[Finding] = []
+    findings: list[Finding] = []
     findings.extend(_detect_sleep_evasion(profile))
     findings.extend(_detect_timing_side_channel(profile))
     findings.extend(_detect_burst_anomalies(profile))
     return findings
 
 
-def _detect_sleep_evasion(profile: BehavioralProfile) -> List[Finding]:
+def _detect_sleep_evasion(profile: BehavioralProfile) -> list[Finding]:
     """L4-TIME-001: Detect unnatural sleep patterns (evasion)."""
     if len(profile.sleep_intervals) < SLEEP_COUNT_THRESHOLD:
         return []
@@ -71,7 +70,7 @@ def _detect_sleep_evasion(profile: BehavioralProfile) -> List[Finding]:
     )]
 
 
-def _detect_timing_side_channel(profile: BehavioralProfile) -> List[Finding]:
+def _detect_timing_side_channel(profile: BehavioralProfile) -> list[Finding]:
     """L4-TIME-002: Detect timing side-channels."""
     if not profile.timing_points or len(profile.timing_points) < 3:
         return []
@@ -81,7 +80,7 @@ def _detect_timing_side_channel(profile: BehavioralProfile) -> List[Finding]:
         if tp.duration_ms > 0:
             op_durations.setdefault(tp.operation, []).append(tp.duration_ms)
 
-    suspicious_ops: List[str] = []
+    suspicious_ops: list[str] = []
     for op, durations in op_durations.items():
         if len(durations) < 3:
             continue
@@ -120,7 +119,7 @@ def _detect_timing_side_channel(profile: BehavioralProfile) -> List[Finding]:
     )]
 
 
-def _detect_burst_anomalies(profile: BehavioralProfile) -> List[Finding]:
+def _detect_burst_anomalies(profile: BehavioralProfile) -> list[Finding]:
     """L4-TIME-003: Detect burst anomalies (sudden spikes)."""
     if len(profile.timing_points) < BURST_COUNT_THRESHOLD:
         return []
@@ -130,7 +129,7 @@ def _detect_burst_anomalies(profile: BehavioralProfile) -> List[Finding]:
 
     max_burst = 0
     max_burst_start = 0.0
-    for i, ts in enumerate(timestamps):
+    for _i, ts in enumerate(timestamps):
         count = sum(1 for t in timestamps if ts <= t < ts + BURST_WINDOW_MS)
         if count > max_burst:
             max_burst = count

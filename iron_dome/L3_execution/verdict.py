@@ -8,10 +8,13 @@ from __future__ import annotations
 import fnmatch
 import logging
 from datetime import datetime, timezone
-from typing import List, Optional
 
 from .models import (
-    Policy, PolicyRule, RuleID, SandboxEvent, SandboxResult, Verdict,
+    Policy,
+    PolicyRule,
+    RuleID,
+    SandboxEvent,
+    Verdict,
 )
 
 logger = logging.getLogger("iron_dome.L3.verdict")
@@ -170,7 +173,7 @@ class VerdictEngine:
             detail=command,
         )
 
-    def compute_overall_verdict(self, events: List[SandboxEvent]) -> Verdict:
+    def compute_overall_verdict(self, events: list[SandboxEvent]) -> Verdict:
         """
         Compute overall verdict from a list of events.
         DENY overrides everything. AUDIT overrides ALLOW.
@@ -195,11 +198,11 @@ class VerdictEngine:
     # ─── Private helpers ──────────────────────────────────────────────
 
     @staticmethod
-    def _matches(value: str, patterns: List[str]) -> bool:
+    def _matches(value: str, patterns: list[str]) -> bool:
         """Check if value matches any fnmatch pattern."""
         return any(fnmatch.fnmatch(value, p) for p in patterns)
 
-    def _host_allowed(self, host: str, allowlist: Optional[List[str]] = None) -> bool:
+    def _host_allowed(self, host: str, allowlist: list[str] | None = None) -> bool:
         """Check if host is in the network allowlist."""
         wl = allowlist if allowlist is not None else self.policy.network_allowlist
         if not wl:
@@ -207,14 +210,11 @@ class VerdictEngine:
         return any(fnmatch.fnmatch(host, p) for p in wl)
 
     @staticmethod
-    def _path_allowed(path: str, allowlist: List[str]) -> bool:
+    def _path_allowed(path: str, allowlist: list[str]) -> bool:
         """Check if path starts with or matches any allowlist entry."""
         if not allowlist:
             return False
-        for allowed in allowlist:
-            if path.startswith(allowed) or fnmatch.fnmatch(path, allowed):
-                return True
-        return False
+        return any(path.startswith(allowed) or fnmatch.fnmatch(path, allowed) for allowed in allowlist)
 
     def _command_allowed(self, command: str) -> bool:
         """Check if command is in the process allowlist."""
@@ -230,8 +230,8 @@ class VerdictEngine:
         rule: PolicyRule,
         operation: str,
         detail: str,
-        path: Optional[str] = None,
-        address: Optional[str] = None,
+        path: str | None = None,
+        address: str | None = None,
     ) -> SandboxEvent:
         return SandboxEvent(
             timestamp=datetime.now(timezone.utc).isoformat(),

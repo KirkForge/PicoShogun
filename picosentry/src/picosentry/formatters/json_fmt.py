@@ -3,7 +3,6 @@ JSON formatter — deterministic output with sorted keys.
 
 Produces the same JSON for the same ScanResult, every time.
 """
-import json
 from picosentry.models import ScanResult
 
 

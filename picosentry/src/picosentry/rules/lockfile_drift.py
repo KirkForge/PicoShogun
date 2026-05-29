@@ -10,17 +10,12 @@ Pure function: (target_path, corpus_dir) → List[Finding]
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 from ..models import Confidence, Finding, Severity
 from .pnpm_lock_parser import (
-    PnpmLockfile,
-    PnpmPackage,
     find_missing_integrity,
     find_weak_integrity,
-    get_pnpm_importer_deps,
     parse_pnpm_lockfile,
 )
 
@@ -35,10 +30,10 @@ def _load_package_json(path: Path) -> dict:
         return {}
 
 
-def _load_lockfile_v1(content: str) -> Dict[str, str]:
+def _load_lockfile_v1(content: str) -> dict[str, str]:
     """Parse npm lockfile v1 — extract {name: resolved_version}."""
     # Lockfile v1 format: "package@version": { "version": "x.y.z" }
-    deps: Dict[str, str] = {}
+    deps: dict[str, str] = {}
     try:
         data = json.loads(content)
         for _key, entry in data.get("dependencies", {}).items():
@@ -49,9 +44,9 @@ def _load_lockfile_v1(content: str) -> Dict[str, str]:
     return deps
 
 
-def _load_lockfile_v2(content: str) -> Dict[str, str]:
+def _load_lockfile_v2(content: str) -> dict[str, str]:
     """Parse npm lockfile v2/v3 — extract {name: resolved_version}."""
-    deps: Dict[str, str] = {}
+    deps: dict[str, str] = {}
     try:
         data = json.loads(content)
         # v2/v3 uses "packages" key with path-based keys
@@ -74,17 +69,17 @@ def _load_lockfile_v2(content: str) -> Dict[str, str]:
     return deps
 
 
-def _load_pnpm_lockfile(content: str) -> Dict[str, str]:
+def _load_pnpm_lockfile(content: str) -> dict[str, str]:
     """Parse pnpm-lock.yaml using the proper v6+ parser.
 
     Returns {name: version} mapping for compatibility with existing drift checks.
     Also extracts integrity and resolution info for advanced checks.
     """
     lockfile = parse_pnpm_lockfile(content)
-    deps: Dict[str, str] = {}
+    deps: dict[str, str] = {}
 
     # Extract from importers (workspace projects)
-    for importer_path, importer_deps in lockfile.importers.items():
+    for _importer_path, importer_deps in lockfile.importers.items():
         for name, version_info in importer_deps.items():
             if isinstance(version_info, str):
                 # May be like "4.17.21" or a resolution reference
@@ -100,9 +95,9 @@ def _load_pnpm_lockfile(content: str) -> Dict[str, str]:
     return deps
 
 
-def _get_all_dep_versions(pkg: dict) -> Dict[str, str]:
+def _get_all_dep_versions(pkg: dict) -> dict[str, str]:
     """Get all dependency names and their requested versions from package.json."""
-    deps: Dict[str, str] = {}
+    deps: dict[str, str] = {}
     for key in ("dependencies", "devDependencies", "peerDependencies", "optionalDependencies"):
         section = pkg.get(key)
         if isinstance(section, dict):
@@ -110,9 +105,9 @@ def _get_all_dep_versions(pkg: dict) -> Dict[str, str]:
     return deps
 
 
-def _check_pnpm_workspace(target: Path) -> List[Finding]:
+def _check_pnpm_workspace(target: Path) -> list[Finding]:
     """Check pnpm-workspace.yaml for dangerous settings."""
-    findings: List[Finding] = []
+    findings: list[Finding] = []
     workspace_yaml = target / "pnpm-workspace.yaml"
     if not workspace_yaml.is_file():
         return findings
@@ -145,13 +140,13 @@ def _check_pnpm_workspace(target: Path) -> List[Finding]:
     return findings
 
 
-def detect_lockfile_drift(target: Path, corpus_dir: Path) -> List[Finding]:
+def detect_lockfile_drift(target: Path, corpus_dir: Path) -> list[Finding]:
     """
     Detect lockfile drift — discrepancies between package.json and lockfile.
     Also checks pnpm-workspace.yaml for dangerous settings.
     No network calls. Pure filesystem scan.
     """
-    findings: List[Finding] = []
+    findings: list[Finding] = []
 
     # Check pnpm-workspace.yaml first
     findings.extend(_check_pnpm_workspace(target))
@@ -203,18 +198,15 @@ def detect_lockfile_drift(target: Path, corpus_dir: Path) -> List[Finding]:
         return findings
 
     # Parse lockfile
-    locked_deps: Dict[str, str] = {}
-    lockfile_path: Optional[Path] = None
+    locked_deps: dict[str, str] = {}
+    lockfile_path: Path | None = None
 
     if lockfile_exists:
         lockfile_path = lockfile
         try:
             content = lockfile.read_text(encoding="utf-8", errors="replace")
             lockfile_version = json.loads(content).get("lockfileVersion", 1)
-            if lockfile_version >= 2:
-                locked_deps = _load_lockfile_v2(content)
-            else:
-                locked_deps = _load_lockfile_v1(content)
+            locked_deps = _load_lockfile_v2(content) if lockfile_version >= 2 else _load_lockfile_v1(content)
         except (json.JSONDecodeError, OSError):
             findings.append(
                 Finding(

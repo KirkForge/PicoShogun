@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import List
 
 from ..models import Confidence, Finding, Severity
 
@@ -43,9 +42,9 @@ CREDENTIAL_PATTERNS = (
 )
 
 
-def _scan_package_json(pkg_json: Path) -> List[Finding]:
+def _scan_package_json(pkg_json: Path) -> list[Finding]:
     """Scan a single package.json for dangerous install scripts."""
-    findings: List[Finding] = []
+    findings: list[Finding] = []
     try:
         data = json.loads(pkg_json.read_text(encoding="utf-8", errors="replace"))
     except (json.JSONDecodeError, OSError):
@@ -115,14 +114,14 @@ def _scan_package_json(pkg_json: Path) -> List[Finding]:
     return findings
 
 
-def detect_post_install_scripts(target: Path, corpus_dir: Path) -> List[Finding]:
+def detect_post_install_scripts(target: Path, corpus_dir: Path) -> list[Finding]:
     """
     Detect packages with install/postinstall/preinstall scripts.
 
     Scans root package.json and every node_modules/*/package.json.
     No network calls. Pure filesystem scan.
     """
-    findings: List[Finding] = []
+    findings: list[Finding] = []
 
     # Root package.json
     root_pkg = target / "package.json"

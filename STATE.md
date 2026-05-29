@@ -1,6 +1,6 @@
 # Shogun — Enterprise Security Platform
 
-**Version:** 2.13.0 | **Last Updated:** 2026-05-28 | **Git:** `main`
+**Version:** 2.15.0 | **Last Updated:** 2026-05-29 | **Git:** `main`
 
 ---
 
@@ -8,14 +8,25 @@
 
 ```
 Shogun/
-├── api/server.py            # FastAPI REST API (v2.13) + WebSocket + Dashboard
+├── api/server.py            # FastAPI REST API (v2.15) + WebSocket + Dashboard
+│   ├── lifespan context manager (startup/shutdown)
+│   ├── SecurityHeadersMiddleware (HSTS, CSP, X-Frame-Options, etc.)
+│   ├── RequestIDMiddleware (X-Request-ID propagation)
+│   ├── RequestSizeLimitMiddleware (10 MB default)
+│   ├── DDoSShieldMiddleware (adaptive rate limiting)
+│   ├── GZipMiddleware
+│   ├── CORSMiddleware
+│   ├── RateLimitMiddleware (per-IP + per-org)
+│   └── AuditMiddleware (request logging)
+│   Note: FastAPI add_middleware is LIFO; registered in reverse order
 ├── front/index.html          # Enterprise Command Centre (SPA dashboard)
 ├── config/
 │   ├── settings.py           # Pydantic-style dataclass config from env
+│   ├── logging_config.py     # Structured JSON logging (JSONFormatter)
 │   ├── project_registry.json # 75+ project definitions
 │   └── anomaly_rules.json    # Metric anomaly thresholds
 ├── database/
-│   └── manager.py            # Thread-safe SQLite WAL with migration framework (6 migrations)
+│   └── manager.py            # Thread-safe SQLite WAL with migration framework (7 migrations)
 ├── services/
 │   ├── orchestrator.py       # Async project runner with concurrency control
 │   ├── intelligence.py       # 16-pattern threat engine with correlation
@@ -33,8 +44,11 @@ Shogun/
 │   ├── anomaly_detector.py  # Configurable metric anomaly rules engine
 │   └── observability.py      # OpenTelemetry tracing + FastAPI instrumentation
 ├── middleware/
+│   ├── security_headers.py   # Security headers (HSTS, CSP, etc.)
+│   ├── request_id.py         # Request ID / correlation ID
+│   ├── request_size_limit.py # Body size limit (10 MB default)
 │   ├── rate_limit.py         # Per-IP + per-org rate limiting
-│   ├── audit.py              # Request audit logging middleware
+│   ├── audit.py              # Request audit logging
 │   └── ddos_shield.py        # Adaptive DDoS protection
 ├── iron_dome/
 │   ├── L1_perimeter/         # DDoS shield (middleware)
@@ -42,27 +56,28 @@ Shogun/
 │   ├── L3_execution/         # Sandbox (seccomp/seatbelt/subprocess)
 │   └── L4_behavioral/        # Behavioral analysis (timing/exfil/entropy/honeypot)
 ├── tests/
-│   ├── test_api.py           # API endpoint tests (20 tests)
+│   ├── test_api.py           # API endpoint tests (observability, health, auth)
 │   ├── test_scanner.py       # L2 scanner tests (390 lines)
-│   └── fixtures/             # Test fixture projects
 ├── deploy/
 │   ├── prometheus.yml        # Prometheus scrape config
-│   └── otel-collector.yml    # OpenTelemetry collector config
+│   └── otel-collector.yml   # OpenTelemetry collector config
 ├── docker-compose.yml        # Docker Compose (shogun + prometheus + grafana + otel)
 ├── Dockerfile                # Multi-stage production build
-├── .github/workflows/ci.yml  # CI pipeline (lint + test + security + docker)
-├── orchestrator/master.py    # Legacy CLI orchestrator
-├── picosentry/               # Standalone npm/pnpm scanner (src layout)
-└── nginx/secdev-default.conf # Reverse proxy config
+├── pyproject.toml            # Project configuration (dependencies, linting, testing)
+├── .github/workflows/ci.yml # CI pipeline (lint + test + security + docker)
+└── orchestrator/
+    └── master.py             # DEPRECATED — use services/orchestrator.py
 ```
 
-## API Endpoints (v2.13)
+## API Endpoints (v2.15)
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/` | — | Command Centre dashboard |
 | GET | `/dashboard` | — | Command Centre dashboard (alias) |
-| GET | `/health` | — | Health readiness check |
+| GET | `/health` | — | Full health check (readiness) |
+| GET | `/health/live` | — | Liveness probe (process alive) |
+| GET | `/health/ready` | — | Readiness probe (DB connected) |
 | GET | `/health/history` | Bearer | Health check history |
 | GET | `/status` | Bearer | System status overview |
 | GET | `/projects` | Bearer+Org | List projects (filterable) |
@@ -87,18 +102,16 @@ Shogun/
 | POST | `/auth/api-key/{id}/rotate` | Bearer | Rotate API key |
 | DELETE | `/auth/api-key/{id}` | Bearer | Revoke API key |
 | GET | `/plugins` | Bearer | Loaded plugins |
-| GET | `/webhooks` | Bearer | Webhook endpoints |
-| POST | `/webhooks` | Bearer | Create webhook |
-| POST | `/webhooks/{id}/test` | Bearer | Test webhook |
-| DELETE | `/webhooks/{id}` | Bearer | Delete webhook |
+| GET | `/webhooks` | Bearer | Webhook listing |
+| POST | `/webhooks` | Bearer+Operator | Create webhook |
 | GET | `/scheduler/jobs` | Bearer | Scheduled jobs |
-| POST | `/scheduler/jobs` | Bearer | Add scheduled job |
-| PATCH | `/scheduler/jobs/{id}/enable` | Bearer | Enable job |
-| PATCH | `/scheduler/jobs/{id}/disable` | Bearer | Disable job |
-| DELETE | `/scheduler/jobs/{id}` | Bearer | Remove job |
-| POST | `/backup` | Bearer | Create backup |
+| POST | `/scheduler/jobs` | Bearer+Operator | Create scheduled job |
+| PATCH | `/scheduler/jobs/{id}/enable` | Bearer+Operator | Enable job |
+| PATCH | `/scheduler/jobs/{id}/disable` | Bearer+Operator | Disable job |
+| DELETE | `/scheduler/jobs/{id}` | Bearer+Admin | Delete job |
+| POST | `/backup` | Bearer+Admin | Create backup |
 | GET | `/backups` | Bearer | List backups |
-| GET | `/logs/stats` | Bearer | Log statistics |
+| GET | `/logs/stats` | Bearer | Log stats |
 | POST | `/logs/rotate` | Bearer | Trigger log rotation |
 | GET | `/logs` | Bearer | Log entries (filterable) |
 | GET | `/events/history` | Bearer | Event bus history |
@@ -117,62 +130,37 @@ Shogun/
 | POST | `/api/v1/sandboxes` | Bearer+Operator | Run L3 sandbox |
 | GET | `/api/v1/sandboxes/policies/default` | Bearer | Default sandbox policy |
 | GET | `/api/v1/dashboard/summary` | Bearer | Aggregated dashboard data |
-| WS | `/ws` | — | Real-time event stream |
+| WS | `/ws` | Optional | Real-time event stream (supports token auth) |
 
-## Command Centre Features (v2.13)
+## v2.15 Changes
 
-The enterprise dashboard at `/` or `/dashboard` provides:
+### Architecture — Route Versioning & Error Handling
 
-- **Overview Panel**: System health, threat score, active threats, pending alerts with live status pills and animated metric transitions
-- **Threat Score Trend Chart**: Canvas-rendered time-series chart with danger threshold line and gradient fill (light/dark theme aware)
-- **Run Success Rate Sparkline**: Per-project success rate visualization with colour-coded bars
-- **Live Event Feed**: WebSocket-powered real-time event stream with severity colour coding
-- **Health Checks**: Per-component status with latency metrics
-- **Projects**: Full project listing with category filters, run triggers, success rates
-- **Intelligence**: Signal feed with severity badges, confidence scores, threat score
-- **Alerts**: Alert table with channel, status, acknowledge/retry flow
-- **Supply Chain Scanner (L2)**: Run scans against project directories, view findings, browse rules
-- **L3 Sandbox**: Execute commands under sandbox policy, view verdicts and events
-- **Organizations**: Multi-tenant org management with tier badges
-- **Scheduler**: Cron job management with enable/disable
-- **Logs**: Filterable system log viewer
-- **Auth Modal**: JWT/API key authentication with local token persistence
-- **WebSocket**: Auto-reconnecting live event stream (exponential backoff, 10 retries)
-- **Theme Toggle**: Light/dark theme with localStorage persistence
-- **Keyboard Shortcuts**: 1-9 for panels, T for theme, R for refresh, ? for help
-- **Responsive Design**: Collapsible sidebar on mobile
+- **API v1 router**: Mounted `api_v1` router. Scan, sandbox, and dashboard summary routes now use the versioned router (`/api/v1/scans`, `/api/v1/sandboxes`, `/api/v1/dashboard/summary`). Unversioned routes remain on root app.
+- **Middleware order**: Fixed middleware execution order. `add_middleware` is LIFO in FastAPI — reversed registration so execution order is now correct: SecurityHeaders → RequestID → RequestSizeLimit → DDoSShield → GZip → CORS → RateLimit → Audit.
+- **Global exception handler**: Returns structured JSON for unhandled exceptions instead of HTML tracebacks. Includes `request_id` for correlation.
+- **Startup config validation**: Lifespan calls `settings.validate()` and logs warnings for insecure production defaults.
 
-## OpenTelemetry Integration
+### Infrastructure
 
-- `services/observability.py` provides tracer + meter with graceful no-op fallback
-- Auto-instrumentation via `FastAPIInstrumentor` when OTEL endpoint is configured
-- Decorators: `@trace_span()` and `@trace_async_span()` for manual span creation
-- Env vars: `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`
-- Docker Compose profile `tracing` starts OTel Collector
+- **`start_api.sh`**: Project-relative `.venv/`, env-var config (`SECDEV_HOST`, `SECDEV_PORT`, `SECDEV_WORKERS`), liveness health check.
+- **Stale files removed**: Deleted `1` and `secdev_kimi.db.bak-*`.
+- **Logger renamed**: `SecdevKimi.API` → `shogun.api` for structured log consistency.
 
-## Bug Fixes (v2.13)
+## v2.15 Changes
 
-- **Auth token parsing**: Fixed `validate_token()` — simple tokens with colons (timestamps) were incorrectly split, causing 401s
-- **Orchestrator `get_status()`**: Fixed `NoneType` crash when `completed` or `failed` counts are null in SQLite aggregates
-- **Migration idempotency**: Migration runner now handles `ALTER TABLE ADD COLUMN` duplicate column errors gracefully
+### Enterprise Hardening
 
-## Security Layers (Iron Dome)
-
-| Layer | Module | Status |
-|-------|--------|--------|
-| L1 | Perimeter (DDoS, rate limiting) | ✅ Middleware integrated |
-| L2 | Supply Chain Validation (13 rules) | ✅ Deterministic, 133 tests |
-| L3 | Execution Sandbox | ✅ seccomp/seatbelt/subprocess |
-| L4 | Behavioral Analysis | ✅ Timing/exfil/entropy/honeypot |
-
-## Database Schema (Migrations)
-
-- v1: Initial (project_runs, intelligence, alerts, metrics, projects, health_checks)
-- v2: Users + API keys
-- v3: Audit log + org improvements
-- v4: Scheduled jobs, webhooks, org tables
-- v5: Orgs (multi-tenant)
-- v6: org_id on project_runs + revoked_at on api_keys (idempotent)
+- **App lifecycle**: FastAPI `lifespan` context manager replaces deprecated `on_event` handlers. Proper startup/shutdown of scheduler, anomaly detector, event bus, plugins, and DB connections.
+- **Security headers**: `SecurityHeadersMiddleware` adds HSTS, CSP, X-Frame-Options, X-Content-Type-Options, X-XSS-Protection, Referrer-Policy, and Permissions-Policy.
+- **Request tracing**: `RequestIDMiddleware` generates/propagates `X-Request-ID` for distributed tracing.
+- **Request size limit**: `RequestSizeLimitMiddleware` rejects bodies over 10 MB (413).
+- **Structured logging**: `config/logging_config.py` with JSON formatter for production log aggregation.
+- **WebSocket auth**: `/ws` endpoint supports optional JWT authentication via query param or auth message.
+- **Health probes**: `/health/live` (liveness) and `/health/ready` (readiness) for Kubernetes/Docker deployments.
+- **Database v7**: `anomaly_alerts` table with indexed columns for rule_id and severity.
+- **Project config**: Comprehensive `pyproject.toml` with all dependencies, linting, and test config.
+- **Deprecation**: `orchestrator/master.py` marked deprecated — will be removed in v3.0.
 
 ## Deployment
 
@@ -187,22 +175,11 @@ docker run -d -p 8765:8765 \
 
 ### Docker Compose
 ```bash
-# Start platform only
-docker compose up -d shogun
-
-# Start with monitoring stack
-docker compose --profile monitoring up -d
-
-# Start with OpenTelemetry tracing
-docker compose --profile tracing up -d
+docker compose up -d shogun                          # Platform only
+docker compose --profile monitoring up -d             # With Prometheus + Grafana
+docker compose --profile tracing up -d               # With OTel Collector
 ```
 
 ### CI/CD
 - GitHub Actions pipeline at `.github/workflows/ci.yml`
 - Stages: lint (ruff + mypy) → test (3.10/3.11/3.12) → security (pip-audit + bandit) → Docker build + smoke test
-- PicoSentry tests run separately
-
-## What's Archived (decoupled, not deleted)
-
-- Cron generator, frontend HTML (replaced by Command Centre)
-- Legacy orchestrator CLI (replaced by API + dashboard)

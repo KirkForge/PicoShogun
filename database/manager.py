@@ -1,16 +1,15 @@
 """Enterprise database layer with migrations, connection pooling, and ORM-like interface."""
+import logging
 import sqlite3
 import threading
-from pathlib import Path
-from datetime import datetime
-from typing import List, Optional, Tuple
 from contextlib import contextmanager
 from dataclasses import dataclass
-import logging
+from datetime import datetime
+from pathlib import Path
 
 from config.settings import settings
 
-logger = logging.getLogger("SecdevKimi.DB")
+logger = logging.getLogger("shogun.DB")
 
 @dataclass
 class Migration:
@@ -25,7 +24,7 @@ MIGRATIONS = [
             applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             name TEXT
         );
-        
+
         CREATE TABLE IF NOT EXISTS project_runs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             project_id TEXT NOT NULL,
@@ -43,7 +42,7 @@ MIGRATIONS = [
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (org_id) REFERENCES orgs(id)
         );
-        
+
         CREATE TABLE IF NOT EXISTS intelligence (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             source_project TEXT,
@@ -55,7 +54,7 @@ MIGRATIONS = [
             confidence REAL DEFAULT 0.0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-        
+
         CREATE TABLE IF NOT EXISTS alerts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             project_id TEXT,
@@ -67,7 +66,7 @@ MIGRATIONS = [
             retry_count INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-        
+
         CREATE TABLE IF NOT EXISTS metrics (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             project_id TEXT,
@@ -77,7 +76,7 @@ MIGRATIONS = [
             labels TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-        
+
         CREATE TABLE IF NOT EXISTS projects (
             id TEXT PRIMARY KEY,
             name TEXT,
@@ -92,7 +91,7 @@ MIGRATIONS = [
             metadata TEXT,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-        
+
         CREATE TABLE IF NOT EXISTS health_checks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             component TEXT,
@@ -101,14 +100,14 @@ MIGRATIONS = [
             latency_ms REAL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-        
+
         CREATE INDEX IF NOT EXISTS idx_project_runs_project ON project_runs(project_id, run_start);
         CREATE INDEX IF NOT EXISTS idx_project_runs_status ON project_runs(status);
         CREATE INDEX IF NOT EXISTS idx_intelligence_severity ON intelligence(severity, created_at);
         CREATE INDEX IF NOT EXISTS idx_alerts_sent ON alerts(sent, created_at);
         CREATE INDEX IF NOT EXISTS idx_metrics_project ON metrics(project_id, metric_name, created_at);
     """),
-    
+
     Migration(2, "add_users", """
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -120,7 +119,7 @@ MIGRATIONS = [
             last_login TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-        
+
         CREATE TABLE IF NOT EXISTS api_keys (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             key_hash TEXT UNIQUE NOT NULL,
@@ -135,7 +134,7 @@ MIGRATIONS = [
             FOREIGN KEY (user_id) REFERENCES users(id)
         );
     """),
-    
+
     Migration(3, "add_audit_log", """
         CREATE TABLE IF NOT EXISTS audit_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -148,11 +147,11 @@ MIGRATIONS = [
             user_agent TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-        
+
         CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id, created_at);
         CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action, resource_type);
     """),
-    
+
     Migration(4, "add_webhooks_scheduler", """
         CREATE TABLE IF NOT EXISTS webhooks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -164,7 +163,7 @@ MIGRATIONS = [
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-        
+
         CREATE TABLE IF NOT EXISTS scheduled_jobs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE NOT NULL,
@@ -177,11 +176,11 @@ MIGRATIONS = [
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-        
+
         CREATE INDEX IF NOT EXISTS idx_webhooks_active ON webhooks(active);
         CREATE INDEX IF NOT EXISTS idx_jobs_active ON scheduled_jobs(active, next_run);
     """),
-    
+
     Migration(5, "add_orgs", """
         CREATE TABLE IF NOT EXISTS orgs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -194,7 +193,7 @@ MIGRATIONS = [
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-        
+
         CREATE TABLE IF NOT EXISTS org_users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             org_id INTEGER,
@@ -205,7 +204,7 @@ MIGRATIONS = [
             FOREIGN KEY (org_id) REFERENCES orgs(id),
             FOREIGN KEY (user_id) REFERENCES users(id)
         );
-        
+
         CREATE TABLE IF NOT EXISTS org_projects (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             org_id INTEGER,
@@ -213,12 +212,12 @@ MIGRATIONS = [
             added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (org_id) REFERENCES orgs(id)
         );
-        
+
         CREATE INDEX IF NOT EXISTS idx_orgs_slug ON orgs(slug);
         CREATE INDEX IF NOT EXISTS idx_orgs_key ON orgs(api_key);
         CREATE INDEX IF NOT EXISTS idx_org_members ON org_users(org_id, user_id);
     """),
-    
+
     Migration(6, "add_org_id_to_runs_and_revoked_at", """
         -- Add org_id column to project_runs (P0 fix: get_usage() crashed)
         -- Using IF NOT EXISTS pattern via try/except at Python level for SQLite compat
@@ -229,21 +228,37 @@ MIGRATIONS = [
         -- Add index for org-filtered run queries
         CREATE INDEX IF NOT EXISTS idx_project_runs_org ON project_runs(org_id, run_start);
     """),
-]
+    Migration(7, "add_anomaly_alerts", """
+        CREATE TABLE IF NOT EXISTS anomaly_alerts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            rule_id TEXT NOT NULL,
+            metric_name TEXT NOT NULL,
+            value REAL,
+            threshold REAL,
+            comparison TEXT,
+            severity TEXT DEFAULT 'warning',
+            description TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_anomaly_alerts_rule ON anomaly_alerts(rule_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_anomaly_alerts_severity ON anomaly_alerts(severity, created_at);
+    """)]
+
 
 class DatabaseManager:
     """Thread-safe database manager with connection pooling."""
-    
-    def __init__(self, db_path: Optional[Path] = None):
+
+    def __init__(self, db_path: Path | None = None):
         self.db_path = db_path or settings.database.path
         self._local = threading.local()
         self._lock = threading.Lock()
         self._ensure_dir()
         self._init_migrations()
-    
+
     def _ensure_dir(self):
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     def _get_connection(self) -> sqlite3.Connection:
         if not hasattr(self._local, "conn") or self._local.conn is None:
             self._local.conn = sqlite3.connect(
@@ -262,7 +277,7 @@ class DatabaseManager:
                 self._local.conn.execute(f"PRAGMA wal_autocheckpoint={threshold}")
             self._local.conn.row_factory = sqlite3.Row
         return self._local.conn
-    
+
     @contextmanager
     def transaction(self):
         """Context manager for database transactions."""
@@ -274,27 +289,27 @@ class DatabaseManager:
         except Exception:
             conn.rollback()
             raise
-    
-    def execute(self, sql: str, params: Tuple = ()) -> List[sqlite3.Row]:
+
+    def execute(self, sql: str, params: tuple = ()) -> list[sqlite3.Row]:
         """Execute SQL and return results."""
         with self._lock:
             conn = self._get_connection()
             cursor = conn.execute(sql, params)
             return cursor.fetchall()
-    
-    def execute_one(self, sql: str, params: Tuple = ()) -> Optional[sqlite3.Row]:
+
+    def execute_one(self, sql: str, params: tuple = ()) -> sqlite3.Row | None:
         """Execute SQL and return first result."""
         results = self.execute(sql, params)
         return results[0] if results else None
-    
-    def execute_insert(self, sql: str, params: Tuple = ()) -> int:
+
+    def execute_insert(self, sql: str, params: tuple = ()) -> int:
         """Execute INSERT and return last row ID."""
         with self._lock:
             conn = self._get_connection()
             cursor = conn.execute(sql, params)
             conn.commit()
             return cursor.lastrowid
-    
+
     def _init_migrations(self):
         """Initialize and run pending migrations."""
         self.execute("""
@@ -304,12 +319,12 @@ class DatabaseManager:
                 name TEXT
             )
         """)
-        
+
         current_version = self.execute_one(
             "SELECT MAX(version) as v FROM schema_version"
         )
-        current = current_version["v"] if current_version and current_version["v"] else 0
-        
+        current = current_version["v"] if current_version and current_version["v"] is not None else 0
+
         for migration in MIGRATIONS:
             if migration.version > current:
                 logger.info(f"Applying migration {migration.version}: {migration.name}")
@@ -330,24 +345,24 @@ class DatabaseManager:
                     (migration.version, migration.name)
                 )
                 logger.info(f"Migration {migration.version} applied")
-    
+
     def backup(self) -> Path:
         """Create a backup of the database."""
         backup_dir = settings.database.backup_dir
         backup_dir.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_path = backup_dir / f"secdev_kimi_{timestamp}.db"
-        
+        backup_path = backup_dir / f"shogun_{timestamp}.db"
+
         with self._lock:
             source = sqlite3.connect(str(self.db_path))
             dest = sqlite3.connect(str(backup_path))
             source.backup(dest)
             dest.close()
             source.close()
-        
+
         logger.info(f"Database backed up to {backup_path}")
         return backup_path
-    
+
     def close(self):
         """Close all connections."""
         if hasattr(self._local, "conn") and self._local.conn:

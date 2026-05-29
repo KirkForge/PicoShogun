@@ -1,15 +1,14 @@
-"""Enterprise configuration management for Secdev_kimi."""
-import os
-from pathlib import Path
-from dataclasses import dataclass, field
-from typing import List, Optional
+"""Enterprise configuration management for Shogun."""
 import json
+import os
+from dataclasses import dataclass, field
+from pathlib import Path
 
 BASE_DIR = Path(__file__).parent.parent
 
 @dataclass
 class DatabaseConfig:
-    path: Path = BASE_DIR / "secdev_kimi.db"
+    path: Path = BASE_DIR / "shogun.db"
     backup_dir: Path = BASE_DIR / "backups"
     max_connections: int = 10
     timeout: int = 30
@@ -24,22 +23,22 @@ class APIConfig:
     port: int = 8765
     workers: int = 4
     reload: bool = False
-    cors_origins: List[str] = field(default_factory=lambda: ["*"])
+    cors_origins: list[str] = field(default_factory=lambda: ["*"])
     api_prefix: str = "/api/v1"
     docs_url: str = "/docs"
     redoc_url: str = "/redoc"
 
 @dataclass
 class SecurityConfig:
-    secret_key: str = field(default_factory=lambda: os.environ.get("SECDEV_SECRET_KEY", "change-me-in-production"))
+    secret_key: str = field(default_factory=lambda: os.environ.get("SHOGUN_SECRET_KEY", "change-me-in-production"))
     jwt_algorithm: str = "HS256"
     jwt_expiration_hours: int = 24
     password_hash_rounds: int = 12
-    allowed_hosts: List[str] = field(default_factory=lambda: ["*"])
+    allowed_hosts: list[str] = field(default_factory=lambda: ["*"])
     rate_limit: str = "100/minute"
-    ddos_shield_enabled: bool = field(default_factory=lambda: os.environ.get("SECDEV_DDOS_SHIELD", "false").lower() == "true")
-    ssl_cert_path: Optional[Path] = None
-    ssl_key_path: Optional[Path] = None
+    ddos_shield_enabled: bool = field(default_factory=lambda: os.environ.get("SHOGUN_DDOS_SHIELD", "false").lower() == "true")
+    ssl_cert_path: Path | None = None
+    ssl_key_path: Path | None = None
 
 @dataclass
 class LoggingConfig:
@@ -52,16 +51,16 @@ class LoggingConfig:
 
 @dataclass
 class AlertConfig:
-    discord_webhook: Optional[str] = field(default_factory=lambda: os.environ.get("DISCORD_WEBHOOK_URL"))
-    slack_webhook: Optional[str] = field(default_factory=lambda: os.environ.get("SLACK_WEBHOOK_URL"))
-    email_smtp_host: Optional[str] = field(default_factory=lambda: os.environ.get("SMTP_HOST"))
+    discord_webhook: str | None = field(default_factory=lambda: os.environ.get("DISCORD_WEBHOOK_URL"))
+    slack_webhook: str | None = field(default_factory=lambda: os.environ.get("SLACK_WEBHOOK_URL"))
+    email_smtp_host: str | None = field(default_factory=lambda: os.environ.get("SMTP_HOST"))
     email_smtp_port: int = int(os.environ.get("SMTP_PORT", "587"))
-    email_smtp_user: Optional[str] = field(default_factory=lambda: os.environ.get("SMTP_USER"))
-    email_smtp_password: Optional[str] = field(default_factory=lambda: os.environ.get("SMTP_PASSWORD"))
+    email_smtp_user: str | None = field(default_factory=lambda: os.environ.get("SMTP_USER"))
+    email_smtp_password: str | None = field(default_factory=lambda: os.environ.get("SMTP_PASSWORD"))
     email_smtp_use_ssl: bool = False
     email_smtp_starttls: bool = True
-    email_from: Optional[str] = field(default_factory=lambda: os.environ.get("EMAIL_FROM", "secdev@localhost"))
-    email_to: List[str] = field(default_factory=lambda: [
+    email_from: str | None = field(default_factory=lambda: os.environ.get("EMAIL_FROM", "secdev@localhost"))
+    email_to: list[str] = field(default_factory=lambda: [
         addr.strip()
         for addr in os.environ.get("EMAIL_TO", "").split(",")
         if addr.strip()
@@ -81,22 +80,22 @@ class OrchestratorConfig:
 
 @dataclass
 class Settings:
-    env: str = field(default_factory=lambda: os.environ.get("SECDEV_ENV", "development"))
-    debug: bool = field(default_factory=lambda: os.environ.get("SECDEV_DEBUG", "false").lower() == "true")
+    env: str = field(default_factory=lambda: os.environ.get("SHOGUN_ENV", "development"))
+    debug: bool = field(default_factory=lambda: os.environ.get("SHOGUN_DEBUG", "false").lower() == "true")
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     api: APIConfig = field(default_factory=APIConfig)
     security: SecurityConfig = field(default_factory=SecurityConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     alerts: AlertConfig = field(default_factory=AlertConfig)
     orchestrator: OrchestratorConfig = field(default_factory=OrchestratorConfig)
-    
+
     def is_production(self) -> bool:
         return self.env == "production"
-    
-    def validate(self) -> List[str]:
+
+    def validate(self) -> list[str]:
         """Validate configuration and return list of issues."""
         issues = []
-        
+
         if self.is_production():
             if self.security.secret_key == "change-me-in-production":
                 issues.append("SECURITY: Default secret key in production")
@@ -106,16 +105,16 @@ class Settings:
                 issues.append("SECURITY: Debug mode enabled in production")
             if "*" in self.security.allowed_hosts:
                 issues.append("SECURITY: Wildcard allowed hosts in production")
-        
+
         return issues
-    
+
     @classmethod
     def from_file(cls, path: Path) -> "Settings":
         """Load settings from JSON file."""
         with open(path) as f:
             data = json.load(f)
         return cls(**data)
-    
+
     def to_file(self, path: Path):
         """Save settings to JSON file."""
         with open(path, "w") as f:

@@ -11,7 +11,6 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import List
 
 from ..models import Confidence, Finding, Severity
 
@@ -51,9 +50,9 @@ def _load_package_json(path: Path) -> dict:
         return {}
 
 
-def _scan_scripts_for_creds(pkg: dict, pkg_json: Path) -> List[Finding]:
+def _scan_scripts_for_creds(pkg: dict, pkg_json: Path) -> list[Finding]:
     """Check package.json scripts for credential-reading patterns."""
-    findings: List[Finding] = []
+    findings: list[Finding] = []
     scripts = pkg.get("scripts", {})
     if not isinstance(scripts, dict):
         return findings
@@ -127,9 +126,9 @@ def _scan_scripts_for_creds(pkg: dict, pkg_json: Path) -> List[Finding]:
     return findings
 
 
-def _scan_source_for_creds(file_path: Path, pkg_label: str) -> List[Finding]:
+def _scan_source_for_creds(file_path: Path, pkg_label: str) -> list[Finding]:
     """Scan a JS/TS source file for credential-reading patterns."""
-    findings: List[Finding] = []
+    findings: list[Finding] = []
 
     if file_path.suffix in SKIP_EXTENSIONS:
         return findings
@@ -193,12 +192,12 @@ def _scan_source_for_creds(file_path: Path, pkg_label: str) -> List[Finding]:
     return findings
 
 
-def detect_credential_reading(target: Path, corpus_dir: Path) -> List[Finding]:
+def detect_credential_reading(target: Path, corpus_dir: Path) -> list[Finding]:
     """
     Detect credential-reading patterns in install scripts and source code.
     No network calls. Pure filesystem scan.
     """
-    findings: List[Finding] = []
+    findings: list[Finding] = []
 
     # Check root package.json scripts
     root_pkg = target / "package.json"

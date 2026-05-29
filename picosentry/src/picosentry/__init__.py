@@ -10,7 +10,7 @@ Usage:
     print(result.to_json())
 """
 from .engine import ScanEngine, create_default_engine
-from .models import Finding, ScanResult, ScanStats, Severity, Confidence, BaselineResult, load_baseline, apply_baseline
+from .models import BaselineResult, Confidence, Finding, ScanResult, ScanStats, Severity, apply_baseline, load_baseline
 
 __version__ = "0.5.0"
 __all__ = [

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any
 
 logger = logging.getLogger("picosentry.config")
 
@@ -33,24 +33,24 @@ class PicoSentryConfig:
 
     def __init__(self) -> None:
         self.format: str = "table"
-        self.output: Optional[str] = None
-        self.rules: Optional[List[str]] = None  # None means "all rules"
-        self.corpus: Optional[str] = None
+        self.output: str | None = None
+        self.rules: list[str] | None = None  # None means "all rules"
+        self.corpus: str | None = None
         self.no_color: bool = False
         self.token_budget: int = 4096
         self.exit_code: bool = False
-        self.severity_threshold: Optional[str] = None
-        self.fail_on: Optional[str] = None
+        self.severity_threshold: str | None = None
+        self.fail_on: str | None = None
         self.quiet: bool = False
         self.summary: bool = False
-        self.baseline: Optional[str] = None
+        self.baseline: str | None = None
         self.baseline_update: bool = False
         # Config-file-only settings
-        self.severity_overrides: Dict[str, str] = {}  # rule_id → severity
-        self.ignore_paths: List[str] = []  # glob patterns to skip
-        self.ignore_packages: List[str] = []  # package names to skip
+        self.severity_overrides: dict[str, str] = {}  # rule_id → severity
+        self.ignore_paths: list[str] = []  # glob patterns to skip
+        self.ignore_packages: list[str] = []  # package names to skip
 
-    def merge_cli(self, args: Any) -> "PicoSentryConfig":
+    def merge_cli(self, args: Any) -> PicoSentryConfig:
         """Merge CLI args into this config. CLI flags override config file values.
 
         Only override if the CLI arg was explicitly set (not just the default).
@@ -245,7 +245,7 @@ def load_config(target_dir: Path) -> PicoSentryConfig:
     return config
 
 
-def _find_config(target_dir: Path) -> Optional[Path]:
+def _find_config(target_dir: Path) -> Path | None:
     """Search for config file in target directory.
 
     Returns first match in precedence order:

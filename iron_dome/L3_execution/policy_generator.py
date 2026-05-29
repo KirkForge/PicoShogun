@@ -7,15 +7,14 @@ filesystem write restricted to /tmp.
 """
 from __future__ import annotations
 
-from typing import List
+import yaml
 
 from ..L2_validation.models import Finding, Severity
 from .models import Policy, PolicyRule, RuleID, Verdict
 from .policy_loader import DEFAULT_POLICY_YAML
-import yaml
 
 
-def generate_policy_from_findings(findings: List[Finding]) -> Policy:
+def generate_policy_from_findings(findings: list[Finding]) -> Policy:
     """
     Generate an L3 sandbox policy from L2 findings.
 
@@ -29,10 +28,9 @@ def generate_policy_from_findings(findings: List[Finding]) -> Policy:
     - Manifest issues → restrict spawn
     - Fork drift → restrict network
     """
-    import copy
 
     # Load default policy as base
-    base_data = yaml.safe_load(DEFAULT_POLICY_YAML)
+    yaml.safe_load(DEFAULT_POLICY_YAML)
 
     # Start with restrictive defaults
     policy = Policy(

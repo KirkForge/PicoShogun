@@ -11,7 +11,6 @@ from typing import IO
 
 from ..models import ScanResult
 
-
 # Map severity levels to SARIF failure levels.
 _SEVERITY_TO_SARIF_LEVEL = {
     "CRITICAL": "error",

@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Dict, List
 
 from ..models import Confidence, Finding, Severity
 
@@ -52,16 +51,12 @@ def _is_exact_version(version_str: str) -> bool:
         return False
     stripped = version_str.strip()
     # Exact version: starts with digit, no range operators
-    if stripped and stripped[0].isdigit() and not any(
-        c in stripped for c in ("*", "^", "~", ">", "<", "|", " ")
-    ):
-        return True
-    return False
+    return bool(stripped and stripped[0].isdigit() and not any(c in stripped for c in ("*", "^", "~", ">", "<", "|", " ")))
 
 
-def _check_engines(pkg: dict, pkg_json_path: Path) -> List[Finding]:
+def _check_engines(pkg: dict, pkg_json_path: Path) -> list[Finding]:
     """Check a single package.json for engine constraint issues."""
-    findings: List[Finding] = []
+    findings: list[Finding] = []
     pkg_name = pkg.get("name", pkg_json_path.parent.name)
     pkg_version = pkg.get("version", "unknown")
     pkg_label = f"{pkg_name}@{pkg_version}"
@@ -194,13 +189,13 @@ def _check_engines(pkg: dict, pkg_json_path: Path) -> List[Finding]:
     return findings
 
 
-def detect_engine_issues(target: Path, corpus_dir: Path) -> List[Finding]:
+def detect_engine_issues(target: Path, corpus_dir: Path) -> list[Finding]:
     """
     Detect engine constraint issues — missing, overly permissive, or suspicious.
 
     No network calls. Pure filesystem scan.
     """
-    findings: List[Finding] = []
+    findings: list[Finding] = []
 
     # Root package.json
     root_pkg = target / "package.json"

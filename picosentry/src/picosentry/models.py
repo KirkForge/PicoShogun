@@ -13,7 +13,7 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional
+from pathlib import Path
 
 
 class Severity(str, Enum):
@@ -46,12 +46,12 @@ class Finding:
     message: str
     evidence: str
     remediation: str
-    references: List[str] = field(default_factory=list)
-    line: Optional[int] = None
+    references: list[str] = field(default_factory=list)
+    line: int | None = None
 
     def fingerprint(self) -> tuple:
         """Deterministic fingerprint for baseline matching.
-        
+
         Two findings match if they have the same fingerprint:
         (rule_id, package, file). This is used for --baseline
         to suppress known findings.
@@ -62,7 +62,7 @@ class Finding:
         """Deterministic sort key for stable ordering."""
         return (self.rule_id, self.package, self.file, self.line or 0)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Deterministic dict — sorted keys, no random IDs, no timestamps."""
         d = {
             "rule_id": self.rule_id,
@@ -83,13 +83,13 @@ class Finding:
 @dataclass
 class BaselineResult:
     """Result of applying baseline filtering to a scan.
-    
+
     Tracks how many findings were suppressed and what remains.
     Deterministic: same baseline + same findings = same result.
     """
     original_count: int = 0
     suppressed_count: int = 0
-    remaining: List[Finding] = field(default_factory=list)
+    remaining: list[Finding] = field(default_factory=list)
 
     @property
     def new_count(self) -> int:
@@ -108,7 +108,7 @@ def load_baseline(path: Path) -> set:
     Lines starting with # are comments. Blank lines are skipped.
     """
     text = path.read_text(encoding="utf-8")
-    
+
     # Try JSON format first (previous scan output)
     try:
         data = json.loads(text)
@@ -120,7 +120,7 @@ def load_baseline(path: Path) -> set:
             return fingerprints
     except json.JSONDecodeError:
         pass
-    
+
     # Simple ignore format: one entry per line
     # Format: RULE_ID or RULE_ID:package_pattern or RULE_ID:package_pattern:file_pattern
     fingerprints = set()
@@ -133,17 +133,17 @@ def load_baseline(path: Path) -> set:
         package = parts[1].strip() if len(parts) > 1 else ""
         file_path = parts[2].strip() if len(parts) > 2 else ""
         fingerprints.add((rule_id, package, file_path))
-    
+
     return fingerprints
 
 
 def apply_baseline(result: ScanResult, baseline_fingerprints: set) -> BaselineResult:
     """Filter findings against a baseline, suppressing known findings.
-    
+
     Args:
         result: Original scan result with all findings.
         baseline_fingerprints: Set of (rule_id, package, file) tuples from baseline.
-    
+
     Returns:
         BaselineResult with suppressed/remaining counts and filtered findings.
     """
@@ -160,15 +160,14 @@ def apply_baseline(result: ScanResult, baseline_fingerprints: set) -> BaselineRe
         for rule_id, package, file_path in baseline_fingerprints:
             if rule_id == fp[0]:
                 # rule_id match — check if package/file also match
-                if not package or package == fp[1]:
-                    if not file_path or file_path == fp[2]:
-                        matched = True
-                        break
+                if (not package or package == fp[1]) and (not file_path or file_path == fp[2]):
+                    matched = True
+                    break
         if matched:
             suppressed += 1
         else:
             remaining.append(f)
-    
+
     return BaselineResult(
         original_count=len(result.findings),
         suppressed_count=suppressed,
@@ -182,10 +181,10 @@ class ScanStats:
     packages_scanned: int = 0
     files_scanned: int = 0
     duration_ms: int = 0
-    findings_by_severity: Dict[str, int] = field(default_factory=dict)
-    findings_by_rule: Dict[str, int] = field(default_factory=dict)
+    findings_by_severity: dict[str, int] = field(default_factory=dict)
+    findings_by_rule: dict[str, int] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "packages_scanned": self.packages_scanned,
             "files_scanned": self.files_scanned,
@@ -205,13 +204,13 @@ class ScanResult:
     target: str = ""
     engine_version: str = "0.5.0"
     corpus_version: str = ""  # Set by ScanEngine from corpus hash
-    findings: List[Finding] = field(default_factory=list)
+    findings: list[Finding] = field(default_factory=list)
     stats: ScanStats = field(default_factory=ScanStats)
 
     def recompute_stats(self) -> None:
         """Recompute stats from current findings list (after filtering)."""
-        by_sev: Dict[str, int] = {}
-        by_rule: Dict[str, int] = {}
+        by_sev: dict[str, int] = {}
+        by_rule: dict[str, int] = {}
         for f in self.findings:
             by_sev[f.severity.value] = by_sev.get(f.severity.value, 0) + 1
             by_rule[f.rule_id] = by_rule.get(f.rule_id, 0) + 1
@@ -224,7 +223,7 @@ class ScanResult:
         raw = f"{self.target}:{self.corpus_version}:{self.engine_version}"
         return hashlib.sha256(raw.encode()).hexdigest()[:16]
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Deterministic dict for JSON serialization — sorted keys, no random IDs."""
         sorted_findings = sorted(self.findings, key=lambda f: f.sort_key())
         return dict(sorted({

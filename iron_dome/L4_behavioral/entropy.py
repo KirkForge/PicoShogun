@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import math
 from collections import Counter
-from typing import List
 
 
 def shannon_entropy(data: bytes) -> float:
@@ -71,7 +70,7 @@ def shannon_entropy_string(text: str) -> float:
     return entropy
 
 
-def entropy_of_chunks(chunks: List[bytes]) -> List[float]:
+def entropy_of_chunks(chunks: list[bytes]) -> list[float]:
     """
     Compute Shannon entropy for each chunk independently.
 
@@ -112,7 +111,7 @@ def detect_entropy_spikes(
     data: bytes,
     window_size: int = 256,
     threshold: float = 7.0,
-) -> List[int]:
+) -> list[int]:
     """
     Detect positions where entropy exceeds a threshold in a sliding window.
 
@@ -130,7 +129,7 @@ def detect_entropy_spikes(
         ent = shannon_entropy(data)
         return [0] if ent > threshold else []
 
-    spikes: List[int] = []
+    spikes: list[int] = []
     for offset in range(0, len(data) - window_size + 1, window_size // 2):
         window = data[offset:offset + window_size]
         ent = shannon_entropy(window)

@@ -7,9 +7,9 @@ GitLab SAST reports, and Azure DevOps.
 Deterministic: same input = same output. No random UUIDs.
 """
 import json
+
 from picosentry.models import ScanResult, Severity
 from picosentry.rules import RULE_INFO
-
 
 # SARIF severity mapping
 SEVERITY_MAP = {

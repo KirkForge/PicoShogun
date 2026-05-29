@@ -6,13 +6,10 @@ Used for L4-BASE-003 to detect resource curve drift.
 """
 from __future__ import annotations
 
-import math
-from typing import List, Tuple
-
 
 def dtw_distance(
-    series_a: List[float],
-    series_b: List[float],
+    series_a: list[float],
+    series_b: list[float],
 ) -> float:
     """
     Compute the DTW distance between two time series.
@@ -58,8 +55,8 @@ def dtw_distance(
 
 
 def normalized_dtw_distance(
-    series_a: List[float],
-    series_b: List[float],
+    series_a: list[float],
+    series_b: list[float],
 ) -> float:
     """
     Compute DTW distance normalized to [0, 1] range.
@@ -87,9 +84,9 @@ def normalized_dtw_distance(
 
 
 def extract_resource_curve(
-    samples: List[dict],
+    samples: list[dict],
     metric: str = "cpu_percent",
-) -> List[float]:
+) -> list[float]:
     """
     Extract a time series from resource samples.
 
@@ -107,10 +104,10 @@ def extract_resource_curve(
 
 
 def compare_resource_curves(
-    observed: List[float],
-    baseline: List[float],
+    observed: list[float],
+    baseline: list[float],
     threshold: float = 0.3,
-) -> Tuple[float, bool]:
+) -> tuple[float, bool]:
     """
     Compare an observed resource curve against a baseline using DTW.
 

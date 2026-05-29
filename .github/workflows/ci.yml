@@ -9,8 +9,8 @@ on:
 
 env:
   PYTHON_VERSION: "3.12"
-  SECDEV_ENV: test
-  SECDEV_SECRET_KEY: ci-test-key-not-for-production
+  SHOGUN_ENV: test
+  SHOGUN_SECRET_KEY: ci-test-key-not-for-production
 
 jobs:
   # ── Lint ─────────────────────────────────────────────────────────
@@ -55,8 +55,8 @@ jobs:
         run: |
           python -m pytest tests/ -v --tb=short --cov=. --cov-report=term-missing --cov-report=xml
         env:
-          SECDEV_ENV: test
-          SECDEV_SECRET_KEY: ci-test-key
+          SHOGUN_ENV: test
+          SHOGUN_SECRET_KEY: ci-test-key
       - name: Upload coverage
         uses: actions/upload-artifact@v4
         if: matrix.python-version == '3.12'
@@ -97,8 +97,8 @@ jobs:
       - name: Smoke test
         run: |
           docker run -d --name shogun-test -p 8765:8765 \
-            -e SECDEV_SECRET_KEY=ci-test-key \
-            -e SECDEV_ENV=production \
+            -e SHOGUN_SECRET_KEY=ci-test-key \
+            -e SHOGUN_ENV=production \
             shogun:ci-test
           sleep 5
           curl -sf http://localhost:8765/health || (docker logs shogun-test && exit 1)

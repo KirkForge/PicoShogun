@@ -15,9 +15,8 @@ import sys
 from pathlib import Path
 
 from .engine import sandbox_run
-from .models import Policy
-from .policy_loader import load_policy, write_default_policy
 from .formatters import format_json, format_sarif, format_table
+from .policy_loader import load_policy, write_default_policy
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -152,8 +151,8 @@ def _cmd_policy(args: argparse.Namespace) -> int:
 
 def _cmd_generate_policy(args: argparse.Namespace) -> int:
     """Generate L3 policy from L2 scan results."""
+    from ..L2_validation.models import Confidence, Finding, Severity
     from .policy_generator import generate_policy_from_findings
-    from ..L2_validation.models import Finding, Severity, Confidence
 
     if not args.from_l2.exists():
         print(f"Error: L2 results file not found: {args.from_l2}", file=sys.stderr)

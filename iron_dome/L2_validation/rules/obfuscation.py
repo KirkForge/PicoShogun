@@ -9,7 +9,6 @@ from __future__ import annotations
 import logging
 import re
 from pathlib import Path
-from typing import List, Tuple
 
 from ..models import Confidence, Finding, Severity
 
@@ -28,7 +27,7 @@ MAX_FILE_BYTES = 512_000
 # ---- Rule patterns ----
 # Each: (rule_id, pattern, severity, message_template, remediation_template)
 
-EVAL_PATTERN: Tuple = (
+EVAL_PATTERN: tuple = (
     "L2-OBFS-001",
     re.compile(r"\b(?:eval|Function)\s*\(", re.IGNORECASE),
     Severity.CRITICAL,
@@ -36,7 +35,7 @@ EVAL_PATTERN: Tuple = (
     "Remove {func} calls. Use static imports or JSON.parse for data.",
 )
 
-HEX_STRING_PATTERN: Tuple = (
+HEX_STRING_PATTERN: tuple = (
     "L2-OBFS-002",
     re.compile(r"""(?:["'])(\\x[0-9a-fA-F]{2}){4,}(?:["'])"""),
     Severity.HIGH,
@@ -45,7 +44,7 @@ HEX_STRING_PATTERN: Tuple = (
     "Hex strings in production code are suspicious.",
 )
 
-BASE64_EXEC_PATTERN: Tuple = (
+BASE64_EXEC_PATTERN: tuple = (
     "L2-OBFS-003",
     re.compile(
         r"\b(?:atob|Buffer\.from)\s*\([^)]*\)[\s\S]*?"
@@ -57,7 +56,7 @@ BASE64_EXEC_PATTERN: Tuple = (
     "Never decode base64 and eval the result. Replace with static config.",
 )
 
-UNICODE_ESCAPE_PATTERN: Tuple = (
+UNICODE_ESCAPE_PATTERN: tuple = (
     "L2-OBFS-004",
     re.compile(r"""(?:["'])(\\u[0-9a-fA-F]{4}){4,}(?:["'])"""),
     Severity.HIGH,
@@ -65,7 +64,7 @@ UNICODE_ESCAPE_PATTERN: Tuple = (
     "Decode the unicode escape sequence and use readable literals.",
 )
 
-PATTERNS: List[Tuple] = [
+PATTERNS: list[tuple] = [
     EVAL_PATTERN,
     HEX_STRING_PATTERN,
     BASE64_EXEC_PATTERN,
@@ -73,9 +72,9 @@ PATTERNS: List[Tuple] = [
 ]
 
 
-def _scan_file(file_path: Path) -> List[Finding]:
+def _scan_file(file_path: Path) -> list[Finding]:
     """Scan a single file for obfuscation patterns."""
-    findings: List[Finding] = []
+    findings: list[Finding] = []
 
     if file_path.suffix in SKIP_EXTENSIONS:
         return findings
@@ -100,10 +99,7 @@ def _scan_file(file_path: Path) -> List[Finding]:
         idx = parts.index("node_modules")
         if idx + 1 < len(parts):
             scoped = parts[idx + 1].startswith("@")
-            if scoped and idx + 2 < len(parts):
-                pkg_label = f"{parts[idx + 1]}/{parts[idx + 2]}"
-            else:
-                pkg_label = parts[idx + 1]
+            pkg_label = f"{parts[idx + 1]}/{parts[idx + 2]}" if scoped and idx + 2 < len(parts) else parts[idx + 1]
 
     for rule_id, pattern, severity, msg_tmpl, remediation in PATTERNS:
         for match in pattern.finditer(content):
@@ -133,13 +129,13 @@ def _scan_file(file_path: Path) -> List[Finding]:
     return findings
 
 
-def detect_obfuscation(target: Path) -> List[Finding]:
+def detect_obfuscation(target: Path) -> list[Finding]:
     """
     Detect obfuscated payloads in JS/TS files.
 
     Scans root source files and all files under node_modules.
     """
-    findings: List[Finding] = []
+    findings: list[Finding] = []
     js_extensions = {".js", ".mjs", ".cjs", ".ts", ".tsx"}
 
     # Root source files

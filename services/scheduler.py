@@ -1,17 +1,16 @@
 """Job scheduler with cron-like expressions."""
-import re
 import json
-import sched
-import time
-import threading
 import logging
-from typing import Dict, List, Optional
+import re
+import sched
+import threading
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from database.manager import db
 
-logger = logging.getLogger("SecdevKimi.Scheduler")
+logger = logging.getLogger("shogun.Scheduler")
 
 try:
     from croniter import croniter
@@ -25,23 +24,23 @@ class ScheduledJob:
     name: str
     cron_expression: str
     command: str  # 'batch', 'run', 'report', 'backup'
-    params: Dict
+    params: dict
     enabled: bool
-    next_run: Optional[datetime]
-    last_run: Optional[datetime]
-    last_status: Optional[str]
+    next_run: datetime | None
+    last_run: datetime | None
+    last_status: str | None
 
 class JobScheduler:
     """Enterprise job scheduler with cron expressions."""
-    
+
     def __init__(self):
         self.scheduler = sched.scheduler(time.time, time.sleep)
-        self.jobs: Dict[int, ScheduledJob] = {}
+        self.jobs: dict[int, ScheduledJob] = {}
         self.running = False
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._lock = threading.Lock()
         self._load_jobs()
-    
+
     def _load_jobs(self):
         """Load scheduled jobs from database."""
         rows = db.execute("SELECT * FROM scheduled_jobs")
@@ -58,59 +57,59 @@ class JobScheduler:
                 last_status=row["last_status"]
             )
             self.jobs[job.id] = job
-    
-    def add_job(self, name: str, cron: str, command: str, 
-                params: Dict = None, enabled: bool = True) -> int:
+
+    def add_job(self, name: str, cron: str, command: str,
+                params: dict = None, enabled: bool = True) -> int:
         """Add a new scheduled job."""
         params_json = json.dumps(params or {})
-        
+
         job_id = db.execute_insert("""
             INSERT INTO scheduled_jobs (name, cron_expression, command, params, enabled)
             VALUES (?, ?, ?, ?, ?)
         """, (name, cron, command, params_json, enabled))
-        
+
         self._load_jobs()
-        
+
         if self.running:
             self._schedule_job(job_id)
-        
+
         logger.info(f"Job added: {name} ({cron})")
         return job_id
-    
+
     def remove_job(self, job_id: int) -> bool:
         """Remove a scheduled job."""
         if job_id not in self.jobs:
             return False
-        
+
         db.execute_insert("DELETE FROM scheduled_jobs WHERE id = ?", (job_id,))
         del self.jobs[job_id]
-        
+
         logger.info(f"Job removed: {job_id}")
         return True
-    
+
     def enable_job(self, job_id: int) -> bool:
         """Enable a job."""
         if job_id not in self.jobs:
             return False
-        
+
         db.execute("UPDATE scheduled_jobs SET enabled = 1 WHERE id = ?", (job_id,))
         self.jobs[job_id].enabled = True
-        
+
         if self.running:
             self._schedule_job(job_id)
-        
+
         return True
-    
+
     def disable_job(self, job_id: int) -> bool:
         """Disable a job."""
         if job_id not in self.jobs:
             return False
-        
+
         db.execute("UPDATE scheduled_jobs SET enabled = 0 WHERE id = ?", (job_id,))
         self.jobs[job_id].enabled = False
         return True
-    
-    def _get_next_run(self, cron_expression: str) -> Optional[datetime]:
+
+    def _get_next_run(self, cron_expression: str) -> datetime | None:
         """Calculate next run time from cron expression."""
         if not HAS_CRONITER:
             # Simple fallback: every N minutes
@@ -126,24 +125,24 @@ class JobScheduler:
                 elif unit == "day":
                     return now + timedelta(days=val)
             return None
-        
+
         try:
             itr = croniter(cron_expression, datetime.now())
             return itr.get_next(datetime)
         except Exception:
             return None
-    
+
     def _execute_job(self, job_id: int):
         """Execute a scheduled job."""
         job = self.jobs.get(job_id)
         if not job:
             return
-        
+
         logger.info(f"Executing job: {job.name}")
-        
+
         try:
             status = "failed"
-            
+
             if job.command == "batch":
                 import subprocess
                 result = subprocess.run(
@@ -154,21 +153,21 @@ class JobScheduler:
                 )
                 status = "completed" if result.returncode == 0 else "failed"
                 _output = result.stdout + result.stderr
-            
+
             elif job.command == "run":
                 from services.orchestrator import EnhancedOrchestrator
                 orch = EnhancedOrchestrator()
-                result = orch.run_project(job.params.get("project_id"), 
+                result = orch.run_project(job.params.get("project_id"),
                                          job.params.get("timeout", 300))
                 status = result.get("status", "failed")
                 _output = str(result)
-            
+
             elif job.command == "report":
                 from services.orchestrator import EnhancedOrchestrator
                 orch = EnhancedOrchestrator()
                 _report = orch.generate_summary_report()
                 status = "completed"
-            
+
             elif job.command == "backup":
                 from services.backup import BackupManager
                 bm = BackupManager()
@@ -178,36 +177,36 @@ class JobScheduler:
 
             # Update job status
             db.execute_insert("""
-                UPDATE scheduled_jobs 
+                UPDATE scheduled_jobs
                 SET last_run = ?, last_status = ?
                 WHERE id = ?
             """, (datetime.now(), status, job_id))
-            
+
             job.last_run = datetime.now()
             job.last_status = status
-            
+
             logger.info(f"Job {job.name} completed: {status}")
-            
+
         except Exception as e:
             logger.error(f"Job {job.name} failed: {e}")
             db.execute_insert("""
-                UPDATE scheduled_jobs 
+                UPDATE scheduled_jobs
                 SET last_run = ?, last_status = 'failed'
                 WHERE id = ?
             """, (datetime.now(), job_id))
             job.last_run = datetime.now()
             job.last_status = "failed"
-        
+
         # Schedule next run
         if self.running and job.enabled:
             self._schedule_job(job_id)
-    
+
     def _schedule_job(self, job_id: int):
         """Schedule next execution of a job."""
         job = self.jobs.get(job_id)
         if not job or not job.enabled:
             return
-        
+
         next_run = self._get_next_run(job.cron_expression)
         if next_run:
             job.next_run = next_run
@@ -217,39 +216,39 @@ class JobScheduler:
                 db.execute_insert("""
                     UPDATE scheduled_jobs SET next_run = ? WHERE id = ?
                 """, (next_run, job_id))
-    
+
     def start(self):
         """Start the scheduler daemon."""
         if self.running:
             return
-        
+
         self.running = True
-        
+
         # Schedule all enabled jobs
         for job_id in self.jobs:
             if self.jobs[job_id].enabled:
                 self._schedule_job(job_id)
-        
+
         # Start scheduler thread
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
-        
+
         logger.info(f"Scheduler started with {len(self.jobs)} jobs")
-    
+
     def _run(self):
         """Run the scheduler loop."""
         while self.running:
             self.scheduler.run(blocking=False)
             time.sleep(1)
-    
+
     def stop(self):
         """Stop the scheduler."""
         self.running = False
         if self._thread:
             self._thread.join(timeout=5)
         logger.info("Scheduler stopped")
-    
-    def get_status(self) -> List[Dict]:
+
+    def get_status(self) -> list[dict]:
         """Get status of all jobs."""
         return [
             {

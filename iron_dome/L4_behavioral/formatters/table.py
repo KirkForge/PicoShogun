@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import IO
 
-from ..models import AnalysisResult, BehavioralVerdict
+from ..models import AnalysisResult
 
 _RED = "\033[91m"
 _GREEN = "\033[92m"
@@ -32,14 +32,15 @@ _SEVERITY_COLOR = {
 def format_table(result: AnalysisResult, output: IO[str] | None = None, color: bool = True) -> str:
     """Format an AnalysisResult as a human-readable table."""
     lines: list[str] = []
-    c = lambda s, code: f"{code}{s}{_RESET}" if color and code else s
+    def _colorize(s: str, code: str) -> str:
+        return f"{code}{s}{_RESET}" if color and code else s
 
     lines.append("")
-    lines.append(c("  SecDev L4 Behavioral Analysis", _BOLD))
-    lines.append(c(f"  {'=' * 50}", _BOLD))
+    lines.append(_colorize("  SecDev L4 Behavioral Analysis", _BOLD))
+    lines.append(_colorize(f"  {'=' * 50}", _BOLD))
 
     verdict_color = _VERDICT_COLOR.get(result.overall_verdict.value, "")
-    lines.append(f"  Verdict:  {c(result.overall_verdict.value, verdict_color)}")
+    lines.append(f"  Verdict:  {_colorize(result.overall_verdict.value, verdict_color)}")
     lines.append(f"  ID:       {result.analysis_id}")
     lines.append(f"  Target:   {result.target}")
     lines.append(f"  Time:     {result.timestamp}")
@@ -56,7 +57,7 @@ def format_table(result: AnalysisResult, output: IO[str] | None = None, color: b
 
     # Drift results
     if result.drift_results:
-        lines.append(c("  Baseline Drift:", _BOLD))
+        lines.append(_colorize("  Baseline Drift:", _BOLD))
         for drift in result.drift_results:
             lines.append(f"    {drift.baseline_name}:")
             lines.append(f"      call_freq:  {drift.call_frequency_drift:.3f}")
@@ -68,22 +69,22 @@ def format_table(result: AnalysisResult, output: IO[str] | None = None, color: b
 
     # Findings
     if not result.findings:
-        lines.append(c("  ✓ No behavioral anomalies detected", _GREEN))
+        lines.append(_colorize("  ✓ No behavioral anomalies detected", _GREEN))
     else:
-        lines.append(c(f"  ⚠ {len(result.findings)} finding(s):", _YELLOW))
+        lines.append(_colorize(f"  ⚠ {len(result.findings)} finding(s):", _YELLOW))
         lines.append("")
         for finding in result.findings:
             sev_color = _SEVERITY_COLOR.get(finding.severity.value, "")
             lines.append(
-                f"  [{c(finding.severity.value, sev_color)}] "
+                f"  [{_colorize(finding.severity.value, sev_color)}] "
                 f"{finding.rule_id}  {finding.message[:80]}"
             )
             if finding.evidence:
-                lines.append(f"    {c(finding.evidence[:120], _DIM)}")
+                lines.append(f"    {_colorize(finding.evidence[:120], _DIM)}")
             lines.append("")
 
     # Stats
-    lines.append(c(f"  {'─' * 50}", _DIM))
+    lines.append(_colorize(f"  {'─' * 50}", _DIM))
     stats = result.stats
     lines.append(
         f"  Events: {stats.events_analyzed}  "

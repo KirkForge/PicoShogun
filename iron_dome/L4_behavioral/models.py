@@ -10,7 +10,6 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Dict, List, Optional
 
 
 class Severity(str, Enum):
@@ -67,11 +66,11 @@ class Finding:
     message: str
     evidence: str
     remediation: str
-    references: List[str] = field(default_factory=list)
+    references: list[str] = field(default_factory=list)
     file: str = ""
-    line: Optional[int] = None
+    line: int | None = None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "rule_id": self.rule_id,
             "severity": self.severity.value,
@@ -127,8 +126,8 @@ class FilesystemOp:
 class ProcessSpawn:
     """A process spawn observed in sandbox trace."""
     command: str
-    args: List[str] = field(default_factory=list)
-    exit_code: Optional[int] = None
+    args: list[str] = field(default_factory=list)
+    exit_code: int | None = None
     timestamp_ms: float = 0.0
 
 
@@ -149,38 +148,38 @@ class BehavioralProfile:
     This is the core data structure that rules operate on.
     """
     package: str
-    command: List[str] = field(default_factory=list)
+    command: list[str] = field(default_factory=list)
     duration_ms: int = 0
 
     # Timing data
-    timing_points: List[TimingPoint] = field(default_factory=list)
-    sleep_intervals: List[float] = field(default_factory=list)  # ms gaps > threshold
+    timing_points: list[TimingPoint] = field(default_factory=list)
+    sleep_intervals: list[float] = field(default_factory=list)  # ms gaps > threshold
 
     # Network
-    network_calls: List[NetworkCall] = field(default_factory=list)
-    dns_queries: List[DNSQuery] = field(default_factory=list)
+    network_calls: list[NetworkCall] = field(default_factory=list)
+    dns_queries: list[DNSQuery] = field(default_factory=list)
 
     # Filesystem
-    fs_ops: List[FilesystemOp] = field(default_factory=list)
+    fs_ops: list[FilesystemOp] = field(default_factory=list)
 
     # Process
-    spawns: List[ProcessSpawn] = field(default_factory=list)
+    spawns: list[ProcessSpawn] = field(default_factory=list)
 
     # Resource curve (time-series of CPU/mem/net)
-    resource_samples: List[ResourceSample] = field(default_factory=list)
+    resource_samples: list[ResourceSample] = field(default_factory=list)
 
     # Entropy measurements
     egress_entropy: float = 0.0  # Shannon entropy of outbound data
-    egress_sizes: List[int] = field(default_factory=list)  # sizes of egress chunks
+    egress_sizes: list[int] = field(default_factory=list)  # sizes of egress chunks
     dns_entropy: float = 0.0  # Shannon entropy of DNS query names
 
     # Honeypot touches
-    canary_file_accesses: List[str] = field(default_factory=list)
-    canary_dns_lookups: List[str] = field(default_factory=list)
-    canary_env_reads: List[str] = field(default_factory=list)
+    canary_file_accesses: list[str] = field(default_factory=list)
+    canary_dns_lookups: list[str] = field(default_factory=list)
+    canary_env_reads: list[str] = field(default_factory=list)
 
     # Call frequencies (operation -> count)
-    call_frequencies: Dict[str, int] = field(default_factory=dict)
+    call_frequencies: dict[str, int] = field(default_factory=dict)
 
     # Computed stats
     total_bytes_sent: int = 0
@@ -188,7 +187,7 @@ class BehavioralProfile:
     peak_memory_mb: float = 0.0
     total_cpu_time_ms: float = 0.0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "package": self.package,
             "command": self.command,
@@ -250,11 +249,11 @@ class Baseline:
     version: str = "1.0"
 
     # Expected call frequencies (operation -> (mean, stddev))
-    call_frequencies: Dict[str, Dict[str, float]] = field(default_factory=dict)
+    call_frequencies: dict[str, dict[str, float]] = field(default_factory=dict)
 
     # Expected network profile
-    network_hosts: List[str] = field(default_factory=list)
-    dns_domains: List[str] = field(default_factory=list)
+    network_hosts: list[str] = field(default_factory=list)
+    dns_domains: list[str] = field(default_factory=list)
     avg_bytes_sent: int = 0
     avg_bytes_received: int = 0
 
@@ -271,9 +270,9 @@ class Baseline:
     std_egress_entropy: float = 0.0
 
     # Resource curve template (normalized time -> expected CPU/mem)
-    resource_curve: List[Dict[str, float]] = field(default_factory=list)
+    resource_curve: list[dict[str, float]] = field(default_factory=list)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "name": self.name,
             "description": self.description,
@@ -305,7 +304,7 @@ class DriftResult:
     entropy_drift: float = 0.0
     duration_drift: float = 0.0  # z-score of duration vs baseline
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "baseline_name": self.baseline_name,
             "call_frequency_drift": self.call_frequency_drift,
@@ -325,10 +324,10 @@ class AnalysisStats:
     fs_ops_analyzed: int = 0
     spawns_analyzed: int = 0
     duration_ms: int = 0
-    findings_by_severity: Dict[str, int] = field(default_factory=dict)
-    findings_by_rule: Dict[str, int] = field(default_factory=dict)
+    findings_by_severity: dict[str, int] = field(default_factory=dict)
+    findings_by_rule: dict[str, int] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "events_analyzed": self.events_analyzed,
             "network_calls_analyzed": self.network_calls_analyzed,
@@ -350,13 +349,13 @@ class AnalysisResult:
     )
     target: str = ""
     engine_version: str = "0.1.0"
-    findings: List[Finding] = field(default_factory=list)
-    profile: Optional[BehavioralProfile] = None
-    drift_results: List[DriftResult] = field(default_factory=list)
+    findings: list[Finding] = field(default_factory=list)
+    profile: BehavioralProfile | None = None
+    drift_results: list[DriftResult] = field(default_factory=list)
     overall_verdict: BehavioralVerdict = BehavioralVerdict.CLEAN
     stats: AnalysisStats = field(default_factory=AnalysisStats)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "analysis_id": self.analysis_id,
             "timestamp": self.timestamp,

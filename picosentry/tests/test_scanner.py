@@ -12,8 +12,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
-
-from picosentry.engine import create_default_engine, ScanEngine
+from picosentry.engine import ScanEngine, create_default_engine
 from picosentry.models import Confidence, Finding, ScanResult, ScanStats, Severity
 
 
@@ -643,7 +642,6 @@ class TestPackageNameTyposquat:
             "version": "1.0.0",
             "dependencies": {},
         })
-        from picosentry.rules.typosquat import detect_typosquat
         from picosentry.engine import create_default_engine
 
         engine = create_default_engine()
@@ -658,7 +656,6 @@ class TestPackageNameTyposquat:
             "version": "4.17.21",
             "dependencies": {},
         })
-        from picosentry.rules.typosquat import detect_typosquat
         from picosentry.engine import create_default_engine
 
         engine = create_default_engine()
@@ -684,9 +681,9 @@ class TestPackageNameTyposquat:
 
     def test_corpus_loaded_from_file(self, tmp_path):
         """Typosquat rule should load corpus from file, not just builtin."""
-        from picosentry.rules.typosquat import _load_corpus
+
         from picosentry.engine import ScanEngine
-        from pathlib import Path
+        from picosentry.rules.typosquat import _load_corpus
 
         # Load from package's corpus directory (works regardless of layout)
         engine = ScanEngine()
@@ -753,8 +750,9 @@ class TestTableFormatter:
     def test_no_color_strips_ansi(self, tmp_path):
         """--no-color output should contain zero ANSI escape sequences."""
         import re
-        from picosentry.formatters.table import format_table
+
         from picosentry.engine import create_default_engine
+        from picosentry.formatters.table import format_table
 
         fixture = Path(__file__).parent / "fixtures" / "shai_hulud"
         engine = create_default_engine()
@@ -769,8 +767,9 @@ class TestTableFormatter:
     def test_color_includes_ansi(self, tmp_path):
         """Normal (color=True) output should include ANSI escape sequences."""
         import re
-        from picosentry.formatters.table import format_table
+
         from picosentry.engine import create_default_engine
+        from picosentry.formatters.table import format_table
 
         fixture = Path(__file__).parent / "fixtures" / "shai_hulud"
         engine = create_default_engine()
@@ -787,7 +786,6 @@ class TestSeverityThreshold:
 
     def test_severity_threshold_filters_findings(self, tmp_path):
         """--severity-threshold high should exclude MEDIUM and LOW findings."""
-        import json
         from picosentry.engine import create_default_engine
 
         fixture = Path(__file__).parent / "fixtures" / "shai_hulud"
@@ -854,7 +852,7 @@ class TestCleanProject:
             if f.severity in (Severity.CRITICAL, Severity.HIGH)
         ]
         assert len(critical_or_high) == 0, (
-            f"Clean project should have no CRITICAL/HIGH findings, got: "
+            "Clean project should have no CRITICAL/HIGH findings, got: "
             + ", ".join(f"{f.rule_id} {f.severity.value}" for f in critical_or_high)
         )
 

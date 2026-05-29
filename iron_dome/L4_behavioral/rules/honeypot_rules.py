@@ -10,22 +10,21 @@ Deterministic: if a canary was touched, it was touched. No guessing.
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional
 
-from ..models import Baseline, BehavioralProfile, Finding, Severity, Confidence
+from ..models import Baseline, BehavioralProfile, Confidence, Finding, Severity
 
 logger = logging.getLogger("iron_dome.L4.rules.honeypot")
 
 
 def detect_honeypot_touches(
     profile: BehavioralProfile,
-    baselines: Optional[Dict[str, Baseline]] = None,
-    canary_file_paths: Optional[List[str]] = None,
-    canary_dns_domains: Optional[List[str]] = None,
-    canary_env_keys: Optional[List[str]] = None,
-) -> List[Finding]:
+    baselines: dict[str, Baseline] | None = None,
+    canary_file_paths: list[str] | None = None,
+    canary_dns_domains: list[str] | None = None,
+    canary_env_keys: list[str] | None = None,
+) -> list[Finding]:
     """Detect honeypot canary touches in a behavioral profile."""
-    findings: List[Finding] = []
+    findings: list[Finding] = []
     findings.extend(_detect_canary_file_access(profile, canary_file_paths or []))
     findings.extend(_detect_canary_dns(profile, canary_dns_domains or []))
     findings.extend(_detect_canary_env(profile, canary_env_keys or []))
@@ -34,8 +33,8 @@ def detect_honeypot_touches(
 
 def _detect_canary_file_access(
     profile: BehavioralProfile,
-    canary_paths: List[str],
-) -> List[Finding]:
+    canary_paths: list[str],
+) -> list[Finding]:
     """L4-HONEY-001: Detect canary file access."""
     if not canary_paths and not profile.canary_file_accesses:
         return []
@@ -73,8 +72,8 @@ def _detect_canary_file_access(
 
 def _detect_canary_dns(
     profile: BehavioralProfile,
-    canary_domains: List[str],
-) -> List[Finding]:
+    canary_domains: list[str],
+) -> list[Finding]:
     """L4-HONEY-002: Detect canary DNS lookup."""
     if not canary_domains and not profile.canary_dns_lookups:
         return []
@@ -83,9 +82,7 @@ def _detect_canary_dns(
     if not looked_up and canary_domains:
         canary_set = set(canary_domains)
         for dq in profile.dns_queries:
-            if dq.domain in canary_set:
-                looked_up.append(dq.domain)
-            elif any(dq.domain.endswith(f".{c}") for c in canary_set):
+            if dq.domain in canary_set or any(dq.domain.endswith(f".{c}") for c in canary_set):
                 looked_up.append(dq.domain)
 
     if not looked_up:
@@ -112,8 +109,8 @@ def _detect_canary_dns(
 
 def _detect_canary_env(
     profile: BehavioralProfile,
-    canary_keys: List[str],
-) -> List[Finding]:
+    canary_keys: list[str],
+) -> list[Finding]:
     """L4-HONEY-003: Detect canary env token read."""
     if not canary_keys and not profile.canary_env_reads:
         return []

@@ -3,19 +3,15 @@ Tests for PicoSentry config file support.
 
 Config file is optional, deterministic, CLI overrides config.
 """
-import json
-from pathlib import Path
 
-import pytest
 
 from picosentry.config import (
-    PicoSentryConfig,
-    load_config,
     CONFIG_NAMES,
     CONFIG_VERSION,
+    PicoSentryConfig,
+    load_config,
 )
-from picosentry.models import Finding, Severity, Confidence
-
+from picosentry.models import Confidence, Finding, Severity
 
 # ── PicoSentryConfig defaults ──
 

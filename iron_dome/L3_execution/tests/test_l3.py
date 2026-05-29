@@ -1,22 +1,21 @@
 """Unit tests for L3 Execution Sandbox."""
 import json
-import os
-import tempfile
-from pathlib import Path
 
 import pytest
 
-from ..models import (
-    Policy, PolicyRule, RuleID, SandboxEvent, SandboxResult,
-    Severity, Verdict,
-)
-from ..policy_loader import load_policy, write_default_policy, DEFAULT_POLICY_YAML
-from ..verdict import VerdictEngine
+from ...L2_validation.models import Confidence, Finding
 from ..backends.subprocess_backend import SubprocessBackend
-from ..engine import sandbox_run, get_backend, set_backend
+from ..models import (
+    PolicyRule,
+    RuleID,
+    SandboxEvent,
+    SandboxResult,
+    Severity,
+    Verdict,
+)
 from ..policy_generator import generate_policy_from_findings
-from ...L2_validation.models import Finding, Confidence
-
+from ..policy_loader import DEFAULT_POLICY_YAML, load_policy, write_default_policy
+from ..verdict import VerdictEngine
 
 # ─── Models ──────────────────────────────────────────────────────────────
 
@@ -241,7 +240,6 @@ class TestPolicyGenerator:
 
 class TestL3Formatters:
     def _make_result(self):
-        from ..formatters import format_json, format_sarif, format_table
         result = SandboxResult(
             command=["echo", "hello"],
             overall_verdict=Verdict.ALLOW,

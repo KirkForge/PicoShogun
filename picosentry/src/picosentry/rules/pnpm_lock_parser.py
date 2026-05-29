@@ -11,8 +11,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 try:
     import yaml
@@ -30,7 +28,7 @@ class PnpmPackage:
     version: str
     resolution: str = ""
     integrity: str = ""
-    deps: Tuple[str, ...] = ()
+    deps: tuple[str, ...] = ()
     is_aliased: bool = False
 
 
@@ -39,9 +37,9 @@ class PnpmLockfile:
     """Parsed pnpm-lock.yaml structure."""
 
     lockfile_version: str = ""
-    importers: Dict[str, Dict[str, str]] = field(default_factory=dict)
-    packages: Dict[str, PnpmPackage] = field(default_factory=dict)
-    checksums: Dict[str, str] = field(default_factory=dict)
+    importers: dict[str, dict[str, str]] = field(default_factory=dict)
+    packages: dict[str, PnpmPackage] = field(default_factory=dict)
+    checksums: dict[str, str] = field(default_factory=dict)
 
 
 def parse_pnpm_lockfile(content: str) -> PnpmLockfile:
@@ -104,13 +102,10 @@ def _parse_with_yaml(content: str) -> PnpmLockfile:
                 resolution = res
 
             integrity = pkg_data.get("resolution", {})
-            if isinstance(integrity, dict):
-                integrity = integrity.get("integrity", "")
-            else:
-                integrity = ""
+            integrity = integrity.get("integrity", "") if isinstance(integrity, dict) else ""
 
             # Dependencies listed under this package
-            pkg_deps: List[str] = []
+            pkg_deps: list[str] = []
             for dep_type in ("dependencies", "optionalDependencies"):
                 dep_section = pkg_data.get(dep_type, {})
                 if isinstance(dep_section, dict):
@@ -128,7 +123,7 @@ def _parse_with_yaml(content: str) -> PnpmLockfile:
     return lockfile
 
 
-def _parse_pnpm_pkg_key(key: str) -> Tuple[str, str, bool]:
+def _parse_pnpm_pkg_key(key: str) -> tuple[str, str, bool]:
     """Parse a pnpm-lock.yaml package key into (name, version, is_aliased).
 
     Examples:
@@ -184,7 +179,6 @@ def _parse_with_regex(content: str) -> PnpmLockfile:
 
     # Extract importers (basic)
     in_importers = False
-    current_importer = ""
     for line in content.splitlines():
         if line.strip() == "importers:":
             in_importers = True
@@ -197,7 +191,7 @@ def _parse_with_regex(content: str) -> PnpmLockfile:
                 # New importer or end of importers section
                 m = re.match(r"^\s+['\"]?([^'\":]+)['\"]?:", line)
                 if m:
-                    current_importer = m.group(1)
+                    m.group(1)
                 else:
                     in_importers = False
 
@@ -206,23 +200,22 @@ def _parse_with_regex(content: str) -> PnpmLockfile:
 
 def get_pnpm_importer_deps(
     lockfile: PnpmLockfile, importer: str = "."
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """Get all dependencies declared by a specific importer (workspace project)."""
     return lockfile.importers.get(importer, {})
 
 
 def get_pnpm_package(
-    lockfile: PnpmLockfile, name: str, version: Optional[str] = None
-) -> Optional[PnpmPackage]:
+    lockfile: PnpmLockfile, name: str, version: str | None = None
+) -> PnpmPackage | None:
     """Look up a package by name (and optionally version) in the lockfile."""
     for pkg in lockfile.packages.values():
-        if pkg.name == name:
-            if version is None or pkg.version == version:
-                return pkg
+        if pkg.name == name and (version is None or pkg.version == version):
+            return pkg
     return None
 
 
-def find_missing_integrity(lockfile: PnpmLockfile) -> List[Tuple[str, str]]:
+def find_missing_integrity(lockfile: PnpmLockfile) -> list[tuple[str, str]]:
     """Find packages in the lockfile that lack integrity hashes.
 
     Returns list of (name, version) tuples.
@@ -234,12 +227,11 @@ def find_missing_integrity(lockfile: PnpmLockfile) -> List[Tuple[str, str]]:
     return missing
 
 
-def find_weak_integrity(lockfile: PnpmLockfile) -> List[Tuple[str, str, str]]:
+def find_weak_integrity(lockfile: PnpmLockfile) -> list[tuple[str, str, str]]:
     """Find packages using weak integrity algorithms (sha1, md5).
 
     Returns list of (name, version, algorithm) tuples.
     """
-    weak_algos = ("sha1-", "md5-", "sha256-")
     # sha256 is not weak per se, but sha512 is preferred
     # Only flag sha1 and md5 as truly weak
     truly_weak = ("sha1-", "md5-")

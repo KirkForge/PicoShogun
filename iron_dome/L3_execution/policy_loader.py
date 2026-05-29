@@ -7,11 +7,10 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import List, Optional
 
 import yaml
 
-from .models import Policy, PolicyRule, RuleID, Verdict, Severity
+from .models import Policy, PolicyRule, RuleID, Severity, Verdict
 
 logger = logging.getLogger("iron_dome.L3.policy_loader")
 
@@ -100,7 +99,7 @@ wall_time_limit_seconds: 60
 """
 
 
-def load_policy(path: Optional[str | Path] = None) -> Policy:
+def load_policy(path: str | Path | None = None) -> Policy:
     """
     Load a sandbox policy from a YAML file.
     If path is None, loads the built-in default policy.
@@ -118,7 +117,7 @@ def load_policy(path: Optional[str | Path] = None) -> Policy:
 
 def _parse_policy(data: dict) -> Policy:
     """Parse a policy dict into a Policy object."""
-    rules: List[PolicyRule] = []
+    rules: list[PolicyRule] = []
     for r in data.get("rules", []):
         rule_id_str = r.get("rule_id", "")
         try:

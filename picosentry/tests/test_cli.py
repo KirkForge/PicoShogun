@@ -9,11 +9,9 @@ import sys
 from pathlib import Path
 
 import pytest
-
 from picosentry.engine import create_default_engine
-from picosentry.formatters import format_sarif, format_json, format_ml_context, format_table
+from picosentry.formatters import format_sarif
 from picosentry.models import Confidence, Finding, ScanResult, ScanStats, Severity
-
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 

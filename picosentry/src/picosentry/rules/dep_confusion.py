@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import List, Set
 
 from ..models import Confidence, Finding, Severity
 
@@ -36,8 +35,8 @@ def _load_package_json(path: Path) -> dict:
         return {}
 
 
-def _get_all_deps(pkg: dict) -> Set[str]:
-    deps: Set[str] = set()
+def _get_all_deps(pkg: dict) -> set[str]:
+    deps: set[str] = set()
     for key in (
         "dependencies",
         "devDependencies",
@@ -63,12 +62,12 @@ def _has_private_registry(target: Path) -> bool:
     return False
 
 
-def detect_dep_confusion(target: Path, corpus_dir: Path) -> List[Finding]:
+def detect_dep_confusion(target: Path, corpus_dir: Path) -> list[Finding]:
     """
     Detect dependency confusion vectors.
     No network calls. Pure filesystem scan.
     """
-    findings: List[Finding] = []
+    findings: list[Finding] = []
 
     root_pkg = target / "package.json"
     if not root_pkg.is_file():

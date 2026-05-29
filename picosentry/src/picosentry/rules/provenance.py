@@ -10,9 +10,7 @@ Pure function: (target_path, corpus_dir) → List[Finding]
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
-from typing import List, Optional
 
 from ..models import Confidence, Finding, Severity
 
@@ -39,9 +37,9 @@ def _load_package_json(path: Path) -> dict:
         return {}
 
 
-def _check_provenance(pkg: dict, pkg_json: Path) -> List[Finding]:
+def _check_provenance(pkg: dict, pkg_json: Path) -> list[Finding]:
     """Check a single package for provenance issues."""
-    findings: List[Finding] = []
+    findings: list[Finding] = []
     pkg_name = pkg.get("name", pkg_json.parent.name)
     pkg_version = pkg.get("version", "unknown")
     pkg_label = f"{pkg_name}@{pkg_version}"
@@ -103,30 +101,29 @@ def _check_provenance(pkg: dict, pkg_json: Path) -> List[Finding]:
 
     # Check if package has _integrity with weak algorithm
     integrity = pkg.get("_integrity", "")
-    if integrity and isinstance(integrity, str):
-        if any(integrity.startswith(algo) for algo in WEAK_INTEGRITY):
-            findings.append(
-                Finding(
-                    rule_id="L2-PROV-001",
-                    severity=Severity.MEDIUM,
-                    confidence=Confidence.HIGH,
-                    package=pkg_label,
-                    file=str(pkg_json),
-                    message=(
-                        f"Package '{pkg_name}' uses weak integrity algorithm — "
-                        "vulnerable to collision attacks"
-                    ),
-                    evidence=f"_integrity: {integrity[:60]}",
-                    remediation=(
-                        "Use sha512-based integrity hashes. "
-                        "Weak algorithms like sha1 are vulnerable to collision attacks."
-                    ),
-                    references=[
-                        "https://docs.npmjs.com/cli/v10/commands/npm-install#integrity",
-                        "https://shattered.io/",
-                    ],
-                )
+    if integrity and isinstance(integrity, str) and any(integrity.startswith(algo) for algo in WEAK_INTEGRITY):
+        findings.append(
+            Finding(
+                rule_id="L2-PROV-001",
+                severity=Severity.MEDIUM,
+                confidence=Confidence.HIGH,
+                package=pkg_label,
+                file=str(pkg_json),
+                message=(
+                    f"Package '{pkg_name}' uses weak integrity algorithm — "
+                    "vulnerable to collision attacks"
+                ),
+                evidence=f"_integrity: {integrity[:60]}",
+                remediation=(
+                    "Use sha512-based integrity hashes. "
+                    "Weak algorithms like sha1 are vulnerable to collision attacks."
+                ),
+                references=[
+                    "https://docs.npmjs.com/cli/v10/commands/npm-install#integrity",
+                    "https://shattered.io/",
+                ],
             )
+        )
 
     # Check for missing _integrity entirely (in installed packages)
     # This indicates the package may have been installed without verification
@@ -185,12 +182,12 @@ def _check_provenance(pkg: dict, pkg_json: Path) -> List[Finding]:
     return findings
 
 
-def detect_provenance_issues(target: Path, corpus_dir: Path) -> List[Finding]:
+def detect_provenance_issues(target: Path, corpus_dir: Path) -> list[Finding]:
     """
     Detect provenance attestation issues — packages lacking source verification.
     No network calls. Pure filesystem scan.
     """
-    findings: List[Finding] = []
+    findings: list[Finding] = []
 
     # Root package.json
     root_pkg = target / "package.json"

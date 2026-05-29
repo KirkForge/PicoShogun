@@ -6,6 +6,7 @@ Runs commands under deny-by-default policies using:
 - seatbelt/sandbox-exec (macOS)
 - subprocess with resource limits (fallback)
 """
+from .engine import get_backend, sandbox_run, set_backend
 from .models import (
     Policy,
     PolicyRule,
@@ -15,10 +16,9 @@ from .models import (
     Severity,
     Verdict,
 )
-from .engine import sandbox_run, get_backend, set_backend
+from .policy_generator import generate_policy_from_findings
 from .policy_loader import load_policy, write_default_policy
 from .verdict import VerdictEngine
-from .policy_generator import generate_policy_from_findings
 
 __all__ = [
     "Policy",

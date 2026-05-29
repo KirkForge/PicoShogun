@@ -1,10 +1,11 @@
 """Audit logging middleware."""
 import json
 import logging
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
-logger = logging.getLogger("SecdevKimi.Audit")
+logger = logging.getLogger("shogun.Audit")
 
 # Lazy imports to avoid circular dependency and premature DB init
 _auth_svc = None
@@ -64,10 +65,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
 
         if _user_id is None:
             auth_header = request.headers.get("authorization", "")
-            if auth_header.startswith("Bearer "):
-                _user_id = 0  # anonymous authenticated but unresolvable
-            else:
-                _user_id = -1  # fully unauthenticated
+            _user_id = 0 if auth_header.startswith("Bearer ") else -1  # 0=anon auth, -1=unauthenticated
 
         ip_address = request.client.host if request.client else None
         user_agent = request.headers.get("user-agent")

@@ -5,22 +5,16 @@ Findings matching the baseline fingerprints are suppressed.
 New findings (not in baseline) are shown normally.
 """
 import json
-import tempfile
-from pathlib import Path
-
-import pytest
 
 from picosentry.models import (
+    Confidence,
     Finding,
     ScanResult,
     ScanStats,
     Severity,
-    Confidence,
-    BaselineResult,
-    load_baseline,
     apply_baseline,
+    load_baseline,
 )
-
 
 # --- Fixtures ---
 
@@ -199,8 +193,9 @@ class TestBaselineCLI:
 
     def test_baseline_json_suppresses_known_findings(self, tmp_path):
         """--baseline with a previous scan JSON suppresses matching findings."""
-        from picosentry.cli import main
         import sys
+
+        from picosentry.cli import main
 
         # Create a test project with a package.json
         project = tmp_path / "project"
@@ -234,8 +229,9 @@ class TestBaselineCLI:
 
     def test_baseline_file_not_found(self, tmp_path):
         """--baseline with nonexistent file returns error code 2."""
-        from picosentry.cli import main
         import sys
+
+        from picosentry.cli import main
 
         project = tmp_path / "project"
         project.mkdir()
@@ -252,8 +248,9 @@ class TestBaselineCLI:
 
     def test_baseline_simple_ignore_format(self, tmp_path):
         """--baseline with simple ignore file format works."""
-        from picosentry.cli import main
         import sys
+
+        from picosentry.cli import main
 
         project = tmp_path / "project"
         project.mkdir()

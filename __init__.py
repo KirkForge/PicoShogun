@@ -1,5 +1,3 @@
-"""
-SecDev Supply Chain Scanner
-Deterministic, offline, safe for ML pipelines.
-"""
-__version__ = "3.0.0"
+"""Shogun Command Centre — Enterprise security orchestration & intelligence."""
+__version__ = "2.15.0"
+

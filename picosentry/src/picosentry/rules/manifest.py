@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Dict, List
 
 from ..models import Confidence, Finding, Severity
 
@@ -29,9 +28,9 @@ def _load_package_json(path: Path) -> dict:
         return {}
 
 
-def _get_dep_sections(pkg: dict) -> Dict[str, dict]:
+def _get_dep_sections(pkg: dict) -> dict[str, dict]:
     """Return {section_name: {pkg: version_str}} for all dependency sections."""
-    sections: Dict[str, dict] = {}
+    sections: dict[str, dict] = {}
     for key in ("dependencies", "devDependencies", "peerDependencies", "optionalDependencies"):
         section = pkg.get(key)
         if isinstance(section, dict):
@@ -61,9 +60,9 @@ def _is_dangerous_range(version_str: str) -> bool:
     return False
 
 
-def _check_manifest(pkg: dict, pkg_json_path: Path) -> List[Finding]:
+def _check_manifest(pkg: dict, pkg_json_path: Path) -> list[Finding]:
     """Check a single package.json for manifest issues."""
-    findings: List[Finding] = []
+    findings: list[Finding] = []
     pkg_name = pkg.get("name", pkg_json_path.parent.name)
     pkg_version = pkg.get("version", "unknown")
     pkg_label = f"{pkg_name}@{pkg_version}"
@@ -135,13 +134,13 @@ def _check_manifest(pkg: dict, pkg_json_path: Path) -> List[Finding]:
     return findings
 
 
-def detect_manifest_issues(target: Path, corpus_dir: Path) -> List[Finding]:
+def detect_manifest_issues(target: Path, corpus_dir: Path) -> list[Finding]:
     """
     Detect manifest integrity issues — dangerous version ranges and
     optional deps with install scripts.
     No network calls. Pure filesystem scan.
     """
-    findings: List[Finding] = []
+    findings: list[Finding] = []
 
     # Root package.json
     root_pkg = target / "package.json"

@@ -1,19 +1,18 @@
 """Anomaly detection engine — auto-threshold rules + alert pipeline."""
 
 import json
-import time
-import threading
-from pathlib import Path
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, asdict, field
 import logging
+import threading
+import time
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
-
-from services.metrics import metrics
+from pathlib import Path
+from typing import Any
 
 from database.manager import DatabaseManager
+from services.metrics import metrics
 
-logger = logging.getLogger("SecdevKimi.Anomaly")
+logger = logging.getLogger("shogun.Anomaly")
 
 CONFIG_PATH = Path(__file__).parent.parent / "config" / "anomaly_rules.json"
 
@@ -76,7 +75,7 @@ class AnomalyRule:
     duration_seconds: int  # how long the condition must persist
     alert_channel: str  # all, email, discord, webhook
     description: str
-    labels: Dict[str, str] = field(default_factory=dict)
+    labels: dict[str, str] = field(default_factory=dict)
     enabled: bool = True
 
 
@@ -98,10 +97,10 @@ class AnomalyDetector:
     def __init__(self, db: DatabaseManager, alert_hub=None):
         self.db = db
         self.alert_hub = alert_hub
-        self.rules: List[AnomalyRule] = []
-        self.alert_history: List[AnomalyAlert] = []
+        self.rules: list[AnomalyRule] = []
+        self.alert_history: list[AnomalyAlert] = []
         self._running = False
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._check_interval = 60  # seconds
         self._load_rules()
 
@@ -159,7 +158,7 @@ class AnomalyDetector:
         }
         return ops.get(comparison, ops["gt"])(value, threshold)
 
-    def _get_metric_value(self, rule: AnomalyRule) -> Optional[float]:
+    def _get_metric_value(self, rule: AnomalyRule) -> float | None:
         """Extract the latest value for a rule's metric from the metrics collector."""
         with metrics._lock:
             metric_list = metrics.metrics.get(rule.metric_name, [])
@@ -208,7 +207,7 @@ class AnomalyDetector:
         except Exception:
             return 0.0
 
-    def check_rules(self) -> List[AnomalyAlert]:
+    def check_rules(self) -> list[AnomalyAlert]:
         """Run all enabled rules and return any triggered alerts."""
         alerts = []
 
@@ -217,10 +216,7 @@ class AnomalyDetector:
                 continue
 
             # Special: health_status uses DB not metrics
-            if rule.metric_name == "health_status":
-                value = self._get_health_value()
-            else:
-                value = self._get_metric_value(rule)
+            value = self._get_health_value() if rule.metric_name == "health_status" else self._get_metric_value(rule)
 
             if value is None:
                 continue
@@ -328,7 +324,7 @@ class AnomalyDetector:
         if self._thread:
             self._thread.join(timeout=5)
 
-    def get_alerts(self, limit: int = 50) -> List[Dict[str, Any]]:
+    def get_alerts(self, limit: int = 50) -> list[dict[str, Any]]:
         """Return recent anomaly alerts from the database."""
         try:
             rows = self.db.execute("""
@@ -348,7 +344,7 @@ class AnomalyDetector:
         except Exception:
             return []
 
-    def get_rules(self) -> List[Dict[str, Any]]:
+    def get_rules(self) -> list[dict[str, Any]]:
         """Return all configured rules."""
         return [asdict(r) for r in self.rules]
 

@@ -2,44 +2,103 @@
 requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
+# ── Shogun Command Centre (main platform) ──────────────────────────────
+
 [project]
-name = "supply-chain-scanner"
-version = "0.1.0"
-description = "Deterministic supply-chain scanner for npm/pnpm — offline, safe for ML pipelines"
-readme = "scanner/README.md"
+name = "shogun"
+version = "2.15.0"
+description = "Enterprise security orchestration and intelligence platform"
+readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
 authors = [
     {name = "55N10E"},
+    {name = "Henrik Kirk", email = "285947470+KirkForge@users.noreply.github.com"},
 ]
-keywords = ["supply-chain", "security", "npm", "pnpm", "scanner", "deterministic", "ml-safe"]
+keywords = [
+    "security", "orchestration", "intelligence", "fastapi", "enterprise",
+    "supply-chain", "anomaly-detection", "monitoring",
+]
 classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: System Administrators",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Framework :: FastAPI",
     "Topic :: Security",
-    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: System :: Monitoring",
 ]
 
-[project.scripts]
-supply-chain-scanner = "scanner.cli:main"
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "pydantic>=2.0.0",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "python-multipart>=0.0.6",
+    "requests>=2.31.0",
+    "starlette>=0.27.0",
+    "croniter>=1.0.0",
+    "pyyaml>=6.0",
+]
 
 [project.optional-dependencies]
+observability = [
+    "opentelemetry-api>=1.20.0",
+    "opentelemetry-sdk>=1.20.0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
+    "opentelemetry-instrumentation-fastapi>=0.41b0",
+]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
+    "pytest-asyncio>=0.21.0",
+    "httpx>=0.24.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+    "bandit>=1.7.0",
+    "pip-audit>=0.7.0",
 ]
 
-[tool.setuptools.packages.find]
-include = ["scanner*"]
+[project.scripts]
+shogun = "api.server:main"
 
-[tool.setuptools.package-data]
-scanner = ["corpus/*.json", "corpus/ioc/*.json"]
+[tool.setuptools.packages.find]
+include = [
+    "api*",
+    "config*",
+    "database*",
+    "middleware*",
+    "services*",
+    "iron_dome*",
+]
 
 [tool.pytest.ini_options]
-testpaths = ["scanner/tests"]
+testpaths = ["tests"]
 python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "SIM"]
+ignore = ["E501", "B008", "N999", "N806", "SIM102", "SIM105", "E741", "B905", "B015", "E402"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+no_strict_optional = true
+
+# ── PicoSentry (sub-project) ──────────────────────────────────────────
+
+[tool.picosentry]
+name = "supply-chain-scanner"
+version = "0.1.0"
+description = "Deterministic supply-chain scanner for npm/pnpm — offline, safe for ML pipelines"

@@ -9,7 +9,6 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from .models import Baseline
 
@@ -25,7 +24,7 @@ def _get_yaml():
         raise ImportError(
             "PyYAML is required to load YAML baseline files. "
             "Install it with: pip install pyyaml"
-        )
+        ) from None
 
 # Shipped baselines directory
 _BASELINES_DIR = Path(__file__).parent / "baselines"
@@ -162,7 +161,7 @@ DEFAULT_BASELINES = {
 }
 
 
-def load_baseline(name: str) -> Optional[Baseline]:
+def load_baseline(name: str) -> Baseline | None:
     """
     Load a baseline by name.
 
@@ -187,7 +186,7 @@ def load_baseline(name: str) -> Optional[Baseline]:
     return None
 
 
-def load_all_baselines() -> Dict[str, Baseline]:
+def load_all_baselines() -> dict[str, Baseline]:
     """Load all available baselines (built-in + from directory)."""
     baselines = dict(DEFAULT_BASELINES)
 
@@ -201,7 +200,7 @@ def load_all_baselines() -> Dict[str, Baseline]:
     return baselines
 
 
-def _load_baseline_file(path: Path) -> Optional[Baseline]:
+def _load_baseline_file(path: Path) -> Baseline | None:
     """Load a baseline from a YAML or JSON file."""
     try:
         content = path.read_text(encoding="utf-8")

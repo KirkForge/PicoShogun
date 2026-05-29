@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import List
 
 from ..models import Confidence, Finding, Severity
 
@@ -23,9 +22,9 @@ def _load_package_json(path: Path) -> dict:
         return {}
 
 
-def _check_bundled(pkg: dict, pkg_json: Path) -> List[Finding]:
+def _check_bundled(pkg: dict, pkg_json: Path) -> list[Finding]:
     """Check a single package.json for bundled dependency issues."""
-    findings: List[Finding] = []
+    findings: list[Finding] = []
     pkg_name = pkg.get("name", pkg_json.parent.name)
     pkg_version = pkg.get("version", "unknown")
     pkg_label = f"{pkg_name}@{pkg_version}"
@@ -120,7 +119,7 @@ def _check_bundled(pkg: dict, pkg_json: Path) -> List[Finding]:
                 package=pkg_label,
                 file=str(pkg_json),
                 message=(
-                    f"Package declares pre-built binary configuration — "
+                    "Package declares pre-built binary configuration — "
                     "native binaries bypass source audit"
                 ),
                 evidence=f"binary: {json.dumps(binary_field)[:200]}",
@@ -138,13 +137,13 @@ def _check_bundled(pkg: dict, pkg_json: Path) -> List[Finding]:
     return findings
 
 
-def detect_bundled_shadows(target: Path, corpus_dir: Path) -> List[Finding]:
+def detect_bundled_shadows(target: Path, corpus_dir: Path) -> list[Finding]:
     """
     Detect bundled dependency shadows — packages that bundle their own deps,
     hiding them from audit tools.
     No network calls. Pure filesystem scan.
     """
-    findings: List[Finding] = []
+    findings: list[Finding] = []
 
     # Root package.json
     root_pkg = target / "package.json"

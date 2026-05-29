@@ -1,13 +1,13 @@
 #!/bin/bash
-# Secdev_kimi Enterprise Batch Runner
+# Shogun Enterprise Batch Runner
 # Executes project categories with full logging, health checks, and DB tracking
 
 set -euo pipefail
 
 BASE="/home/kirk/.picoclaw/workspace"
 HIVE="$BASE/Hivemind-projects"
-LOGS="$BASE/Secdev_kimi/logs"
-DB="$BASE/Secdev_kimi/secdev_kimi.db"
+LOGS="$BASE/Shogun/logs"
+DB="$BASE/Shogun/shogun.db"
 PYTHON="python3"
 
 mkdir -p "$LOGS"
@@ -50,7 +50,7 @@ if [[ -z "$category" ]]; then
     usage
 fi
 
-echo "=== Secdev_kimi Enterprise Batch Runner ==="
+echo "=== Shogun Enterprise Batch Runner ==="
 echo "Category: $category"
 echo "Timeout: ${timeout}s"
 echo "Parallel: $parallel"

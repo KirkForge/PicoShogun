@@ -1,14 +1,14 @@
 """Plugin system for extensible project integration."""
-import os
-import sys
-import json
 import importlib
 import inspect
+import json
 import logging
-from typing import Dict, List, Any, Optional
+import os
+import sys
 from dataclasses import dataclass
+from typing import Any
 
-logger = logging.getLogger("SecdevKimi.Plugins")
+logger = logging.getLogger("shogun.Plugins")
 
 @dataclass
 class PluginMetadata:
@@ -17,47 +17,47 @@ class PluginMetadata:
     author: str
     description: str
     entry_point: str
-    hooks: List[str]
-    dependencies: List[str]
+    hooks: list[str]
+    dependencies: list[str]
 
 class PluginInterface:
     """Base interface all plugins must implement."""
-    
-    def initialize(self, config: Dict[str, Any]) -> bool:
+
+    def initialize(self, config: dict[str, Any]) -> bool:
         """Called once when plugin is loaded."""
         raise NotImplementedError
-    
-    def on_project_start(self, project_id: str, metadata: Dict) -> None:
+
+    def on_project_start(self, project_id: str, metadata: dict) -> None:
         """Hook: Before project execution."""
         pass
-    
-    def on_project_complete(self, project_id: str, result: Dict) -> None:
+
+    def on_project_complete(self, project_id: str, result: dict) -> None:
         """Hook: After project execution."""
         pass
-    
-    def on_intelligence(self, intel: Dict) -> Optional[Dict]:
+
+    def on_intelligence(self, intel: dict) -> dict | None:
         """Hook: Intelligence signal received."""
         return None
-    
-    def on_alert(self, alert: Dict) -> Optional[Dict]:
+
+    def on_alert(self, alert: dict) -> dict | None:
         """Hook: Alert triggered."""
         return None
-    
-    def health_check(self) -> Dict:
+
+    def health_check(self) -> dict:
         """Return plugin health status."""
         return {"status": "healthy"}
-    
+
     def shutdown(self) -> None:
         """Cleanup when plugin is unloaded."""
         pass
 
 class PluginManager:
     """Dynamic plugin loader and lifecycle manager."""
-    
+
     def __init__(self, plugin_dir: str = None):
         self.plugin_dir = plugin_dir or os.path.join(os.path.dirname(__file__), "../plugins")
-        self.plugins: Dict[str, PluginInterface] = {}
-        self.metadata: Dict[str, PluginMetadata] = {}
+        self.plugins: dict[str, PluginInterface] = {}
+        self.metadata: dict[str, PluginMetadata] = {}
         self.hooks = {
             "project_start": [],
             "project_complete": [],
@@ -65,31 +65,31 @@ class PluginManager:
             "alert": [],
         }
         self._load_plugins()
-    
+
     def _load_plugins(self):
         """Discover and load all plugins from plugin directory."""
         if not os.path.exists(self.plugin_dir):
             logger.info(f"Plugin directory not found: {self.plugin_dir}")
             return
-        
+
         for entry in os.listdir(self.plugin_dir):
             plugin_path = os.path.join(self.plugin_dir, entry)
             manifest = os.path.join(plugin_path, "plugin.json")
-            
+
             if os.path.isdir(plugin_path) and os.path.exists(manifest):
                 try:
                     with open(manifest) as f:
                         meta = json.load(f)
-                    
+
                     self._load_plugin(plugin_path, meta)
                 except Exception as e:
                     logger.error(f"Failed to load plugin {entry}: {e}")
-    
-    def _load_plugin(self, path: str, meta: Dict):
+
+    def _load_plugin(self, path: str, meta: dict):
         """Load a single plugin by its manifest."""
         name = meta["name"]
         entry = meta["entry_point"]
-        
+
         # Add plugin path AND project root to sys.path
         sys.path.insert(0, path)
         project_root = os.path.dirname(self.plugin_dir)
@@ -97,14 +97,14 @@ class PluginManager:
             sys.path.insert(0, project_root)
         try:
             module = importlib.import_module(entry)
-            
+
             # Find plugin class
             for attr_name in dir(module):
                 attr = getattr(module, attr_name)
-                if (inspect.isclass(attr) and 
+                if (inspect.isclass(attr) and
                     issubclass(attr, PluginInterface) and
                     attr != PluginInterface):
-                    
+
                     instance = attr()
                     if instance.initialize(meta.get("config", {})):
                         self.plugins[name] = instance
@@ -117,17 +117,17 @@ class PluginManager:
                             hooks=meta.get("hooks", []),
                             dependencies=meta.get("dependencies", [])
                         )
-                        
+
                         # Register hooks
                         for hook in meta.get("hooks", []):
                             if hook in self.hooks:
                                 self.hooks[hook].append(name)
-                        
+
                         logger.info(f"Plugin loaded: {name} v{self.metadata[name].version}")
                     break
         finally:
             sys.path.remove(path)
-    
+
     def dispatch(self, hook: str, **kwargs):
         """Dispatch event to all plugins registered for a hook."""
         results = []
@@ -135,7 +135,7 @@ class PluginManager:
             plugin = self.plugins.get(plugin_name)
             if not plugin:
                 continue
-            
+
             try:
                 method = getattr(plugin, f"on_{hook}", None)
                 if method:
@@ -144,10 +144,10 @@ class PluginManager:
                         results.append({"plugin": plugin_name, "result": result})
             except Exception as e:
                 logger.error(f"Plugin {plugin_name} hook {hook} failed: {e}")
-        
+
         return results
-    
-    def get_status(self) -> Dict:
+
+    def get_status(self) -> dict:
         """Get status of all loaded plugins."""
         status = {}
         for name, plugin in self.plugins.items():
@@ -163,7 +163,7 @@ class PluginManager:
                     "health": {"status": "unhealthy"}
                 }
         return status
-    
+
     def unload_all(self):
         """Gracefully shutdown all plugins."""
         for name, plugin in self.plugins.items():
@@ -172,7 +172,7 @@ class PluginManager:
                 logger.info(f"Plugin unloaded: {name}")
             except Exception as e:
                 logger.error(f"Plugin {name} shutdown failed: {e}")
-        
+
         self.plugins.clear()
         self.metadata.clear()
         for hook_list in self.hooks.values():

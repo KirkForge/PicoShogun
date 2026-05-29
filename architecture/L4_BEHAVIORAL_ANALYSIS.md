@@ -8,7 +8,7 @@ Nobody does **deterministic, local, zero-trust behavioral analysis** that chains
 
 ## Product
 
-**SecDev Behavioral Analysis Engine** — a deterministic behavioral profiler that observes process execution traces over time, builds behavioral baselines, and detects deviations that indicate compromise. No LLMs. No probabilistic guessing. Same trace, same verdict. Runs locally.
+**Shogun Behavioral Analysis Engine** — a deterministic behavioral profiler that observes process execution traces over time, builds behavioral baselines, and detects deviations that indicate compromise. No LLMs. No probabilistic guessing. Same trace, same verdict. Runs locally.
 
 ### Core Principles
 1. **Deterministic** — same behavioral trace, same verdict. Policy-driven thresholds, not ML black boxes.

@@ -10,9 +10,7 @@ Pure function: (target_path, corpus_dir) → List[Finding]
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
-from typing import List, Optional
 
 from ..models import Confidence, Finding, Severity
 
@@ -51,7 +49,7 @@ def _load_package_json(path: Path) -> dict:
         return {}
 
 
-def _extract_repo_url(pkg: dict) -> Optional[str]:
+def _extract_repo_url(pkg: dict) -> str | None:
     """Extract repository URL from package.json."""
     repo = pkg.get("repository")
     if isinstance(repo, str):
@@ -78,14 +76,14 @@ def _is_fork_repo(url: str, pkg_name: str) -> bool:
     # If the package name appears in the URL path, it's likely canonical
     # e.g., github.com/lodash/lodash — but if it's github.com/someuser/lodash,
     # it might be a fork
-    name_lower = pkg_name.lower().replace("@", "").replace("/", "-")
+    pkg_name.lower().replace("@", "").replace("/", "-")
 
     # Check if the URL has a different org/user than the package suggests
     # This is a best-effort heuristic without network access
     return True  # Conservative: flag repos we can't verify as authoritative
 
 
-def _get_days_since_update(pkg: dict) -> Optional[int]:
+def _get_days_since_update(pkg: dict) -> int | None:
     """Try to extract how many days since last update from date strings."""
     # Check various date fields
     for key in ("time", "date", "lastModified", "modified"):
@@ -95,12 +93,12 @@ def _get_days_since_update(pkg: dict) -> Optional[int]:
     return None
 
 
-def detect_fork_drift(target: Path, corpus_dir: Path) -> List[Finding]:
+def detect_fork_drift(target: Path, corpus_dir: Path) -> list[Finding]:
     """
     Detect fork trust drift — packages from non-canonical sources.
     No network calls. Pure filesystem scan.
     """
-    findings: List[Finding] = []
+    findings: list[Finding] = []
 
     nm = target / "node_modules"
     if not nm.is_dir():
@@ -147,7 +145,7 @@ def detect_fork_drift(target: Path, corpus_dir: Path) -> List[Finding]:
 
         # Check if repo URL contains fork indicators
         repo_lower = repo_url.lower()
-        name_in_url = pkg_name.lower().replace("@", "").replace("/", "-") in repo_lower
+        pkg_name.lower().replace("@", "").replace("/", "-") in repo_lower
 
         # Check for fork-related words in package name or description
         description = str(pkg.get("description", "")).lower()

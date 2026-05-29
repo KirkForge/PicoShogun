@@ -1,39 +1,54 @@
 """Unit tests for L4 Behavioral Analysis."""
 import json
-import math
 import os
-import tempfile
-from pathlib import Path
 
 import pytest
 
+from ..baseline import DEFAULT_BASELINES, load_all_baselines, load_baseline, save_baseline
+from ..differ import compare_profile_to_baseline, find_best_baseline
+from ..dtw import compare_resource_curves, dtw_distance, normalized_dtw_distance
+from ..engine import L4Engine, _compute_verdict, create_default_engine
+from ..entropy import (
+    detect_entropy_spikes,
+    entropy_of_chunks,
+    normalized_entropy,
+    shannon_entropy,
+    shannon_entropy_string,
+)
+from ..formatters import format_json, format_sarif, format_table
+from ..honeypot import (
+    check_canary_dns,
+    check_canary_env,
+    check_canary_file_access,
+    generate_canary_domain,
+    generate_canary_env_key,
+    generate_canary_filename,
+    plant_canary_dns,
+    plant_canary_env,
+    plant_canary_files,
+)
 from ..models import (
-    AnalysisResult, AnalysisStats, Baseline, BehavioralProfile,
-    BehavioralVerdict, Confidence, DNSQuery, DriftResult, FilesystemOp,
-    Finding, NetworkCall, ProcessSpawn, ResourceSample, RuleID, Severity,
+    AnalysisResult,
+    AnalysisStats,
+    Baseline,
+    BehavioralProfile,
+    BehavioralVerdict,
+    Confidence,
+    DNSQuery,
+    DriftResult,
+    FilesystemOp,
+    Finding,
+    NetworkCall,
+    RuleID,
+    Severity,
     TimingPoint,
 )
-from ..engine import L4Engine, create_default_engine, _compute_verdict
-from ..profiler import profile_from_trace, profile_from_sandbox_result
-from ..entropy import (
-    shannon_entropy, shannon_entropy_string, entropy_of_chunks,
-    normalized_entropy, detect_entropy_spikes,
-)
-from ..dtw import dtw_distance, normalized_dtw_distance, compare_resource_curves
-from ..differ import compare_profile_to_baseline, find_best_baseline, overall_drift_score
-from ..baseline import load_baseline, load_all_baselines, save_baseline, DEFAULT_BASELINES
-from ..honeypot import (
-    generate_canary_filename, generate_canary_domain, generate_canary_env_key,
-    plant_canary_files, plant_canary_env, plant_canary_dns,
-    check_canary_file_access, check_canary_dns, check_canary_env,
-)
-from ..rules.timing import detect_timing_anomalies
-from ..rules.exfil import detect_exfiltration
-from ..rules.entropy_rules import detect_entropy_anomalies
-from ..rules.honeypot_rules import detect_honeypot_touches
+from ..profiler import profile_from_trace
 from ..rules.baseline_rules import detect_baseline_drift
-from ..formatters import format_json, format_sarif, format_table
-
+from ..rules.entropy_rules import detect_entropy_anomalies
+from ..rules.exfil import detect_exfiltration
+from ..rules.honeypot_rules import detect_honeypot_touches
+from ..rules.timing import detect_timing_anomalies
 
 # ─── Helpers ────────────────────────────────────────────────────────────
 

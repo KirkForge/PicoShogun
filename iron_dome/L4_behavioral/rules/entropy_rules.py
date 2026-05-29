@@ -9,10 +9,8 @@ Deterministic: same data = same entropy. No ML.
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional
 
-from ..models import Baseline, BehavioralProfile, Finding, Severity, Confidence
-from ..entropy import shannon_entropy, detect_entropy_spikes
+from ..models import Baseline, BehavioralProfile, Confidence, Finding, Severity
 
 logger = logging.getLogger("iron_dome.L4.rules.entropy")
 
@@ -22,10 +20,10 @@ ENTROPY_SPIKE_THRESHOLD = 2.0
 
 def detect_entropy_anomalies(
     profile: BehavioralProfile,
-    baselines: Optional[Dict[str, Baseline]] = None,
-) -> List[Finding]:
+    baselines: dict[str, Baseline] | None = None,
+) -> list[Finding]:
     """Detect entropy anomalies in a behavioral profile."""
-    findings: List[Finding] = []
+    findings: list[Finding] = []
     findings.extend(_detect_high_entropy_egress(profile))
 
     # Find best baseline for entropy comparison
@@ -40,7 +38,7 @@ def detect_entropy_anomalies(
     return findings
 
 
-def _detect_high_entropy_egress(profile: BehavioralProfile) -> List[Finding]:
+def _detect_high_entropy_egress(profile: BehavioralProfile) -> list[Finding]:
     """L4-ENTROPY-001: Detect high-entropy egress data."""
     # No egress data at all — not a finding
     if profile.egress_entropy <= 0:
@@ -84,8 +82,8 @@ def _detect_high_entropy_egress(profile: BehavioralProfile) -> List[Finding]:
 
 def _detect_entropy_spike(
     profile: BehavioralProfile,
-    baseline: Optional[Baseline],
-) -> List[Finding]:
+    baseline: Baseline | None,
+) -> list[Finding]:
     """L4-ENTROPY-002: Detect entropy spikes compared to baseline."""
     # No egress data — can't have an entropy spike
     if profile.egress_entropy <= 0:

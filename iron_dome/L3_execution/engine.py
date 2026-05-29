@@ -7,11 +7,10 @@ from __future__ import annotations
 
 import logging
 import platform
-from typing import List, Optional
 
 from .backends.base import SandboxBackend
 from .backends.subprocess_backend import SubprocessBackend
-from .models import Policy, SandboxResult, Verdict
+from .models import Policy, SandboxResult
 
 logger = logging.getLogger("iron_dome.L3.engine")
 
@@ -45,7 +44,7 @@ def _detect_backend() -> SandboxBackend:
 
 
 # Module-level singleton
-_default_backend: Optional[SandboxBackend] = None
+_default_backend: SandboxBackend | None = None
 
 
 def get_backend() -> SandboxBackend:
@@ -63,12 +62,12 @@ def set_backend(backend: SandboxBackend) -> None:
 
 
 def sandbox_run(
-    command: List[str],
-    policy: Optional[Policy] = None,
-    timeout: Optional[float] = None,
-    cwd: Optional[str] = None,
-    env: Optional[dict] = None,
-    backend: Optional[SandboxBackend] = None,
+    command: list[str],
+    policy: Policy | None = None,
+    timeout: float | None = None,
+    cwd: str | None = None,
+    env: dict | None = None,
+    backend: SandboxBackend | None = None,
 ) -> SandboxResult:
     """
     Run a command under sandbox policy.

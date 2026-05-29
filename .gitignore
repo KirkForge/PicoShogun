@@ -1,43 +1,69 @@
-# Dependencies
+# ── Dependencies ──────────────────────────────────────────────────────────
 node_modules/
 .venv/
 venv/
 __pycache__/
 *.pyc
 *.pyo
+
+# ── Environment / Secrets ────────────────────────────────────────────────
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
 
-# OS
-.DS_Store
-Thumbs.db
+# ── Database ──────────────────────────────────────────────────────────────
+secdev_kimi.db
+secdev_kimi.db-*
+shogun.db
+shogun.db-*
+*.db-journal
+*.db-wal
+*.db-shm
 
-# Logs
+# ── Logs ──────────────────────────────────────────────────────────────────
 *.log
 logs/
 
-# Build
+# ── Build / Distribution ─────────────────────────────────────────────────
 dist/
 build/
+*.egg-info/
+.eggs/
 
-# Type checking
+# ── Type Checking / Linting ──────────────────────────────────────────────
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
+.pytype/
+bandit-report.json
 
-# Coverage
+# ── Coverage ──────────────────────────────────────────────────────────────
 coverage/
 htmlcov/
 .coverage
 coverage.xml
 
-# IDE
+# ── IDE ───────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# Env
-.env.*
-secdev_kimi.db
-secdev_kimi.db-*
+# ── OS ─────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Backups ────────────────────────────────────────────────────────────────
+backups/
+
+# ── PicoSentry node_modules ──────────────────────────────────────────────
+picosentry/node_modules/
+
+# ── Temporary files ────────────────────────────────────────────────────────
+*.tmp
+*.bak
+*.swp

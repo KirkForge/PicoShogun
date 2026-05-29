@@ -3,21 +3,21 @@
 Each rule is a pure function: (target_path, corpus_dir) → List[Finding]
 No HTTP. No global state. No randomness. Same input = same output.
 """
-from .post_install import detect_post_install_scripts
-from .obfuscation import detect_obfuscation
-from .dep_confusion import detect_dep_confusion
-from .typosquat import detect_typosquat
-from .manifest import detect_manifest_issues
-from .fork_drift import detect_fork_drift
-from .credential_read import detect_credential_reading
-from .lockfile_drift import detect_lockfile_drift
 from .bundled_shadow import detect_bundled_shadows
-from .provenance import detect_provenance_issues
-from .maintainer_change import detect_maintainer_changes
-from .pnpm_config import scan as detect_pnpm_config
-from .license import detect_license_issues
+from .credential_read import detect_credential_reading
+from .dep_confusion import detect_dep_confusion
 from .engine import detect_engine_issues
+from .fork_drift import detect_fork_drift
+from .license import detect_license_issues
+from .lockfile_drift import detect_lockfile_drift
+from .maintainer_change import detect_maintainer_changes
+from .manifest import detect_manifest_issues
+from .obfuscation import detect_obfuscation
+from .pnpm_config import scan as detect_pnpm_config
+from .post_install import detect_post_install_scripts
+from .provenance import detect_provenance_issues
 from .sideloading import detect_sideloading
+from .typosquat import detect_typosquat
 
 __all__ = [
     "detect_post_install_scripts",

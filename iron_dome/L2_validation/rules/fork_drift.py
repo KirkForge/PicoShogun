@@ -10,7 +10,6 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import List, Optional
 
 from ..models import Confidence, Finding, Severity
 
@@ -38,7 +37,7 @@ def _load_package_json(path: Path) -> dict:
         return {}
 
 
-def _extract_repo_org(repo_field: str) -> Optional[str]:
+def _extract_repo_org(repo_field: str) -> str | None:
     """Extract org/user from a repository URL."""
     # Handle shorthand: "user/repo"
     if "/" in repo_field and "://" not in repo_field:
@@ -58,7 +57,7 @@ def _extract_repo_org(repo_field: str) -> Optional[str]:
     return None
 
 
-def detect_fork_drift(target: Path) -> List[Finding]:
+def detect_fork_drift(target: Path) -> list[Finding]:
     """
     Detect packages that appear to be forks with trust drift.
 
@@ -67,7 +66,7 @@ def detect_fork_drift(target: Path) -> List[Finding]:
     2. Repository URL org doesn't match package scope
     3. Version mismatch or very old versions suggesting abandonment
     """
-    findings: List[Finding] = []
+    findings: list[Finding] = []
 
     # Root package.json
     root_pkg = target / "package.json"
@@ -103,7 +102,7 @@ def detect_fork_drift(target: Path) -> List[Finding]:
 
 
 def _check_fork_indicators(
-    pkg: dict, pkg_json: Path, findings: List[Finding]
+    pkg: dict, pkg_json: Path, findings: list[Finding]
 ) -> None:
     """Check a single package.json for fork drift indicators."""
     pkg_name = pkg.get("name", pkg_json.parent.name)

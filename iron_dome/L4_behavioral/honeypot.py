@@ -6,14 +6,9 @@ Deterministic: same canaries, same detection. No guessing.
 """
 from __future__ import annotations
 
-import hashlib
-import os
-import secrets
-import string
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-
 import logging
+import secrets
+from pathlib import Path
 
 logger = logging.getLogger("iron_dome.L4.honeypot")
 
@@ -57,12 +52,12 @@ def generate_canary_env_key(prefix: str = "AWS") -> str:
 def plant_canary_files(
     target_dir: str | Path,
     count: int = 3,
-) -> List[Path]:
+) -> list[Path]:
     """Plant canary files in a directory."""
     target = Path(target_dir)
     target.mkdir(parents=True, exist_ok=True)
 
-    canary_paths: List[Path] = []
+    canary_paths: list[Path] = []
     canary_dirs = ["", ".config", ".ssh", ".aws", ".env.d"]
 
     for i in range(count):
@@ -86,9 +81,9 @@ def plant_canary_files(
 
 
 def plant_canary_env(
-    env_vars: Optional[Dict[str, str]] = None,
+    env_vars: dict[str, str] | None = None,
     count: int = 3,
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """Generate canary environment variable entries."""
     if env_vars is None:
         env_vars = {}
@@ -101,23 +96,23 @@ def plant_canary_env(
     return env_vars
 
 
-def plant_canary_dns(count: int = 3) -> List[str]:
+def plant_canary_dns(count: int = 3) -> list[str]:
     """Generate canary DNS domain names."""
-    domains: List[str] = []
+    domains: list[str] = []
     for _ in range(count):
         domains.append(generate_canary_domain())
     return domains
 
 
 def check_canary_file_access(
-    canary_paths: List[str],
-    fs_ops: List[dict],
-) -> List[str]:
+    canary_paths: list[str],
+    fs_ops: list[dict],
+) -> list[str]:
     """Check if any canary files were accessed in sandbox trace."""
     canary_strs = {str(p) for p in canary_paths}
     canary_names = {Path(p).name if isinstance(p, (str, Path)) else p for p in canary_paths}
 
-    touched: List[str] = []
+    touched: list[str] = []
     for op in fs_ops:
         op_path = op.get("path", "")
         op_name = Path(op_path).name if op_path else ""
@@ -129,30 +124,28 @@ def check_canary_file_access(
 
 
 def check_canary_dns(
-    canary_domains: List[str],
-    dns_queries: List[dict],
-) -> List[str]:
+    canary_domains: list[str],
+    dns_queries: list[dict],
+) -> list[str]:
     """Check if any canary domains were queried in sandbox trace."""
     canary_set = set(canary_domains)
-    touched: List[str] = []
+    touched: list[str] = []
 
     for q in dns_queries:
         domain = q.get("domain", "")
-        if domain in canary_set:
-            touched.append(domain)
-        elif any(domain.endswith(f".{c}") for c in canary_set):
+        if domain in canary_set or any(domain.endswith(f".{c}") for c in canary_set):
             touched.append(domain)
 
     return touched
 
 
 def check_canary_env(
-    canary_env_keys: List[str],
-    env_reads: List[dict],
-) -> List[str]:
+    canary_env_keys: list[str],
+    env_reads: list[dict],
+) -> list[str]:
     """Check if any canary env vars were read in sandbox trace."""
     canary_set = set(canary_env_keys)
-    touched: List[str] = []
+    touched: list[str] = []
 
     for r in env_reads:
         key = r.get("key", r.get("detail", ""))

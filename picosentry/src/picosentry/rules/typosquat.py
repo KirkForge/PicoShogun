@@ -14,14 +14,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import List, Set
 
 from ..models import Confidence, Finding, Severity
 
 # Built-in fallback corpus (top-100 npm packages by download count).
 # Used when the corpus file is unavailable.
 # The canonical corpus is scanner/corpus/npm_top_packages.json (327 packages).
-BUILTIN_TOP_100: List[str] = sorted([
+BUILTIN_TOP_100: list[str] = sorted([
     "react", "react-dom", "next", "typescript", "eslint",
     "lodash", "axios", "express", "vue", "angular",
     "webpack", "babel-core", "jest", "mocha", "chalk",
@@ -47,7 +46,7 @@ BUILTIN_TOP_100: List[str] = sorted([
 ])
 
 
-def _load_corpus(corpus_dir: Path) -> Set[str]:
+def _load_corpus(corpus_dir: Path) -> set[str]:
     """Load package corpus from file. Falls back to BUILTIN_TOP_100."""
     corpus_file = corpus_dir / "npm_top_packages.json"
     if corpus_file.is_file():
@@ -86,8 +85,8 @@ def _load_package_json(path: Path) -> dict:
         return {}
 
 
-def _get_all_dep_names(pkg: dict) -> Set[str]:
-    names: Set[str] = set()
+def _get_all_dep_names(pkg: dict) -> set[str]:
+    names: set[str] = set()
     for key in ("dependencies", "devDependencies", "peerDependencies", "optionalDependencies"):
         section = pkg.get(key)
         if isinstance(section, dict):
@@ -95,7 +94,7 @@ def _get_all_dep_names(pkg: dict) -> Set[str]:
     return names
 
 
-def _check_typosquat(dep_name: str, corpus: Set[str]) -> List[str]:
+def _check_typosquat(dep_name: str, corpus: set[str]) -> list[str]:
     """Return list of popular packages within edit distance ≤2."""
     # Skip scoped packages — typosquatting targets unscoped names
     if dep_name.startswith("@"):
@@ -110,12 +109,12 @@ def _check_typosquat(dep_name: str, corpus: Set[str]) -> List[str]:
     return matches
 
 
-def detect_typosquat(target: Path, corpus_dir: Path) -> List[Finding]:
+def detect_typosquat(target: Path, corpus_dir: Path) -> list[Finding]:
     """
     Detect typosquatting — dependency names close to popular packages.
     No network calls. Pure filesystem + corpus scan.
     """
-    findings: List[Finding] = []
+    findings: list[Finding] = []
     corpus = _load_corpus(corpus_dir)
 
     root_pkg = target / "package.json"

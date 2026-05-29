@@ -20,7 +20,7 @@ with open(REGISTRY) as f:
 # Category scheduling rules
 CAT_RULES = {
     "monitoring":   {"interval": 30,  "priority": 1},   # Every 30 min
-    "analysis":     {"interval": 60,  "priority": 2},   # Every hour  
+    "analysis":     {"interval": 60,  "priority": 2},   # Every hour
     "defense":      {"interval": 120, "priority": 3},   # Every 2 hours
     "offense":      {"interval": 180, "priority": 4},   # Every 3 hours
     "crypto":       {"interval": 240, "priority": 5},   # Every 4 hours
@@ -57,26 +57,26 @@ comment_lines = []
 for pid, meta in registry.items():
     short_name = pid.split("_", 1)[1]
     cat = meta.get("category", "unknown")
-    
+
     project_dir = HIVE / short_name
     script = find_main_script(project_dir)
-    
+
     if not script:
         comment_lines.append(f"# SKIP {short_name}: no executable script")
         continue
-    
+
     if short_name in DAILY:
         hour, minute = DAILY[short_name].split(":")
         cron = f"{minute} {hour} * * *"
     else:
         interval = CAT_RULES.get(cat, CAT_RULES["unknown"])["interval"]
-        
+
         # Derive offset from project number
         try:
             num = int(pid.split("_", 1)[0])
         except (ValueError, TypeError):
             num = 0
-        
+
         if interval == 30:
             offset = (num * 7) % 30
             cron = f"{offset},{offset+30} * * * *"
@@ -103,10 +103,10 @@ for pid, meta in registry.items():
             offset = (num * 7) % 60
             hour_offset = num % 8
             cron = f"{offset} {hour_offset}-23/8 * * *"
-    
+
     runner = "python3" if script.suffix == ".py" else "bash"
     cmd = f"cd {project_dir} \u0026\u0026 {runner} {script.name} \u003e\u003e /dev/null 2\u003e\u00261"
-    
+
     entries.append(f"{cron} {cmd}")
 
 # Build output

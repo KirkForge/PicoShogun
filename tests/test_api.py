@@ -1,20 +1,23 @@
 """Tests for the Shogun Command Centre API endpoints."""
-import pytest
-import sys
+import contextlib
 import os
+import sys
 from pathlib import Path
+
+import pytest
 
 # Ensure project root is on sys.path
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
-os.environ["SECDEV_ENV"] = "test"
-os.environ["SECDEV_SECRET_KEY"] = "test-key-for-pytest"
+os.environ["SHOGUN_ENV"] = "test"
+os.environ["SHOGUN_SECRET_KEY"] = "test-key-for-pytest"
 
 
 @pytest.fixture
 def client():
     """Create a test client for the FastAPI app."""
     from fastapi.testclient import TestClient
+
     from api.server import app
     return TestClient(app)
 
@@ -23,15 +26,13 @@ def client():
 def auth_token(client):
     """Get an auth token for authenticated requests."""
     # Try to register + login, fallback to using admin bootstrap if available
-    try:
+    with contextlib.suppress(Exception):
         client.post("/auth/register", json={
             "username": "pytest_user",
             "password": "testpassword123",
             "role": "admin"
         })
-    except Exception:
-        pass
-    
+
     try:
         resp = client.post("/auth/login?username=pytest_user&password=testpassword123")
         if resp.status_code == 200:
@@ -39,7 +40,7 @@ def auth_token(client):
             return data.get("access_token", "")
     except Exception:
         pass
-    
+
     # Fallback: create a mock token or use API key
     return ""
 
@@ -130,8 +131,8 @@ class TestAPIVersion:
 
     def test_api_info(self, client):
         from api.server import app
-        assert app.title == "Secdev_kimi Enterprise API"
-        assert app.version == "2.13.0"
+        assert app.title == "Shogun Command Centre API"
+        assert app.version == "2.15.0"
 
 
 class TestSecurityHeaders:
@@ -147,7 +148,7 @@ class TestObservabilityModule:
     """Test the observability module can be imported."""
 
     def test_import_observability(self):
-        from services.observability import init_telemetry, get_tracer
+        from services.observability import get_tracer, init_telemetry
         assert init_telemetry is not None
         assert get_tracer is not None
 

@@ -9,7 +9,6 @@ Each backend implements platform-specific sandboxing:
 from __future__ import annotations
 
 import abc
-from typing import List, Optional
 
 from ..models import Policy, SandboxResult
 
@@ -26,11 +25,11 @@ class SandboxBackend(abc.ABC):
     @abc.abstractmethod
     def run(
         self,
-        command: List[str],
+        command: list[str],
         policy: Policy,
-        timeout: Optional[float] = None,
-        cwd: Optional[str] = None,
-        env: Optional[dict] = None,
+        timeout: float | None = None,
+        cwd: str | None = None,
+        env: dict | None = None,
     ) -> SandboxResult:
         """
         Execute command under sandbox policy.

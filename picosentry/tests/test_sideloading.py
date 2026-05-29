@@ -4,11 +4,11 @@ Tests for L2-SIDELOAD-001: Protocol sideloading detection.
 Deterministic: same input + same corpus = same findings. No HTTP. No randomness.
 """
 import json
-import pytest
 from pathlib import Path
 
+import pytest
+from picosentry.models import Confidence, Severity
 from picosentry.rules.sideloading import detect_sideloading
-from picosentry.models import Severity, Confidence
 
 
 @pytest.fixture

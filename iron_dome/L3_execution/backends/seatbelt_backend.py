@@ -9,6 +9,7 @@ Requires: macOS
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import platform
@@ -16,7 +17,6 @@ import subprocess
 import tempfile
 import time
 from datetime import datetime, timezone
-from typing import List, Optional
 
 from ..models import (
     Policy,
@@ -48,14 +48,14 @@ class SeatbeltBackend(SandboxBackend):
 
     def run(
         self,
-        command: List[str],
+        command: list[str],
         policy: Policy,
-        timeout: Optional[float] = None,
-        cwd: Optional[str] = None,
-        env: Optional[dict] = None,
+        timeout: float | None = None,
+        cwd: str | None = None,
+        env: dict | None = None,
     ) -> SandboxResult:
         engine = VerdictEngine(policy)
-        events: List[SandboxEvent] = []
+        events: list[SandboxEvent] = []
         wall_time = timeout or policy.wall_time_limit_seconds
 
         # Pre-flight spawn check
@@ -118,10 +118,8 @@ class SeatbeltBackend(SandboxBackend):
             )
 
         finally:
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(profile_path)
-            except OSError:
-                pass
 
         elapsed_ms = int((time.monotonic() - start_time) * 1000)
 

@@ -10,7 +10,6 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import List, Set
 
 from ..models import Confidence, Finding, Severity
 
@@ -38,9 +37,9 @@ def _load_package_json(path: Path) -> dict:
         return {}
 
 
-def _get_all_deps(pkg: dict) -> Set[str]:
+def _get_all_deps(pkg: dict) -> set[str]:
     """Extract all dependency names from a package.json."""
-    deps: Set[str] = set()
+    deps: set[str] = set()
     for key in (
         "dependencies",
         "devDependencies",
@@ -70,7 +69,7 @@ def _has_private_registry(target: Path) -> bool:
     return False
 
 
-def detect_dep_confusion(target: Path) -> List[Finding]:
+def detect_dep_confusion(target: Path) -> list[Finding]:
     """
     Detect dependency confusion vectors.
 
@@ -81,7 +80,7 @@ def detect_dep_confusion(target: Path) -> List[Finding]:
        but have no corresponding private registry.
     3. Internal-scoped packages are listed without a registry override.
     """
-    findings: List[Finding] = []
+    findings: list[Finding] = []
 
     root_pkg = target / "package.json"
     if not root_pkg.is_file():

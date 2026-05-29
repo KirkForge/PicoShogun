@@ -1,19 +1,21 @@
 """Real-time WebSocket events for live monitoring."""
-import json
 import asyncio
-from typing import Set, Dict
+import contextlib
+import json
 from datetime import datetime
+
 from fastapi import WebSocket
 
-from services.event_bus import event_bus, Event
+from services.event_bus import Event, event_bus
+
 
 class ConnectionManager:
     """Manage WebSocket connections with channel-based subscriptions."""
-    
+
     def __init__(self):
-        self.connections: Dict[str, Set[WebSocket]] = {}
-        self.client_channels: Dict[WebSocket, Set[str]] = {}
-    
+        self.connections: dict[str, set[WebSocket]] = {}
+        self.client_channels: dict[WebSocket, set[str]] = {}
+
     async def connect(self, websocket: WebSocket, channels: list = None):
         await websocket.accept()
         channels = set(channels or ["*"])
@@ -33,35 +35,31 @@ class ConnectionManager:
             for ch in self.client_channels[websocket]:
                 self.connections[ch].discard(websocket)
         self._add_sub(websocket, set(channels or ["*"]))
-    
+
     def disconnect(self, websocket: WebSocket):
         if websocket in self.client_channels:
             for channel in self.client_channels[websocket]:
                 if channel in self.connections:
                     self.connections[channel].discard(websocket)
             del self.client_channels[websocket]
-    
-    async def broadcast(self, event_type: str, payload: Dict):
+
+    async def broadcast(self, event_type: str, payload: dict):
         """Broadcast event to all clients subscribed to matching channels."""
         message = json.dumps({
             "type": event_type,
             "payload": payload,
             "timestamp": datetime.now().isoformat()
         })
-        
+
         # Send to wildcard subscribers
         for ws in self.connections.get("*", set()).copy():
-            try:
+            with contextlib.suppress(Exception):
                 await ws.send_text(message)
-            except Exception:
-                pass
-        
+
         # Send to specific channel subscribers
         for ws in self.connections.get(event_type, set()).copy():
-            try:
+            with contextlib.suppress(Exception):
                 await ws.send_text(message)
-            except Exception:
-                pass
 
 ws_manager = ConnectionManager()
 

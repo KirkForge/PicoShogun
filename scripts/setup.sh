@@ -1,14 +1,14 @@
 #!/bin/bash
-# Secdev_kimi Enterprise Setup Script
+# Shogun Enterprise Setup Script
 # Initializes database, installs dependencies, and configures the platform
 
 set -e
 
-BASE="/home/kirk/.picoclaw/workspace/Secdev_kimi"
+BASE="/home/kirk/.picoclaw/workspace/Shogun"
 PYTHON="python3"
 
 echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║     Secdev_kimi Enterprise Setup                            ║"
+echo "║     Shogun Enterprise Setup                            ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 

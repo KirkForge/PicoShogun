@@ -1,8 +1,23 @@
 #!/bin/bash
-# shellcheck disable=SC2097
-cd "$(dirname "$0")" || exit
-/home/kirk/.picoclaw/workspace/Secdev_kimi/venv/bin/uvicorn api.server:app --host 0.0.0.0 --port 8765 &
+set -euo pipefail
+cd "$(dirname "$0")" || exit 1
+
+VENV=".venv/bin/activate"
+if [ ! -f "$VENV" ]; then
+  echo "ERROR: Virtual environment not found at .venv/" >&2
+  echo "Create one with: python3 -m venv .venv && source .venv/bin/activate && pip install -e ." >&2
+  exit 1
+fi
+
+# shellcheck source=/dev/null
+source "$VENV"
+
+HOST="${SHOGUN_HOST:-0.0.0.0}"
+PORT="${SHOGUN_PORT:-8765}"
+WORKERS="${SHOGUN_WORKERS:-1}"
+
+uvicorn api.server:app --host "$HOST" --port "$PORT" --workers "$WORKERS" &
 API_PID=$!
 echo "$API_PID"
 sleep 3
-curl -s http://localhost:8765/health
+curl -sf "http://localhost:${PORT}/health/live" || echo "WARN: Health check failed"

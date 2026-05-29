@@ -7,7 +7,6 @@ Table format uses PicoSentry branding: HARD PINCH / SOFT PINCH / NUDGE.
 """
 from picosentry.models import ScanResult, Severity
 
-
 # ANSI color codes
 _COLORS = {
     Severity.CRITICAL: "\033[91m",  # Red
@@ -35,13 +34,13 @@ def format_table(result: ScanResult, color: bool = True) -> str:
 
     Deterministic: findings sorted by (rule_id, package, file, line).
     """
-    B = _BOLD if color else ""
-    R = _RESET if color else ""
+    bold_code = _BOLD if color else ""
+    reset_code = _RESET if color else ""
 
     lines = []
 
     # Header
-    lines.append(f"{B}🦞 PicoSentry{R}")
+    lines.append(f"{bold_code}🦞 PicoSentry{reset_code}")
     lines.append(f"Target: {result.target}")
     lines.append(f"Engine: v{result.engine_version} | Corpus: v{result.corpus_version}")
     lines.append(f"Scan ID: {result.scan_id}")
@@ -56,20 +55,20 @@ def format_table(result: ScanResult, color: bool = True) -> str:
 
     # Severity summary with pinch labels
     if stats.findings_by_severity:
-        lines.append(f"{B}Pinches by Severity:{R}")
+        lines.append(f"{bold_code}Pinches by Severity:{reset_code}")
         for sev in (Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW, Severity.INFO):
             count = stats.findings_by_severity.get(sev.value, 0)
             if count > 0:
                 c = _COLORS.get(sev, "") if color else ""
                 pinch = _PINCH_LABELS[sev]
-                lines.append(f"  {c}{pinch:<12s}: {count}{R}")
+                lines.append(f"  {c}{pinch:<12s}: {count}{reset_code}")
         lines.append("")
 
     # Findings
     if not result.findings:
-        lines.append(f"{B}No pinches. All clear. 🦞{R}")
+        lines.append(f"{bold_code}No pinches. All clear. 🦞{reset_code}")
     else:
-        lines.append(f"{B}Pinches:{R}")
+        lines.append(f"{bold_code}Pinches:{reset_code}")
         lines.append("")
 
         sorted_findings = sorted(result.findings, key=lambda f: f.sort_key())
@@ -78,7 +77,7 @@ def format_table(result: ScanResult, color: bool = True) -> str:
             c = _COLORS.get(f.severity, "") if color else ""
             pinch = _PINCH_LABELS[f.severity]
 
-            lines.append(f"  {c}[{pinch}]{R} {f.rule_id} {f.package}")
+            lines.append(f"  {c}[{pinch}]{reset_code} {f.rule_id} {f.package}")
             lines.append(f"    File: {f.file}" + (f":{f.line}" if f.line else ""))
             lines.append(f"    {f.message}")
             lines.append(f"    Evidence: {f.evidence[:120]}")

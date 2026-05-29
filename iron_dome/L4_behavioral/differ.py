@@ -6,12 +6,10 @@ Uses z-scores for scalar comparisons and DTW for curve comparisons.
 """
 from __future__ import annotations
 
-import math
 import logging
-from typing import Dict, List, Optional, Tuple
 
-from .models import Baseline, BehavioralProfile, DriftResult
 from .dtw import normalized_dtw_distance
+from .models import Baseline, BehavioralProfile, DriftResult
 
 logger = logging.getLogger("iron_dome.L4.differ")
 
@@ -39,16 +37,16 @@ def compare_profile_to_baseline(
 
 def find_best_baseline(
     profile: BehavioralProfile,
-    baselines: Dict[str, Baseline],
-) -> Optional[Tuple[Baseline, DriftResult]]:
+    baselines: dict[str, Baseline],
+) -> tuple[Baseline, DriftResult] | None:
     """Find the best-matching baseline for a profile."""
     if not baselines:
         return None
 
-    best: Optional[Tuple[Baseline, DriftResult]] = None
+    best: tuple[Baseline, DriftResult] | None = None
     best_score = float("inf")
 
-    for name, baseline in baselines.items():
+    for _name, baseline in baselines.items():
         drift = compare_profile_to_baseline(profile, baseline)
         overall = _overall_drift_score(drift)
         if overall < best_score:
@@ -103,7 +101,7 @@ def _compute_call_frequency_drift(
     if not baseline.call_frequencies:
         return 0.0
 
-    drifts: List[float] = []
+    drifts: list[float] = []
     for op, stats in baseline.call_frequencies.items():
         mean = stats.get("mean", 0.0)
         stddev = stats.get("stddev", 1.0)

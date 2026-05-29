@@ -1,9 +1,10 @@
 """Organization model — multi-tenancy foundation."""
 import secrets
-from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone
+from typing import Any
 
 from database.manager import db
+
 
 class Organization:
     """
@@ -13,42 +14,45 @@ class Organization:
     - Subscription tier
     - Usage limits
     """
-    
+
     TIERS = {
         "free": {"users": 1, "projects": 3, "runs_per_day": 50, "storage_mb": 100},
         "starter": {"users": 5, "projects": 25, "runs_per_day": 500, "storage_mb": 1000},
         "pro": {"users": 25, "projects": 100, "runs_per_day": 5000, "storage_mb": 10000},
         "enterprise": {"users": 999, "projects": 999, "runs_per_day": 99999, "storage_mb": 999999}
     }
-    
-    def create(name: str, slug: str, owner_user_id: int, tier: str = "free") -> Optional[int]:
+
+    @staticmethod
+    def create(name: str, slug: str, owner_user_id: int, tier: str = "free") -> int | None:
         """Create new organization."""
         if db.execute_one("SELECT id FROM orgs WHERE slug = ?", (slug,)):
             return None
-        
+
         api_key = f"sk_live_{secrets.token_urlsafe(32)}"
-        
+
         org_id = db.execute_insert("""
             INSERT INTO orgs (name, slug, owner_id, tier, api_key, is_active, created_at)
             VALUES (?, ?, ?, ?, ?, 1, ?)
         """, (name, slug, owner_user_id, tier, api_key, datetime.now(timezone.utc)))
-        
+
         # Add owner as member
         db.execute_insert("""
             INSERT INTO org_users (org_id, user_id, role, invited_at, joined_at)
             VALUES (?, ?, 'admin', ?, ?)
         """, (org_id, owner_user_id, datetime.now(timezone.utc), datetime.now(timezone.utc)))
-        
+
         return org_id
-    
-    def get_by_api_key(api_key: str) -> Optional[Dict[str, Any]]:
+
+    @staticmethod
+    def get_by_api_key(api_key: str) -> dict[str, Any] | None:
         """Lookup org by API key."""
         row = db.execute_one("""
             SELECT * FROM orgs WHERE api_key = ? AND is_active = 1
         """, (api_key,))
         return dict(row) if row else None
-    
-    def get_members(org_id: int) -> List[Dict[str, Any]]:
+
+    @staticmethod
+    def get_members(org_id: int) -> list[dict[str, Any]]:
         """List org members with roles."""
         rows = db.execute("""
             SELECT u.id, u.username, u.email, u.last_login, ou.role, ou.joined_at
@@ -58,35 +62,36 @@ class Organization:
             ORDER BY ou.joined_at DESC
         """, (org_id,))
         return [dict(r) for r in rows]
-    
-    def get_usage(org_id: int) -> Dict[str, Any]:
+
+    @staticmethod
+    def get_usage(org_id: int) -> dict[str, Any]:
         """Current usage vs limits."""
         org = db.execute_one("SELECT * FROM orgs WHERE id = ?", (org_id,))
         if not org:
             return {}
-        
+
         tier = org["tier"]
         limits = Organization.TIERS.get(tier, Organization.TIERS["free"])
-        
+
         # Count users
         users = db.execute_one(
             "SELECT COUNT(*) as c FROM org_users WHERE org_id = ?",
             (org_id,)
         )["c"] or 0
-        
+
         # Count projects
         projects = db.execute_one(
             "SELECT COUNT(*) as c FROM org_projects WHERE org_id = ?",
             (org_id,)
         )["c"] or 0
-        
+
         # Count today's runs
         runs_today = db.execute_one("""
-            SELECT COUNT(*) as c FROM project_runs 
+            SELECT COUNT(*) as c FROM project_runs
             WHERE org_id = ? AND DATE(run_start) = DATE('now')
         """, (org_id,))
         runs_today = runs_today["c"] if runs_today else 0
-        
+
         return {
             "tier": tier,
             "users": {"used": users, "limit": limits["users"], "pct": users/limits["users"]*100},
@@ -94,17 +99,20 @@ class Organization:
             "runs_today": {"used": runs_today, "limit": limits["runs_per_day"], "pct": runs_today/limits["runs_per_day"]*100},
             "storage_mb": limits["storage_mb"]
         }
-    
+
+    @staticmethod
     def can_create_project(org_id: int) -> bool:
         """Check if org can create another project."""
         usage = Organization.get_usage(org_id)
         return usage.get("projects", {}).get("used", 0) < usage.get("projects", {}).get("limit", 0)
-    
+
+    @staticmethod
     def can_run(org_id: int) -> bool:
         """Check if org has remaining run quota."""
         usage = Organization.get_usage(org_id)
         return usage.get("runs_today", {}).get("used", 0) < usage.get("runs_today", {}).get("limit", 0)
-    
+
+    @staticmethod
     def update_tier(org_id: int, new_tier: str) -> bool:
         """Change subscription tier."""
         if new_tier not in Organization.TIERS:
@@ -114,8 +122,9 @@ class Organization:
             (new_tier, datetime.now(timezone.utc), org_id)
         )
         return True
-    
-    def list_orgs_for_user(user_id: int) -> List[Dict[str, Any]]:
+
+    @staticmethod
+    def list_orgs_for_user(user_id: int) -> list[dict[str, Any]]:
         """All orgs where user is a member."""
         rows = db.execute("""
             SELECT o.*, ou.role as user_role

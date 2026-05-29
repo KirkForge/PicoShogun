@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Daily SaaS gap worker — picks top task from backlog, executes, commits."""
-import subprocess
 import re
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -71,11 +71,11 @@ def execute_task(task):
     task_id = task["id"]
     desc = task["description"]
     criteria = task["criteria"]
-    
+
     log(f"=== Task: {task_id} ===")
     log(f"Desc: {desc}")
     log(f"Acceptance: {criteria}")
-    
+
     if task_id == "INFRA-01":
         # Fix systemd service
         service_file = SECDEV_DIR / "secdev-kimi.service"
@@ -95,25 +95,25 @@ def execute_task(task):
             "Environment=SECDEV_SECRET_KEY=secdev-kimi-production-key-$(date +%s)"
         )
         service_file.write_text(content)
-        
+
         # Copy to systemd
         success, out = run_command(f"sudo cp {service_file} /etc/systemd/system/secdev-kimi.service")
         if not success:
             log(f"WARN: Could not copy service file (may need sudo): {out}")
             return "PARTIAL", "Service file prepared but not installed (needs sudo)"
-        
+
         run_command("sudo systemctl daemon-reload")
         success, out = run_command("sudo systemctl enable secdev-kimi")
         if success:
             return "DONE", "Systemd service registered and enabled"
         else:
             return "PARTIAL", f"Service file installed but enable failed: {out}"
-    
+
     elif task_id == "INFRA-02":
         # Stand up API on a real port
         # Kill any existing process on 8765
         run_command("pkill -f 'uvicorn.*api.server' 2>/dev/null")
-        
+
         # Start the API
         proc = subprocess.Popen(
             [
@@ -127,17 +127,17 @@ def execute_task(task):
             stderr=subprocess.DEVNULL,
             start_new_session=True
         )
-        
+
         # Wait a moment then test
         import time
         time.sleep(2)
-        
+
         success, out = run_command("curl -s http://localhost:8765/health", timeout=5)
         if success and "ok" in out.lower():
             return "DONE", f"API running on port 8765 (PID {proc.pid}), /health responds"
         else:
             return "PARTIAL", f"Started API (PID {proc.pid}) but health check failed: {out}"
-    
+
     elif task_id == "DB-01":
         # Database v3 migrations already done
         success, out = run_command("/home/kirk/.picoclaw/workspace/Secdev_kimi/venv/bin/python -c \"from database.manager import db; print('DB OK')\"")
@@ -145,7 +145,7 @@ def execute_task(task):
             return "DONE", "Database manager initializes correctly with v3 schema"
         else:
             return "BLOCKED", f"DB init failed: {out}"
-    
+
     elif task_id == "API-01":
         # Fill in stub /metrics endpoint
         metrics_file = SECDEV_DIR / "services" / "metrics.py"
@@ -159,7 +159,7 @@ def execute_task(task):
                 return "PARTIAL", "Metrics file exists but needs manual implementation"
         else:
             return "BLOCKED", "metrics.py not found"
-    
+
     else:
         log(f"Task {task_id} has no automated handler yet — manual work required")
         return "TODO", "No automation for this task yet"
@@ -171,18 +171,18 @@ def commit_changes(status, note):
     if not out.strip():
         log("No git changes to commit")
         return
-    
+
     # Stage backlog and any changes
     run_command("git add backlog.md database/manager.py requirements.txt secdev-kimi.service", cwd=SECDEV_DIR)
     run_command("git add -A", cwd=SECDEV_DIR)
-    
+
     msg = f"daily: {status.lower()} — {note[:60]}"
     success, out = run_command(f"git commit -m '{msg}'", cwd=SECDEV_DIR)
     if success:
         log(f"Committed: {msg}")
     else:
         log(f"Commit result: {out}")
-    
+
     # Try push if remote exists
     success, out = run_command("git remote get-url origin 2>/dev/null", cwd=SECDEV_DIR)
     if success and out.strip():
@@ -190,34 +190,34 @@ def commit_changes(status, note):
 
 def main():
     log("=== Daily SaaS Worker Start ===")
-    
+
     # Read backlog
     content, lines = read_backlog()
     if not lines:
         log("No backlog found — creating")
         return
-    
+
     # Find top task
     task = find_top_task(lines)
     if not task:
         log("No TODO tasks found — all caught up or backlog empty")
         return
-    
+
     log(f"Selected task: {task['id']} ({task['priority']})")
-    
+
     # Execute
     status, note = execute_task(task)
     log(f"Result: {status} — {note}")
-    
+
     # Update backlog
     if status in ("DONE", "PARTIAL"):
         new_content = update_task_status(content, task["id"], status, note)
         BACKLOG_FILE.write_text(new_content)
         log("Backlog updated")
-    
+
     # Commit
     commit_changes(status, note)
-    
+
     log("=== Daily SaaS Worker Done ===")
     log("")
 

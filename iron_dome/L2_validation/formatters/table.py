@@ -35,23 +35,24 @@ def format_table(result: ScanResult, output: IO[str] | None = None, color: bool 
         Formatted table string.
     """
     lines: list[str] = []
-    c = lambda s, code: f"{code}{s}{_RESET}" if color and code else s
+    def _colorize(s: str, code: str) -> str:
+        return f"{code}{s}{_RESET}" if color and code else s
 
     lines.append("")
-    lines.append(c(f"  SecDev L2 Supply Chain Scan", _BOLD))
-    lines.append(c(f"  {'=' * 50}", _BOLD))
+    lines.append(_colorize("  SecDev L2 Supply Chain Scan", _BOLD))
+    lines.append(_colorize(f"  {'=' * 50}", _BOLD))
     lines.append(f"  Target:  {result.target}")
     lines.append(f"  Scan ID: {result.scan_id}")
     lines.append(f"  Time:    {result.timestamp}")
     lines.append("")
 
     if not result.findings:
-        lines.append(c("  ✓ No findings — supply chain looks clean.", _GREEN))
+        lines.append(_colorize("  ✓ No findings — supply chain looks clean.", _GREEN))
     else:
         sev_col = {k: v for k, v in _SEVERITY_COLOR.items()} if color else {}
         for finding in result.findings:
             color_code = sev_col.get(finding.severity.value, "")
-            sev_str = c(finding.severity.value, color_code) if color else finding.severity.value
+            sev_str = _colorize(finding.severity.value, color_code) if color else finding.severity.value
             lines.append(
                 f"  [{sev_str}] {finding.rule_id}  {finding.package}"
             )
@@ -66,7 +67,7 @@ def format_table(result: ScanResult, output: IO[str] | None = None, color: bool 
                 lines.append(f"    Evidence: {ev}")
             lines.append("")
 
-    lines.append(c(f"  {'─' * 50}", ""))
+    lines.append(_colorize(f"  {'─' * 50}", ""))
     stats = result.stats
     lines.append(
         f"  Packages: {stats.packages_scanned}  "
