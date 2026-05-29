@@ -1,5 +1,8 @@
 # Shogun — Enterprise Security Platform
 
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support%20my%20hardware-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/KirkForge)
+
+
 Enterprise-grade security orchestration and intelligence platform. FastAPI + SQLite + Python 3.12.
 
 ## Quick Start
