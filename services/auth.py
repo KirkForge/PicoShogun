@@ -81,12 +81,17 @@ class AuthService:
         return token
 
     def _generate_token(self, user_id: int, username: str, role: str) -> str:
-        """Generate JWT token."""
+        """Generate JWT token.
+
+        Requires PyJWT — the simple-token fallback has been removed because
+        it used non-timing-safe comparison and lacked expiration/claims.
+        Install: pip install PyJWT
+        """
         if not HAS_JWT:
-            # Fallback to simple signed token
-            payload = f"{user_id}:{username}:{role}:{int(datetime.now(timezone.utc).timestamp())}"
-            signature = hashlib.sha256(f"{payload}:{self.secret_key}".encode()).hexdigest()
-            return f"simple:{payload}:{signature}"
+            raise RuntimeError(
+                "PyJWT is required for token generation. "
+                "Install with: pip install PyJWT"
+            )
 
         payload = {
             "user_id": user_id,
@@ -99,32 +104,19 @@ class AuthService:
         return jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
 
     def validate_token(self, token: str) -> dict[str, Any] | None:
-        """Validate and decode JWT token."""
-        if token.startswith("simple:"):
-            # Validate simple token — signature is the last colon-separated field
-            without_prefix = token[len("simple:"):]
-            last_colon = without_prefix.rfind(":")
-            if last_colon < 0:
-                return None
-            payload = without_prefix[:last_colon]
-            signature = without_prefix[last_colon + 1:]
-            expected = hashlib.sha256(f"{payload}:{self.secret_key}".encode()).hexdigest()
-            if signature != expected:
-                return None
+        """Validate and decode JWT token.
 
-            # Split with maxsplit=3: user_id, username, role, timestamp
-            # This allows username to contain colons
-            parts = payload.split(":", 3)
-            if len(parts) < 4:
-                return None
-            return {
-                "id": int(parts[0]),
-                "user_id": int(parts[0]),
-                "username": parts[1],
-                "role": parts[2]
-            }
+        Simple-token format is no longer supported — use JWT tokens only.
+        Existing simple tokens will return None (treated as invalid).
+        """
+        if token.startswith("simple:"):
+            # Legacy simple tokens are no longer accepted.
+            # They used non-timing-safe comparison and lacked expiration.
+            logger.warning("Rejected legacy simple-token format. Migrate to JWT.")
+            return None
 
         if not HAS_JWT:
+            logger.error("PyJWT not installed — cannot validate any tokens")
             return None
 
         try:

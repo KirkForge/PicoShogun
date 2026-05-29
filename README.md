@@ -27,8 +27,8 @@ bash scripts/run_category.sh monitoring --parallel 4 --verbose
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SHOGUN_ENV` | `development` | Environment (`development`/`production`) |
-| `SHOGUN_SECRET_KEY` | `change-me-in-production` | JWT signing key |
-| `SHOGUN_CORS_ORIGINS` | `*` | Comma-separated CORS origins |
+| `SHOGUN_SECRET_KEY` | **required in production** | JWT signing key — `assert_secure()` refuses boot with default |
+| `SHOGUN_CORS_ORIGINS` | `http://localhost:8765` | Comma-separated CORS origins |
 | `SHOGUN_DDOS_SHIELD` | `false` | Enable DDoS shield |
 | `SHOGUN_DB_PATH` | `shogun.db` | SQLite database path |
 | `SHOGUN_API_PORT` | `8765` | API listen port |
@@ -55,6 +55,29 @@ See `.env.example` for the full list.
 - **Log Management**: Auto-rotation with compression
 - **OpenTelemetry**: Distributed tracing with graceful no-op fallback
 - **Docker**: Production-ready containers with monitoring profiles
+
+## Security
+
+### Startup Validation
+Shogun refuses to boot in production with insecure defaults. The `assert_secure()` check runs on startup and enforces:
+- **No default secret key** — `SHOGUN_SECRET_KEY` must be set; the `change-me-in-production` default is rejected in production
+- **No wildcard CORS** — `SHOGUN_CORS_ORIGINS` must list explicit origins in production
+- **No wildcard allowed hosts** — `SHOGUN_ALLOWED_HOSTS` must be explicit in production
+- **No debug mode** — `SHOGUN_DEBUG=false` in production
+
+Override with `SHOGUN_SKIP_SECURE_ASSERT=1` (not recommended; only for CI/testing).
+
+### TLS Termination
+Shogun does not terminate TLS itself. It expects to run behind a reverse proxy (nginx, Caddy, cloud load balancer) that handles TLS. The `ssl_cert_path` and `ssl_key_path` settings in `SecurityConfig` are for documentation — actual TLS is configured in `nginx/shogun-default.conf` or your upstream proxy.
+
+### Plugin Trust Boundary
+The plugin system (`services/plugin_manager.py`) loads Python modules from the `plugins/` directory at runtime. **This directory is a trust boundary equivalent to giving someone a shell on the server.** Plugin code runs in-process with full access to the Shogun runtime, database, and network. Before any multi-tenant or external deployment:
+- Restrict plugin directory permissions to the Shogun process owner only
+- Consider signed plugin manifests with verification
+- Consider sandboxed plugin execution (separate process, reduced privileges)
+
+### Token Auth
+Shogun uses JWT (PyJWT) for authentication. The legacy simple-token format has been removed — it used non-timing-safe comparison and lacked expiration claims. Existing simple tokens will be rejected.
 
 ## Architecture
 

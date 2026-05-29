@@ -84,10 +84,14 @@ async def lifespan(app: FastAPI):
     """
     logger.info("Shogun starting up — version 2.15.0")
 
-    # Production config validation — warn on insecure defaults
+    # Enforce secure configuration — refuse to start with insecure defaults in production
+    settings.assert_secure()
+
+    # Log any non-critical config warnings
     config_issues = settings.validate()
     for issue in config_issues:
-        logger.warning("CONFIG WARNING: %s", issue)
+        if issue.startswith("CONFIG:"):
+            logger.warning("CONFIG: %s", issue)
 
     # OpenTelemetry (graceful no-op if not configured)
     init_telemetry(service_name="shogun")
@@ -305,16 +309,35 @@ async def get_current_org(
     api_key: str | None = Header(None, alias="X-Org-API-Key"),
     user: dict = Depends(get_current_user)
 ):
-    """Resolve org context from API key header or user's default org."""
+    """Resolve org context from API key header or user's default org.
+
+    Security: If an API key is provided, it must belong to an org that the
+    authenticated user is a member of. Cross-tenant API keys are rejected.
+    """
+    user_orgs = Organization.list_orgs_for_user(user["id"])
+
     if api_key and api_key.startswith("sk_"):
         org = Organization.get_by_api_key(api_key)
         if org:
+            # Verify the user is a member of this org (tenant isolation)
+            user_org_ids = {o["id"] for o in user_orgs} if user_orgs else set()
+            if org["id"] not in user_org_ids:
+                logger.warning(
+                    "Cross-tenant org access rejected: user %s attempted org %s",
+                    user.get("username"), org.get("slug"),
+                )
+                raise HTTPException(
+                    status_code=403,
+                    detail="API key does not belong to an organization you are a member of",
+                )
             return org
-    # Fall back to user's first org
-    orgs = Organization.list_orgs_for_user(user["id"])
-    if not orgs:
+        # API key not found — reject rather than falling back
+        raise HTTPException(status_code=403, detail="Invalid organization API key")
+
+    # No API key provided — fall back to user's first org
+    if not user_orgs:
         raise HTTPException(status_code=403, detail="User not associated with any organization")
-    return orgs[0]
+    return user_orgs[0]
 
 # ─── Unversioned API Routes ───────────────────────────────────────────────
 

@@ -10,11 +10,12 @@ def _parse_cors_origins() -> list[str]:
     """Parse SHOGUN_CORS_ORIGINS env var into a list of origins.
 
     Accepts comma-separated origins, e.g. ``https://app.example.com,https://admin.example.com``.
-    Falls back to ``["*"]`` when the env var is unset.
+    Defaults to ``["http://localhost:8765"]`` when the env var is unset.
+    In production, set SHOGUN_CORS_ORIGINS to explicit origins — wildcard is insecure.
     """
     raw = os.environ.get("SHOGUN_CORS_ORIGINS", "").strip()
     if not raw:
-        return ["*"]
+        return ["http://localhost:8765"]
     return [origin.strip() for origin in raw.split(",") if origin.strip()]
 
 
@@ -32,7 +33,7 @@ class DatabaseConfig:
 
 @dataclass
 class APIConfig:
-    host: str = "0.0.0.0"
+    host: str = "127.0.0.1"
     port: int = 8765
     workers: int = 4
     reload: bool = False
@@ -44,10 +45,12 @@ class APIConfig:
 @dataclass
 class SecurityConfig:
     secret_key: str = field(default_factory=lambda: os.environ.get("SHOGUN_SECRET_KEY", "change-me-in-production"))
+    # CRITICAL: Set SHOGUN_SECRET_KEY env var in production! assert_secure() will refuse to start
+    # with the default key. See config.validate() and config.assert_secure().
     jwt_algorithm: str = "HS256"
     jwt_expiration_hours: int = 24
     password_hash_rounds: int = 12
-    allowed_hosts: list[str] = field(default_factory=lambda: ["*"])
+    allowed_hosts: list[str] = field(default_factory=lambda: ["localhost", "127.0.0.1"])
     rate_limit: str = "100/minute"
     ddos_shield_enabled: bool = field(default_factory=lambda: os.environ.get("SHOGUN_DDOS_SHIELD", "false").lower() == "true")
     ssl_cert_path: Path | None = None
@@ -113,7 +116,7 @@ class Settings:
             if self.security.secret_key == "change-me-in-production":
                 issues.append("SECURITY: Default secret key in production")
             if not self.security.ssl_cert_path:
-                issues.append("SECURITY: No SSL certificate configured")
+                issues.append("SECURITY: No SSL certificate configured (set SHOGUN_SSL_CERT_PATH or configure TLS termination upstream)")
             if self.debug:
                 issues.append("SECURITY: Debug mode enabled in production")
             if "*" in self.security.allowed_hosts:
@@ -121,13 +124,80 @@ class Settings:
             if "*" in self.api.cors_origins and self.api.cors_origins == ["*"]:
                 issues.append("SECURITY: Wildcard CORS origin in production — specify explicit origins")
 
+        # Non-production warnings (still logged but not blocking)
+        if not self.is_production():
+            if self.security.secret_key == "change-me-in-production":
+                issues.append("CONFIG: Default secret key — set SHOGUN_SECRET_KEY before production deployment")
+            if self.api.host == "0.0.0.0":
+                issues.append("CONFIG: Binding to all interfaces — use 127.0.0.1 for local dev or set SHOGUN_API_HOST")
+
         return issues
+
+    def assert_secure(self) -> None:
+        """Enforce secure configuration in production.
+
+        Raises SystemExit if critical security misconfigurations are detected.
+        Call this at startup to refuse to boot with insecure defaults.
+
+        Non-critical issues are logged as warnings.
+        Override with SHOGUN_SKIP_SECURE_ASSERT=1 env var (not recommended).
+        """
+        import os
+        import sys
+
+        if os.environ.get("SHOGUN_SKIP_SECURE_ASSERT") == "1":
+            logger = __import__("logging").getLogger("shogun.config")
+            logger.warning("SECURITY ASSERT SKIPPED: SHOGUN_SKIP_SECURE_ASSERT=1 is set. This bypasses startup security checks.")
+            return
+
+        issues = self.validate()
+        critical = [i for i in issues if i.startswith("SECURITY:")]
+        warnings = [i for i in issues if i.startswith("CONFIG:")]
+
+        logger = __import__("logging").getLogger("shogun.config")
+        for w in warnings:
+            logger.warning(w)
+
+        if critical:
+            for issue in critical:
+                logger.critical(issue)
+            logger.critical(
+                "FATAL: %d critical security issue(s) detected. "
+                "Refusing to start. Set SHOGUN_SECRET_KEY and other production config. "
+                "Override with SHOGUN_SKIP_SECURE_ASSERT=1 (NOT recommended).",
+                len(critical),
+            )
+            sys.exit(1)
 
     @classmethod
     def from_file(cls, path: Path) -> "Settings":
-        """Load settings from JSON file."""
+        """Load settings from JSON file.
+
+        Only known fields are accepted — unknown keys are ignored to prevent
+        injection of arbitrary attributes. Nested dataclass fields are
+        constructed from their dicts. Config files should be stored outside
+        any user-writable path.
+        """
+        import logging
+        from dataclasses import fields as dc_fields
+        logger = logging.getLogger("shogun.config")
         with open(path) as f:
             data = json.load(f)
+
+        # Filter to only known fields to prevent attribute injection
+        known_fields = {f.name: f.type for f in dc_fields(cls)}
+        unknown = set(data.keys()) - set(known_fields.keys())
+        if unknown:
+            logger.warning("Ignoring unknown config fields in %s: %s", path, unknown)
+        data = {k: v for k, v in data.items() if k in known_fields}
+
+        # Convert nested dicts to their dataclass types
+        for field_name, field_type in known_fields.items():
+            if field_name in data and isinstance(data[field_name], dict):
+                # Check if the field type is a dataclass
+                if hasattr(field_type, "__dataclass_fields__"):
+                    data[field_name] = field_type(**data[field_name])
+
         return cls(**data)
 
     def to_file(self, path: Path):

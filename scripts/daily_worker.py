@@ -85,15 +85,16 @@ def execute_task(task):
             "ExecStart=/usr/bin/python3 -m uvicorn api.server:app",
             "ExecStart=/home/kirk/Madlab/Clean-Live/Shogun/venv/bin/python -m uvicorn api.server:app"
         )
-        # Fix PYTHONPATH
+        # SECURITY: Do NOT set SHOGUN_SECRET_KEY in the service file.
+        # The secret must come from the environment or a secrets manager.
+        # Remove any hardcoded secret key lines from the service file.
         content = content.replace(
-            "PYTHONPATH=/home/kirk/Madlab/Clean-Live/Shogun",
-            "PYTHONPATH=/home/kirk/Madlab/Clean-Live/Shogun"
+            "Environment=SHOGUN_SECRET_KEY=change-me-in-production\n",
+            ""
         )
-        content = content.replace(
-            "Environment=SHOGUN_SECRET_KEY=change-me-in-production",
-            "Environment=SHOGUN_SECRET_KEY=shogun-production-key-$(date +%s)"
-        )
+        # Also remove any dynamically generated key lines
+        import re
+        content = re.sub(r"Environment=SHOGUN_SECRET_KEY=.+\n", "", content)
         service_file.write_text(content)
 
         # Copy to systemd

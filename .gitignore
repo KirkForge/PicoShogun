@@ -78,3 +78,8 @@ credentials.json
 *.db-shm
 *.db-wal
 *.sqlite
+
+# ── Database backups (never commit) ────────────────────────────
+*.db
+*.db.bak-*
+*.db.bak
