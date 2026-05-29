@@ -168,8 +168,8 @@ Shogun/
 ```bash
 docker build -t shogun:latest .
 docker run -d -p 8765:8765 \
-  -e SECDEV_SECRET_KEY=your-production-secret \
-  -e SECDEV_ENV=production \
+  -e SHOGUN_SECRET_KEY=your-production-secret \
+  -e SHOGUN_ENV=production \
   shogun:latest
 ```
 

@@ -9,6 +9,26 @@ from pathlib import Path
 
 from config.settings import settings
 
+
+# ─── Python 3.12+ datetime adapter ─────────────────────────────────────
+# Silence DeprecationWarning: default datetime adapter is deprecated
+def _adapt_datetime(dt):
+    """ISO 8601 adapter for Python 3.12+ sqlite3 datetime deprecation."""
+    return dt.isoformat()
+
+
+def _convert_timestamp(val):
+    """Convert ISO 8601 timestamp string back to datetime."""
+    if isinstance(val, bytes):
+        val = val.decode()
+    if val:
+        return datetime.fromisoformat(val)
+    return None
+
+
+sqlite3.register_adapter(datetime, _adapt_datetime)
+sqlite3.register_converter("TIMESTAMP", _convert_timestamp)
+
 logger = logging.getLogger("shogun.DB")
 
 @dataclass
@@ -264,7 +284,8 @@ class DatabaseManager:
             self._local.conn = sqlite3.connect(
                 str(self.db_path),
                 timeout=settings.database.timeout,
-                check_same_thread=False
+                check_same_thread=False,
+                detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
             )
             # WAL mode + sane defaults from config
             journal = settings.database.journal_mode.upper()

@@ -146,7 +146,7 @@ def format_sarif(result: AnalysisResult, output: IO[str] | None = None) -> str:
                     "driver": {
                         "name": "SecDev L4 Behavioral Analysis",
                         "version": result.engine_version,
-                        "informationUri": "https://github.com/secdev/iron-dome",
+                        "informationUri": "https://github.com/shogun/iron-dome",
                         "rules": _L4_SARIF_RULES,
                     }
                 },

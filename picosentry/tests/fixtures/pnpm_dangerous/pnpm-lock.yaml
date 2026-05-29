@@ -1,0 +1,14 @@
+lockfileVersion: '9.0'
+
+importers:
+
+  .:
+    dependencies:
+      lodash:
+        version: 4.17.21
+
+packages:
+
+  /lodash@4.17.21:
+    resolution: {integrity: sha512-v3k79CFjdJFeD6OUpF8nU3ojh5ZQAA5Kzw8MKCRJCRZ6Mw9Z4JdP6R5Z3rA6+b5hR+9WNcCkiO5GKeCfVRq8Ew==}
+    dev: false

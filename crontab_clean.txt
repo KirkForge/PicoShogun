@@ -2,7 +2,7 @@
 
 0 3 * * * bash /home/kirk/.picoclaw/workspace/swordjin_assets/daily_drop.sh
 
-# === Secdev_kimi Cron Schedule ===
+# === Shogun Cron Schedule ===
 # Generated for 73 projects with executable scripts
 
 # Skipped projects (no executable scripts):
@@ -84,15 +84,15 @@
 45 0-23/3 * * * cd /home/kirk/.picoclaw/workspace/Hivemind-projects/75-bug-bounty-playbook && python3 bug_bounty_playbook.py >> /dev/null 2>&1
 
 # === Orchestrator heartbeat ===
-*/5 * * * * cd /home/kirk/.picoclaw/workspace/Secdev_kimi/orchestrator && python3 master.py status >> /dev/null 2>&1
+*/5 * * * * cd /home/kirk/Madlab/Clean-Live/Shogun/orchestrator && python3 master.py status >> /dev/null 2>&1
 
 # === Orchestrator heartbeat ===
-*/5 * * * * cd /home/kirk/.picoclaw/workspace/Secdev_kimi/orchestrator && python3 master.py status >> /dev/null 2>&1
+*/5 * * * * cd /home/kirk/Madlab/Clean-Live/Shogun/orchestrator && python3 master.py status >> /dev/null 2>&1
 
 # === Batch Category Runners ===
-*/5 * * * * cd /home/kirk/.picoclaw/workspace/Secdev_kimi/scripts && bash run_category.sh monitoring
-10 */6 * * * cd /home/kirk/.picoclaw/workspace/Secdev_kimi/scripts && bash run_category.sh defense
-20 */6 * * * cd /home/kirk/.picoclaw/workspace/Secdev_kimi/scripts && bash run_category.sh analysis
-30 */6 * * * cd /home/kirk/.picoclaw/workspace/Secdev_kimi/scripts && bash run_category.sh offense
-40 */6 * * * cd /home/kirk/.picoclaw/workspace/Secdev_kimi/scripts && bash run_category.sh crypto
-0 2 * * * cd /home/kirk/.picoclaw/workspace/Secdev_kimi/scripts && bash run_category.sh training
+*/5 * * * * cd /home/kirk/Madlab/Clean-Live/Shogun/scripts && bash run_category.sh monitoring
+10 */6 * * * cd /home/kirk/Madlab/Clean-Live/Shogun/scripts && bash run_category.sh defense
+20 */6 * * * cd /home/kirk/Madlab/Clean-Live/Shogun/scripts && bash run_category.sh analysis
+30 */6 * * * cd /home/kirk/Madlab/Clean-Live/Shogun/scripts && bash run_category.sh offense
+40 */6 * * * cd /home/kirk/Madlab/Clean-Live/Shogun/scripts && bash run_category.sh crypto
+0 2 * * * cd /home/kirk/Madlab/Clean-Live/Shogun/scripts && bash run_category.sh training

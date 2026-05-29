@@ -18,7 +18,7 @@ from .formatters import format_json, format_sarif, format_table
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point. Returns exit code: 0=clean, 1=findings, 2=error."""
     parser = argparse.ArgumentParser(
-        prog="secdev-scan",
+        prog="shogun-scan",
         description="SecDev L2 Supply Chain Scanner — deterministic, zero-trust package scanning",
     )
     sub = parser.add_subparsers(dest="command", required=True)

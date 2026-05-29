@@ -212,7 +212,7 @@ Time: {datetime.now(timezone.utc).isoformat()}
             """)
 
             msg["Subject"] = f"[Shogun] {severity.upper()}: {project_id}"
-            msg["From"] = settings.alerts.email_from or "secdev@localhost"
+            msg["From"] = settings.alerts.email_from or "shogun@localhost"
             msg["To"] = ", ".join(settings.alerts.email_to)
 
             # Choose connection method: SSL direct or STARTTLS

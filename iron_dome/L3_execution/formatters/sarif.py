@@ -63,7 +63,7 @@ def format_sarif(result: SandboxResult, output: IO[str] | None = None) -> str:
                 "driver": {
                     "name": "SecDev L3 Execution Sandbox",
                     "version": result.policy.version if result.policy else "1.0",
-                    "informationUri": "https://github.com/secdev/iron-dome",
+                    "informationUri": "https://github.com/shogun/iron-dome",
                     "rules": _SARIF_RULES,
                 }
             },

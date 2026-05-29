@@ -31,9 +31,12 @@ from config.settings import settings
 from database.manager import db
 from middleware.audit import AuditMiddleware
 from middleware.ddos_shield import DDoSShieldMiddleware
+from middleware.docs_restriction import DocsRestrictionMiddleware
+from middleware.https_enforcement import HTTPSEnforcementMiddleware
 from middleware.rate_limit import RateLimitMiddleware
 from middleware.request_id import RequestIDMiddleware
 from middleware.request_size_limit import RequestSizeLimitMiddleware
+from middleware.request_timeout import RequestTimeoutMiddleware
 from middleware.security_headers import SecurityHeadersMiddleware
 from services.anomaly_detector import AnomalyDetector
 from services.auth import AuthService
@@ -168,6 +171,11 @@ app.add_middleware(DDoSShieldMiddleware, enabled=settings.security.ddos_shield_e
 app.add_middleware(RequestSizeLimitMiddleware, max_body_bytes=10 * 1024 * 1024)  # 10 MB
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
+
+# ── Enterprise hardening middleware ──────────────────────────────────────
+app.add_middleware(RequestTimeoutMiddleware, timeout_seconds=30)
+app.add_middleware(HTTPSEnforcementMiddleware, enabled=settings.is_production())
+app.add_middleware(DocsRestrictionMiddleware, enabled=settings.is_production())
 
 # ─── Pydantic Models ──────────────────────────────────────────────────────
 

@@ -1,4 +1,4 @@
-# Secdev_kimi Enterprise Dependencies
+# Shogun Enterprise Dependencies
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
 pydantic>=2.0.0
@@ -7,6 +7,7 @@ passlib[bcrypt]>=1.7.4
 python-multipart>=0.0.6
 requests>=2.31.0
 starlette>=0.27.0
+httpx2>=2.2.0
 croniter>=1.0.0
 pyyaml>=6.0
 # Observability

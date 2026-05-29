@@ -4,10 +4,10 @@ import sys
 from typing import Any
 
 # Need to import PluginInterface — add project root to path
-sys.path.insert(0, '/home/kirk/.picoclaw/workspace/Secdev_kimi')
+sys.path.insert(0, '/home/kirk/Madlab/Clean-Live/Shogun')
 from services.plugin_manager import PluginInterface
 
-logger = logging.getLogger("SecdevKimi.Plugin.Test")
+logger = logging.getLogger("shogun.Plugin.Test")
 
 class TestHandler(PluginInterface):
     """Minimal plugin that verifies hook dispatch works."""

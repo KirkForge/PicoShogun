@@ -114,7 +114,7 @@ def format_sarif(result: ScanResult, output: IO[str] | None = None) -> str:
                     "driver": {
                         "name": "SecDev L2 Supply Chain Scanner",
                         "version": result.engine_version,
-                        "informationUri": "https://github.com/secdev/iron-dome",
+                        "informationUri": "https://github.com/shogun/iron-dome",
                         "rules": _SARIF_RULES,
                     }
                 },

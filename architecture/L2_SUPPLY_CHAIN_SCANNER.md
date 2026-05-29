@@ -40,7 +40,7 @@ GitHub, npm, pnpm supply chain attacks are accelerating. Compromised forks, post
 ```
 ┌─────────────────────────────────────────────┐
 │                  CLI / API                    │
-│  secdev scan ./project --format sarif        │
+│  shogun scan ./project --format sarif        │
 │  POST /api/v1/scans                          │
 └──────────────────┬──────────────────────────┘
                    │
@@ -127,7 +127,7 @@ iron_dome/
 │   │   ├── json_fmt.py         # JSON output
 │   │   ├── sarif.py             # SARIF for GitHub/GitLab
 │   │   └── table.py             # Human-readable table
-│   └── cli.py                   # secdev-scan CLI entry point
+│   └── cli.py                   # shogun-scan CLI entry point
 ├── L3_execution/                # future
 ├── L4_behavioral/               # future
 └── L5_prompt_shield/            # future

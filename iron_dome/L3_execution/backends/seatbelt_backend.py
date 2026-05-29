@@ -179,7 +179,7 @@ class SeatbeltBackend(SandboxBackend):
 
         content = "\n".join(lines) + "\n"
 
-        fd, path = tempfile.mkstemp(suffix=".sb", prefix="secdev_l3_")
+        fd, path = tempfile.mkstemp(suffix=".sb", prefix="shogun_l3_")
         with os.fdopen(fd, "w") as f:
             f.write(content)
         return path

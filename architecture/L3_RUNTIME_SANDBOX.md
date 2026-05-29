@@ -25,7 +25,7 @@ L1 (perimeter/DDoS) and L2 (supply chain static analysis) catch known patterns b
 - **Resource limits** — CPU time, memory, wall-clock timeout, max processes
 - **Behavioral logging** — structured JSON trace of all intercepted operations
 - **Policy DSL** — YAML/JSON policy files that define what a "safe" run looks like
-- **CLI tool** — `secdev sandbox run --policy policy.yml -- ./test_runner.sh`
+- **CLI tool** — `shogun sandbox run --policy policy.yml -- ./test_runner.sh`
 - **REST API endpoint** — `POST /api/v1/sandboxes` — submit code + policy, get verdict
 - **Integration** — feeds verdicts back to Shogun AlertHub (webhook on DENY/AUDIT)
 - **SARIF + JSON output** — same format as L2, extended with runtime findings
@@ -41,7 +41,7 @@ L1 (perimeter/DDoS) and L2 (supply chain static analysis) catch known patterns b
 ```
 ┌──────────────────────────────────────────────────┐
 │                    CLI / API                       │
-│  secdev sandbox run --policy policy.yml ./test    │
+│  shogun sandbox run --policy policy.yml ./test    │
 │  POST /api/v1/sandboxes                            │
 └──────────────────────┬───────────────────────────┘
                        │
@@ -172,7 +172,7 @@ filesystem:
     - "/lib"
   write_allowlist:
     - "./node_modules/.cache"
-    - "/tmp/secdev-sandbox-*"
+    - "/tmp/shogun-sandbox-*"
   deny_paths:
     - "/etc/shadow"
     - "/root/.ssh"
@@ -261,7 +261,7 @@ iron_dome/
 │   │   ├── json_fmt.py              # JSON output
 │   │   ├── sarif.py                 # SARIF for GitHub/GitLab
 │   │   └── table.py                 # Human-readable table
-│   └── cli.py                       # secdev-sandbox CLI entry point
+│   └── cli.py                       # shogun-sandbox CLI entry point
 ├── L4_behavioral/                   # future
 └── L5_prompt_shield/               # future
 ```

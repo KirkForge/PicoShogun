@@ -5,9 +5,9 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-SECDEV_DIR = Path("/home/kirk/.picoclaw/workspace/Secdev_kimi")
-BACKLOG_FILE = SECDEV_DIR / "backlog.md"
-LOG_FILE = SECDEV_DIR / "logs/daily_worker.log"
+SHOGUN_DIR = Path("/home/kirk/Madlab/Clean-Live/Shogun")
+BACKLOG_FILE = SHOGUN_DIR / "backlog.md"
+LOG_FILE = SHOGUN_DIR / "logs/daily_worker.log"
 
 def log(msg):
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -57,7 +57,7 @@ def run_command(cmd, cwd=None, timeout=60):
     """Run shell command and return (success, output)."""
     try:
         result = subprocess.run(
-            cmd, shell=True, cwd=cwd or SECDEV_DIR,
+            cmd, shell=True, cwd=cwd or SHOGUN_DIR,
             capture_output=True, text=True, timeout=timeout
         )
         return result.returncode == 0, result.stdout + result.stderr
@@ -78,32 +78,32 @@ def execute_task(task):
 
     if task_id == "INFRA-01":
         # Fix systemd service
-        service_file = SECDEV_DIR / "secdev-kimi.service"
+        service_file = SHOGUN_DIR / "shogun.service"
         content = service_file.read_text()
         # Fix ExecStart to use venv Python and correct path
         content = content.replace(
             "ExecStart=/usr/bin/python3 -m uvicorn api.server:app",
-            "ExecStart=/home/kirk/.picoclaw/workspace/Secdev_kimi/venv/bin/python -m uvicorn api.server:app"
+            "ExecStart=/home/kirk/Madlab/Clean-Live/Shogun/venv/bin/python -m uvicorn api.server:app"
         )
         # Fix PYTHONPATH
         content = content.replace(
-            "PYTHONPATH=/home/kirk/.picoclaw/workspace/Secdev_kimi",
-            "PYTHONPATH=/home/kirk/.picoclaw/workspace/Secdev_kimi"
+            "PYTHONPATH=/home/kirk/Madlab/Clean-Live/Shogun",
+            "PYTHONPATH=/home/kirk/Madlab/Clean-Live/Shogun"
         )
         content = content.replace(
-            "Environment=SECDEV_SECRET_KEY=change-me-in-production",
-            "Environment=SECDEV_SECRET_KEY=secdev-kimi-production-key-$(date +%s)"
+            "Environment=SHOGUN_SECRET_KEY=change-me-in-production",
+            "Environment=SHOGUN_SECRET_KEY=shogun-production-key-$(date +%s)"
         )
         service_file.write_text(content)
 
         # Copy to systemd
-        success, out = run_command(f"sudo cp {service_file} /etc/systemd/system/secdev-kimi.service")
+        success, out = run_command(f"sudo cp {service_file} /etc/systemd/system/shogun.service")
         if not success:
             log(f"WARN: Could not copy service file (may need sudo): {out}")
             return "PARTIAL", "Service file prepared but not installed (needs sudo)"
 
         run_command("sudo systemctl daemon-reload")
-        success, out = run_command("sudo systemctl enable secdev-kimi")
+        success, out = run_command("sudo systemctl enable shogun")
         if success:
             return "DONE", "Systemd service registered and enabled"
         else:
@@ -117,12 +117,12 @@ def execute_task(task):
         # Start the API
         proc = subprocess.Popen(
             [
-                "/home/kirk/.picoclaw/workspace/Secdev_kimi/venv/bin/python",
+                "/home/kirk/Madlab/Clean-Live/Shogun/venv/bin/python",
                 "-m", "uvicorn", "api.server:app",
                 "--host", "0.0.0.0", "--port", "8765",
                 "--workers", "1"
             ],
-            cwd=SECDEV_DIR,
+            cwd=SHOGUN_DIR,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             start_new_session=True
@@ -140,7 +140,7 @@ def execute_task(task):
 
     elif task_id == "DB-01":
         # Database v3 migrations already done
-        success, out = run_command("/home/kirk/.picoclaw/workspace/Secdev_kimi/venv/bin/python -c \"from database.manager import db; print('DB OK')\"")
+        success, out = run_command("/home/kirk/Madlab/Clean-Live/Shogun/venv/bin/python -c \"from database.manager import db; print('DB OK')\"")
         if success:
             return "DONE", "Database manager initializes correctly with v3 schema"
         else:
@@ -148,7 +148,7 @@ def execute_task(task):
 
     elif task_id == "API-01":
         # Fill in stub /metrics endpoint
-        metrics_file = SECDEV_DIR / "services" / "metrics.py"
+        metrics_file = SHOGUN_DIR / "services" / "metrics.py"
         if metrics_file.exists():
             content = metrics_file.read_text()
             # Check if already has real metrics
@@ -167,26 +167,26 @@ def execute_task(task):
 def commit_changes(status, note):
     """Git add, commit, push if configured."""
     # Check if there are changes
-    success, out = run_command("git status --short", cwd=SECDEV_DIR)
+    success, out = run_command("git status --short", cwd=SHOGUN_DIR)
     if not out.strip():
         log("No git changes to commit")
         return
 
     # Stage backlog and any changes
-    run_command("git add backlog.md database/manager.py requirements.txt secdev-kimi.service", cwd=SECDEV_DIR)
-    run_command("git add -A", cwd=SECDEV_DIR)
+    run_command("git add backlog.md database/manager.py requirements.txt shogun.service", cwd=SHOGUN_DIR)
+    run_command("git add -A", cwd=SHOGUN_DIR)
 
     msg = f"daily: {status.lower()} — {note[:60]}"
-    success, out = run_command(f"git commit -m '{msg}'", cwd=SECDEV_DIR)
+    success, out = run_command(f"git commit -m '{msg}'", cwd=SHOGUN_DIR)
     if success:
         log(f"Committed: {msg}")
     else:
         log(f"Commit result: {out}")
 
     # Try push if remote exists
-    success, out = run_command("git remote get-url origin 2>/dev/null", cwd=SECDEV_DIR)
+    success, out = run_command("git remote get-url origin 2>/dev/null", cwd=SHOGUN_DIR)
     if success and out.strip():
-        run_command("git push", cwd=SECDEV_DIR)
+        run_command("git push", cwd=SHOGUN_DIR)
 
 def main():
     log("=== Daily SaaS Worker Start ===")

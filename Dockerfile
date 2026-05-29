@@ -40,8 +40,8 @@ RUN mkdir -p /app/logs /app/backups && \
 
 USER shogun
 
-ENV SECDEV_ENV=production \
-    SECDEV_SECRET_KEY=change-me-in-production \
+ENV SHOGUN_ENV=production \
+    SHOGUN_SECRET_KEY=change-me-in-production \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 

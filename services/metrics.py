@@ -96,9 +96,9 @@ class MetricsCollector:
         lines = []
 
         # Add uptime
-        lines.append("# HELP secdev_uptime_seconds Total uptime in seconds")
-        lines.append("# TYPE secdev_uptime_seconds gauge")
-        lines.append(f"secdev_uptime_seconds {self.uptime_seconds()}")
+        lines.append("# HELP shogun_uptime_seconds Total uptime in seconds")
+        lines.append("# TYPE shogun_uptime_seconds gauge")
+        lines.append(f"shogun_uptime_seconds {self.uptime_seconds()}")
 
         with self._lock:
             # Group by metric name
@@ -112,15 +112,15 @@ class MetricsCollector:
                     continue
 
                 metric_type = metrics_list[0].metric_type
-                lines.append(f"# HELP secdev_{name} {metric_type} metric")
-                lines.append(f"# TYPE secdev_{name} {metric_type}")
+                lines.append(f"# HELP shogun_{name} {metric_type} metric")
+                lines.append(f"# TYPE shogun_{name} {metric_type}")
 
                 for m in metrics_list[-50:]:  # Last 50 per metric
                     label_str = ",".join(f'{k}="{v}"' for k, v in m.labels.items())
                     if label_str:
-                        lines.append(f'secdev_{name}{{{label_str}}} {m.value}')
+                        lines.append(f'shogun_{name}{{{label_str}}} {m.value}')
                     else:
-                        lines.append(f'secdev_{name} {m.value}')
+                        lines.append(f'shogun_{name} {m.value}')
 
         return "\n".join(lines)
 

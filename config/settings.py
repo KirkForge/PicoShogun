@@ -59,7 +59,7 @@ class AlertConfig:
     email_smtp_password: str | None = field(default_factory=lambda: os.environ.get("SMTP_PASSWORD"))
     email_smtp_use_ssl: bool = False
     email_smtp_starttls: bool = True
-    email_from: str | None = field(default_factory=lambda: os.environ.get("EMAIL_FROM", "secdev@localhost"))
+    email_from: str | None = field(default_factory=lambda: os.environ.get("EMAIL_FROM", "shogun@localhost"))
     email_to: list[str] = field(default_factory=lambda: [
         addr.strip()
         for addr in os.environ.get("EMAIL_TO", "").split(",")

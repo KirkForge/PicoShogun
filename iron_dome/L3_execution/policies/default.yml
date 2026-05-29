@@ -2,7 +2,7 @@
 # Deny-by-default: everything is blocked unless explicitly allowed.
 #
 # Usage:
-#   secdev sandbox run --policy default.yml -- ./command
+#   shogun sandbox run --policy default.yml -- ./command
 #   python -m iron_dome.L3_execution.cli run --policy default.yml -- ./command
 
 name: default

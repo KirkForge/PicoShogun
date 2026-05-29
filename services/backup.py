@@ -22,7 +22,7 @@ class BackupManager:
     def create_backup(self, name: str = None, include_logs: bool = True) -> dict | None:
         """Create a full backup of database and optionally logs."""
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        name = name or f"secdev_{timestamp}"
+        name = name or f"shogun_{timestamp}"
         backup_path = self.backup_dir / f"{name}.tar.gz"
 
         self.backup_dir.mkdir(parents=True, exist_ok=True)

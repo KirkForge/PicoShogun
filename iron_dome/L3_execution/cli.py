@@ -22,7 +22,7 @@ from .policy_loader import load_policy, write_default_policy
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point."""
     parser = argparse.ArgumentParser(
-        prog="secdev-sandbox",
+        prog="shogun-sandbox",
         description="SecDev L3 Execution Sandbox — deterministic, zero-trust process sandboxing",
     )
     sub = parser.add_subparsers(dest="command", required=True)

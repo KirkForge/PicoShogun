@@ -1,0 +1,14 @@
+lockfileVersion: '9.0'
+
+importers:
+
+  .:
+    dependencies:
+      express:
+        version: 4.18.2
+
+packages:
+
+  /express@4.18.2:
+    resolution: {integrity: sha512-V5bOVyp2m0KI3gKQcIR3UQ7Z4N3GgZ1gD3q3KQJ5Z7J5V5f5K3f2gK5g2jK4O9j5x0Z5Z5g2jK4O9j5x0Z5Z5g==}
+    dev: false

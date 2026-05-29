@@ -28,7 +28,7 @@ Nobody does **deterministic, local, zero-trust behavioral analysis** that chains
 - **Honeypot triggering** — detect processes that probe for fake secrets, canary tokens, or decoy files
 - **Entropy analysis** — flag data with abnormally high entropy leaving the process (exfiltration signal)
 - **Behavioral rules engine** — deterministic rule evaluation against behavioral profiles
-- **CLI tool** — `secdev behavioral analyze --baseline baseline.json --trace trace.json`
+- **CLI tool** — `shogun behavioral analyze --baseline baseline.json --trace trace.json`
 - **REST API endpoint** — `POST /api/v1/behavioral` — submit L3 trace, get behavioral verdict
 - **Integration** — feeds verdicts to AlertHub, chains from L2→L3→L4 pipeline
 - **SARIF + JSON output** — same format as L2/L3, extended with behavioral findings
@@ -44,7 +44,7 @@ Nobody does **deterministic, local, zero-trust behavioral analysis** that chains
 ```
 ┌──────────────────────────────────────────────────────────┐
 │                       CLI / API                            │
-│  secdev behavioral analyze --baseline b.json --trace t.json│
+│  shogun behavioral analyze --baseline b.json --trace t.json│
 │  POST /api/v1/behavioral                                  │
 └────────────────────────┬─────────────────────────────────┘
                          │
@@ -384,7 +384,7 @@ L4 includes a **canary planting** system that works with L3:
 
 3. **After L3 run**: L4 checks which canary files were touched → `L4-HONEY-001`
 
-4. **Canary DNS**: Plant `canary.secdev.internal` in `/etc/resolv.conf` → L3-NET events → `L4-HONEY-002`
+4. **Canary DNS**: Plant `canary.shogun.internal` in `/etc/resolv.conf` → L3-NET events → `L4-HONEY-002`
 
 5. **Canary tokens**: Inject fake credentials into environment → L4-HONEY-003
 
@@ -405,8 +405,8 @@ canary_files:
 
   - path: "/home/user/.env"
     content: |
-      API_KEY=sk-canary-secdev-token-00000000
-      DATABASE_URL=postgres://canary:canary@canary.secdev.internal:5432/fake
+      API_KEY=sk-canary-shogun-token-00000000
+      DATABASE_URL=postgres://canary:canary@canary.shogun.internal:5432/fake
     rule: L4-HONEY-001
 
   - path: "/home/user/.ssh/id_rsa"
@@ -417,16 +417,16 @@ canary_files:
     rule: L4-HONEY-001
 
 canary_dns:
-  - domain: "canary.secdev.internal"
+  - domain: "canary.shogun.internal"
     should_resolve: false
     rule: L4-HONEY-002
 
 canary_env_vars:
   - key: "AWS_SECRET_ACCESS_KEY"
-    value: "canary-token-secdev-00000000"
+    value: "canary-token-shogun-00000000"
     rule: L4-HONEY-003
   - key: "GITHUB_TOKEN"
-    value: "ghp_canary_secdev_000000000000000000"
+    value: "ghp_canary_shogun_000000000000000000"
     rule: L4-HONEY-003
 ```
 
@@ -575,7 +575,7 @@ iron_dome/
 │   │   ├── test_honeypot.py
 │   │   ├── test_rules.py
 │   │   └── test_pipeline.py         # Full L2→L3→L4 pipeline test
-│   └── cli.py                       # secdev-behavioral CLI entry point
+│   └── cli.py                       # shogun-behavioral CLI entry point
 └── L5_prompt_shield/               # future
 ```
 
@@ -583,24 +583,24 @@ iron_dome/
 
 ```bash
 # Analyze an L3 trace against a baseline
-secdev behavioral analyze \
-  --trace /tmp/secdev-l3-trace.json \
+shogun behavioral analyze \
+  --trace /tmp/shogun-l3-trace.json \
   --baseline baselines/npm-install.json \
   --output json
 
 # Build a baseline from multiple L3 traces
-secdev behavioral baseline build \
+shogun behavioral baseline build \
   --name "npm-install-express" \
   --traces traces/*.json \
   --output baselines/custom/npm-install-express.json
 
 # Plant honeypots before an L3 sandbox run
-secdev behavioral honeypot plant \
+shogun behavioral honeypot plant \
   --config honeypots/default.yml \
-  --target /tmp/secdev-sandbox-root/
+  --target /tmp/shogun-sandbox-root/
 
 # Full pipeline: L2 scan → L3 sandbox → L4 behavioral
-secdev pipeline run \
+shogun pipeline run \
   --target ./project \
   --command "npm install && npm test" \
   --baseline baselines/npm-install.json \

@@ -34,8 +34,8 @@ def generate_canary_domain(subdomain: str = "") -> str:
     """Generate a canary DNS domain (for exfil detection)."""
     token = _random_token(8)
     if subdomain:
-        return f"{subdomain}.{token}.canary.secdev.local"
-    return f"{token}.canary.secdev.local"
+        return f"{subdomain}.{token}.canary.shogun.local"
+    return f"{token}.canary.shogun.local"
 
 
 def generate_canary_env_key(prefix: str = "AWS") -> str:
@@ -91,7 +91,7 @@ def plant_canary_env(
     for _ in range(count):
         key = generate_canary_env_key()
         token = _random_token(16)
-        env_vars[key] = f"canary://{token}.secdev.local"
+        env_vars[key] = f"canary://{token}.shogun.local"
 
     return env_vars
 

@@ -4,7 +4,7 @@ DEPRECATED: This module is superseded by services/orchestrator.py (EnhancedOrche
 It is retained for backward compatibility only and will be removed in v3.0.
 All orchestration should go through the API server (api/server.py).
 
-Secdev_kimi Master Orchestrator
+Shogun Master Orchestrator
 Central brain for the 75-project smart security lab.
 Coordinates, learns, adapts, and evolves.
 
@@ -36,7 +36,7 @@ PROJECTS_DIR = Path("/home/kirk/.picoclaw/workspace/Hivemind-projects")
 UPGRADE_DIR = BASE_DIR / "projects"
 LOGS_DIR = BASE_DIR / "logs"
 CONFIG_DIR = BASE_DIR / "config"
-DB_PATH = BASE_DIR / "secdev_kimi.db"
+DB_PATH = BASE_DIR / "shogun.db"
 REGISTRY_PATH = CONFIG_DIR / "project_registry.json"
 
 LOGS_DIR.mkdir(exist_ok=True)
@@ -51,7 +51,7 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout)
     ]
 )
-logger = logging.getLogger("SecdevKimi")
+logger = logging.getLogger("shogun")
 
 # ─── Database ───────────────────────────────────────────────────────────────
 
@@ -340,7 +340,7 @@ class AlertHub:
 
         payload = {
             "embeds": [{
-                "title": f"🛡️ Secdev_kimi Alert: {project_id}",
+                "title": f"🛡️ Shogun Alert: {project_id}",
                 "description": message,
                 "color": colors.get(severity, 3447003),
                 "fields": [
@@ -525,7 +525,7 @@ class APIGateway:
         # GET /threat-score - current threat level
 
 # ─── Master Orchestrator ────────────────────────────────────────────────────
-class SecdevKimiOrchestrator:
+class ShogunOrchestrator:
     """Main orchestrator that ties everything together."""
 
     def __init__(self):
@@ -583,7 +583,7 @@ class SecdevKimiOrchestrator:
 
         report = f"""
 ╔════════════════════════════════════════════════════════════════╗
-║     Secdev_kimi Enterprise Security Lab Report                ║
+║     Shogun Enterprise Security Lab Report                ║
 ╚════════════════════════════════════════════════════════════════╝
 
 Generated: {status['timestamp']}
@@ -607,7 +607,7 @@ THREAT SCORE BREAKDOWN
 
 # ─── CLI ──────────────────────────────────────────────────────────────────────
 def main():
-    orch = SecdevKimiOrchestrator()
+    orch = ShogunOrchestrator()
 
     if len(sys.argv) < 2:
         print(orch.generate_report())
@@ -634,7 +634,7 @@ def main():
         print(orch.generate_report())
 
     elif cmd == "init":
-        print("Secdev_kimi initialized. Registry built.")
+        print("Shogun initialized. Registry built.")
         print(f"Projects registered: {len(orch.registry.projects)}")
 
     else:

@@ -14,7 +14,7 @@ Schedule design:
 import json
 from pathlib import Path
 
-CONFIG = Path("/home/kirk/.picoclaw/workspace/Secdev_kimi/config")
+CONFIG = Path("/home/kirk/.picoclaw/workspace/Shogun/config")
 REGISTRY = CONFIG / "project_registry.json"
 
 # Load registry
@@ -41,7 +41,7 @@ DAILY_OFFPEAK = {
     "66-vulnerability-scanner": "1",
 }
 
-print("# Secdev_kimi Cron Schedule")
+print("# Shogun Cron Schedule")
 print(f"# Generated for {len(registry)} projects")
 print()
 
@@ -93,7 +93,7 @@ for pid, meta in registry.items():
             hour_offset = num % 8
             cron = f"{minute_offset} {hour_offset}-23/8 * * *"
 
-    cmd = f"cd {Path('/home/kirk/.picoclaw/workspace/Hivemind-projects') / short_name} && python3 *.py 2>>1 | logger -t secdev-{short_name}"
+    cmd = f"cd {Path('/home/kirk/.picoclaw/workspace/Hivemind-projects') / short_name} && python3 *.py 2>>1 | logger -t shogun-{short_name}"
 
     # Check if main script is Python or Shell
     project_dir = Path("/home/kirk/.picoclaw/workspace/Hivemind-projects") / short_name
@@ -106,9 +106,9 @@ for pid, meta in registry.items():
                 break
 
     if main_script and main_script.suffix == ".sh":
-        cmd = f"cd {project_dir} && bash {main_script.name} 2>>1 | logger -t secdev-{short_name}"
+        cmd = f"cd {project_dir} && bash {main_script.name} 2>>1 | logger -t shogun-{short_name}"
     elif main_script:
-        cmd = f"cd {project_dir} && python3 {main_script.name} 2>>1 | logger -t secdev-{short_name}"
+        cmd = f"cd {project_dir} && python3 {main_script.name} 2>>1 | logger -t shogun-{short_name}"
     else:
         cmd = f"# No main script found for {short_name}"
 
@@ -116,5 +116,5 @@ for pid, meta in registry.items():
 
 print()
 print("# Orchestrator heartbeat + intelligence sweep")
-print("*/5 * * * * cd /home/kirk/.picoclaw/workspace/Secdev_kimi/orchestrator && python3 master.py status 2>>1 | logger -t secdev-heartbeat")
-print("0 */6 * * * cd /home/kirk/.picoclaw/workspace/Secdev_kimi/orchestrator && python3 /home/kirk/.picoclaw/workspace/scripts/Intelligence_report_summary.py 2>>1 | logger -t secdev-intel")
+print("*/5 * * * * cd /home/kirk/.picoclaw/workspace/Shogun/orchestrator && python3 master.py status 2>>1 | logger -t shogun-heartbeat")
+print("0 */6 * * * cd /home/kirk/.picoclaw/workspace/Shogun/orchestrator && python3 /home/kirk/.picoclaw/workspace/scripts/Intelligence_report_summary.py 2>>1 | logger -t shogun-intel")

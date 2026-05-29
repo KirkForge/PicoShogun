@@ -108,7 +108,7 @@ class TestMetricsEndpoint:
     def test_metrics_prometheus_endpoint(self, client):
         resp = client.get("/metrics/prometheus")
         if resp.status_code == 200:
-            assert "secdev_" in resp.text or "uptime" in resp.text.lower()
+            assert "shogun_" in resp.text or "uptime" in resp.text.lower()
 
 
 class TestDashboardSummary:

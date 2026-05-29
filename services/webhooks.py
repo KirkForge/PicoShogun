@@ -157,8 +157,8 @@ class WebhookManager:
                     json=event_payload,
                     headers={
                         "Content-Type": "application/json",
-                        "X-Secdev-Signature": f"sha256={signature}",
-                        "X-Secdev-Event": event,
+                        "X-Shogun-Signature": f"sha256={signature}",
+                        "X-Shogun-Event": event,
                         "User-Agent": "Shogun-Webhook/2.0"
                     },
                     timeout=10

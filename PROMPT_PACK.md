@@ -1,7 +1,7 @@
-# Secdev_kimi — Project Scope & Prompt Pack
+# Shogun — Project Scope & Prompt Pack
 
 ## Project Identity
-**Secdev_kimi** is a security lab orchestrator: FastAPI API + SQLite backend that runs 75 Hivemind-projects, extracts intelligence from their output, alerts on findings, and exposes it all via REST/WebSocket/CLI. Version 2.4.0.
+**Shogun** is a security lab orchestrator: FastAPI API + SQLite backend that runs 75 Hivemind-projects, extracts intelligence from their output, alerts on findings, and exposes it all via REST/WebSocket/CLI. Version 2.4.0.
 
 ## What's REAL (functional, deployed, battle-tested)
 
@@ -51,7 +51,7 @@
 10. **Remove master.py v1**: Delete `orchestrator/master.py` and its duplicate DB init. All orchestration goes through `services/orchestrator.py`.
 
 ### Nice-to-Have (Growth)
-11. **Grafana dashboard config**: The `docker-compose.yml` references Prometheus/Grafana profiles but `monitoring/grafana/` has no dashboard JSON. Create a Secdev_kimi dashboard with project status, alert rates, and threat scores.
+11. **Grafana dashboard config**: The `docker-compose.yml` references Prometheus/Grafana profiles but `monitoring/grafana/` has no dashboard JSON. Create a Shogun dashboard with project status, alert rates, and threat scores.
 12. **Webhook delivery UI**: Admin page to create/manage outgoing webhooks (currently API-only, 0 rows in DB).
 13. **Scheduled project runs**: Wire `services/scheduler.py` into the API so users can schedule recurring project runs via the UI.
 14. **Alert deduplication in intelligence**: When the same pattern fires across multiple runs of the same project, collapse into a single intelligence entry with a count, not N separate entries.

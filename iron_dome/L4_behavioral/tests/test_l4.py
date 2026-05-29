@@ -79,7 +79,7 @@ def _make_suspicious_profile() -> BehavioralProfile:
         egress_entropy=7.8,
         total_bytes_sent=15000,
         canary_file_accesses=["/tmp/secret_passwords_abc123.txt"],
-        canary_dns_lookups=["abc123.canary.secdev.local"],
+        canary_dns_lookups=["abc123.canary.shogun.local"],
         canary_env_reads=["AWS_SECRET_XYZ"],
     )
 
@@ -373,7 +373,7 @@ class TestHoneypot:
 
     def test_generate_canary_domain(self):
         domain = generate_canary_domain()
-        assert "canary.secdev.local" in domain
+        assert "canary.shogun.local" in domain
 
     def test_generate_canary_env_key(self):
         key = generate_canary_env_key()
@@ -395,7 +395,7 @@ class TestHoneypot:
         domains = plant_canary_dns(count=3)
         assert len(domains) == 3
         for d in domains:
-            assert "canary.secdev.local" in d
+            assert "canary.shogun.local" in d
 
     def test_check_canary_file_access(self):
         paths = ["/tmp/secret_passwords_abc123.txt"]
@@ -404,8 +404,8 @@ class TestHoneypot:
         assert len(touched) == 1
 
     def test_check_canary_dns(self):
-        domains = ["abc123.canary.secdev.local"]
-        queries = [{"domain": "abc123.canary.secdev.local"}]
+        domains = ["abc123.canary.shogun.local"]
+        queries = [{"domain": "abc123.canary.shogun.local"}]
         touched = check_canary_dns(domains, queries)
         assert len(touched) == 1
 
@@ -524,7 +524,7 @@ class TestHoneypotRules:
 
     def test_canary_dns_lookup(self):
         profile = _make_profile(
-            canary_dns_lookups=["abc123.canary.secdev.local"],
+            canary_dns_lookups=["abc123.canary.shogun.local"],
         )
         findings = detect_honeypot_touches(profile)
         dns_findings = [f for f in findings if f.rule_id == "L4-HONEY-002"]

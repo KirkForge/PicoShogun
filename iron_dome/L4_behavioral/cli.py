@@ -27,7 +27,7 @@ from .profiler import profile_from_sandbox_result, profile_from_trace
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point."""
     parser = argparse.ArgumentParser(
-        prog="secdev-behavioral",
+        prog="shogun-behavioral",
         description="SecDev L4 Behavioral Analysis — deterministic, zero-trust behavioral profiling",
     )
     sub = parser.add_subparsers(dest="command", required=True)
