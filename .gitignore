@@ -67,3 +67,14 @@ picosentry/node_modules/
 *.tmp
 *.bak
 *.swp
+
+# --- Security baseline (do not remove) ---
+token.json
+token_*.json
+*token*.json
+*.pickle
+client_secret*.json
+credentials.json
+*.db-shm
+*.db-wal
+*.sqlite
