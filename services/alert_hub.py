@@ -116,7 +116,7 @@ class AlertHub:
             "info": 3447003        # Blue
         }
 
-        embed = {
+        embed: dict[str, Any] = {
             "title": "🛡️ PicoShogun Alert",
             "description": message,
             "color": colors.get(severity, 3447003),
@@ -156,14 +156,14 @@ class AlertHub:
             return
 
         colors = {
-            "critical": "#FF0000",
-            "high": "#FF6600",
-            "medium": "#FFCC00",
-            "low": "#00FF00",
-            "info": "#0066FF"
-        }
+                "critical": "#FF0000",
+                "high": "#FF6600",
+                "medium": "#FFCC00",
+                "low": "#00FF00",
+                "info": "#0066FF"
+            }
 
-        payload = {
+        payload: dict[str, Any] = {
             "attachments": [{
                 "color": colors.get(severity, "#808080"),
                 "title": f"PicoShogun Alert: {project_id}",

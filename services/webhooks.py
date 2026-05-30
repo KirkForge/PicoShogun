@@ -181,7 +181,7 @@ class WebhookManager:
             if event not in webhook.events:
                 continue
 
-            event_payload = {
+            event_payload: dict[str, Any] = {
                 "event": event,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "data": payload

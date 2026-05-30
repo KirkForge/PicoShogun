@@ -86,11 +86,11 @@ class Organization:
         )["c"] or 0
 
         # Count today's runs
-        runs_today = db.execute_one("""
+        runs_today_row = db.execute_one("""
             SELECT COUNT(*) as c FROM project_runs
             WHERE org_id = ? AND DATE(run_start) = DATE('now')
         """, (org_id,))
-        runs_today = runs_today["c"] if runs_today else 0
+        runs_today = runs_today_row["c"] if runs_today_row else 0
 
         return {
             "tier": tier,

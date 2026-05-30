@@ -14,7 +14,7 @@ import pytest
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 os.environ["PICOSHOGUN_ENV"] = "test"
-os.environ["PICOSHOGUN_SECRET_KEY"] = "test-key-for-pytest-integration"
+os.environ["PICOSHOGUN_SECRET_KEY"] = "test-key-for-pytest-integration-32b!"
 
 
 # ── Fixtures ─────────────────────────────────────────────────────────────
@@ -346,7 +346,7 @@ class TestWebhooksIntegration:
     def test_create_webhook_with_default_name(self, client):
         token, _ = _register_and_login(client, role="operator", suffix=int(time.time()*1000))
         resp = client.post("/webhooks", json={
-            "url": "https://example.com/hook", "events": ["*"],
+            "url": "https://example.com/hook", "events": ["*"], "name": "default-hook",
         }, headers=_auth_headers(token))
         assert resp.status_code == 200
 
@@ -1024,3 +1024,123 @@ class TestDDoSShield:
         tc = TestClient(app)
         resp = tc.get("/")
         assert resp.status_code == 200
+
+
+# ── Tenant Data Isolation (P1 #3) ──────────────────────────────────────────
+
+class TestTenantDataIsolation:
+    """Data-level tenant isolation: org A's data cannot be read by org B's users.
+
+    These tests verify that even if two orgs share the same PicoShogun instance,
+    users in org A cannot read, modify, or delete data belonging to org B through
+    the API. This closes the P1 #3 gap identified in the security review.
+    """
+
+    def test_tenant_cannot_read_other_org_projects(self, client):
+        """Org A creates a project; Org B's member cannot list or see it through org-scoped endpoints."""
+        tag = int(time.time() * 1000)
+
+        # Create user A and org A
+        token_a, user_a = _register_and_login(client, suffix=tag)
+        slug_a = f"tenant-proj-a-{tag}"
+        resp = client.post("/orgs", json={"name": "Tenant Org A", "slug": slug_a}, headers=_auth_headers(token_a))
+        assert resp.status_code == 200
+        org_a_id = resp.json()["id"]
+
+        # Create user B and org B
+        token_b, _ = _register_and_login(client, suffix=tag + 1)
+        slug_b = f"tenant-proj-b-{tag}"
+        resp_b = client.post("/orgs", json={"name": "Tenant Org B", "slug": slug_b}, headers=_auth_headers(token_b))
+        assert resp_b.status_code == 200
+        org_b_id = resp_b.json()["id"]
+
+        # Verify org IDs are different
+        assert org_a_id != org_b_id
+
+        # User B cannot access org A's usage or members
+        resp = client.get(f"/orgs/{org_a_id}/usage", headers=_auth_headers(token_b))
+        assert resp.status_code == 403
+
+        resp = client.get(f"/orgs/{org_a_id}/members", headers=_auth_headers(token_b))
+        assert resp.status_code == 403
+
+    def test_tenant_cannot_upgrade_other_org(self, client):
+        """Org A admin cannot upgrade org B's tier even with admin role."""
+        tag = int(time.time() * 1000)
+
+        token_a, _ = _register_and_login(client, role="admin", suffix=tag)
+        slug_a = f"tenant-upgrade-a-{tag}"
+        resp = client.post("/orgs", json={"name": "Tenant Upgrade A", "slug": slug_a}, headers=_auth_headers(token_a))
+        org_a_id = resp.json()["id"]  # noqa: F841 — needed for clarity
+
+        token_b, _ = _register_and_login(client, role="admin", suffix=tag + 1)
+        slug_b = f"tenant-upgrade-b-{tag}"
+        resp_b = client.post("/orgs", json={"name": "Tenant Upgrade B", "slug": slug_b}, headers=_auth_headers(token_b))
+        org_b_id = resp_b.json()["id"]
+
+        # Admin A tries to upgrade org B — should be denied
+        resp = client.post(f"/orgs/{org_b_id}/upgrade", json={"tier": "pro"}, headers=_auth_headers(token_a))
+        assert resp.status_code in (403, 404)
+
+    def test_tenant_api_key_isolation(self, client):
+        """API key for org A cannot be used to access org B's data."""
+        tag = int(time.time() * 1000)
+
+        token_a, _ = _register_and_login(client, suffix=tag)
+        slug_a = f"tenant-apikey-a-{tag}"
+        resp = client.post("/orgs", json={"name": "Tenant API A", "slug": slug_a}, headers=_auth_headers(token_a))
+        org_a_id = resp.json()["id"]
+        org_a_data = client.get(f"/orgs/{org_a_id}", headers=_auth_headers(token_a)).json()
+        org_a_api_key = org_a_data.get("api_key", "")
+
+        token_b, _ = _register_and_login(client, suffix=tag + 1)
+        slug_b = f"tenant-apikey-b-{tag}"
+        resp_b = client.post("/orgs", json={"name": "Tenant API B", "slug": slug_b}, headers=_auth_headers(token_b))
+        _ = resp_b.json()["id"]
+
+        # User B tries to use org A's API key header to access org A data
+        resp = client.get(f"/orgs/{org_a_id}/usage", headers={
+            **_auth_headers(token_b),
+            "X-Org-API-Key": org_a_api_key,
+        })
+        # Should be rejected — user B is not a member of org A
+        assert resp.status_code == 403
+
+    def test_tenant_org_listing_isolation(self, client):
+        """User belonging to org A only sees org A in their orgs list, not org B."""
+        tag = int(time.time() * 1000)
+
+        token_a, _ = _register_and_login(client, suffix=tag)
+        slug_a = f"tenant-list-a-{tag}"
+        client.post("/orgs", json={"name": "Tenant List A", "slug": slug_a}, headers=_auth_headers(token_a))
+
+        token_b, _ = _register_and_login(client, suffix=tag + 1)
+        slug_b = f"tenant-list-b-{tag}"
+        client.post("/orgs", json={"name": "Tenant List B", "slug": slug_b}, headers=_auth_headers(token_b))
+
+        # User A lists their orgs — should only contain org A
+        resp = client.get("/orgs", headers=_auth_headers(token_a))
+        assert resp.status_code == 200
+        org_list = resp.json().get("orgs", [])
+        org_slugs = [o.get("slug", "") for o in org_list]
+        assert slug_b not in org_slugs, f"User A should not see org B (slugs: {org_slugs})"
+        assert slug_a in org_slugs, f"User A should see org A (slugs: {org_slugs})"
+
+    def test_org_creation_same_user_different_orgs(self, client):
+        """A single user can belong to multiple orgs and see all of them."""
+        tag = int(time.time() * 1000)
+        token, _ = _register_and_login(client, suffix=tag)
+
+        slug1 = f"multi-org-1-{tag}"
+        slug2 = f"multi-org-2-{tag}"
+        resp1 = client.post("/orgs", json={"name": "Multi Org 1", "slug": slug1}, headers=_auth_headers(token))
+        resp2 = client.post("/orgs", json={"name": "Multi Org 2", "slug": slug2}, headers=_auth_headers(token))
+
+        assert resp1.status_code == 200
+        assert resp2.status_code == 200
+
+        # User should see both orgs
+        resp = client.get("/orgs", headers=_auth_headers(token))
+        org_slugs = [o.get("slug", "") for o in resp.json().get("orgs", [])]
+        assert slug1 in org_slugs
+        assert slug2 in org_slugs

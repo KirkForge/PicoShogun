@@ -63,7 +63,7 @@ services:
     volumes:
       - grafana-data:/var/lib/grafana
     networks:
-      - picoshogun-net
+      - picopicoshogun-net
     depends_on:
       - prometheus
 

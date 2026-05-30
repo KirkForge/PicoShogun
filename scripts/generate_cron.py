@@ -2,14 +2,19 @@
 """
 Generate staggered cron schedules for SecDev projects.
 Smart filtering: only creates entries for projects with executable scripts.
+
+All paths are resolved relative to PICOSHOGUN_DIR and HIVEMIND_PROJECTS_DIR
+env vars, or fall back to the project root's parent/Hivemind-projects.
 """
 
 import json
+import os
 from pathlib import Path
 
-BASE = Path("/home/kirk/.picoclaw/workspace")
-HIVE = BASE / "Hivemind-projects"
-SEC = BASE / "PicoShogun"
+# Resolve project root — env var override or relative to this script's parent
+BASE = Path(os.environ.get("PICOSHOGUN_DIR", str(Path(__file__).resolve().parent.parent)))
+HIVE = Path(os.environ.get("HIVEMIND_PROJECTS_DIR", str(BASE.parent / "Hivemind-projects")))
+SEC = BASE
 CONFIG = SEC / "config"
 REGISTRY = CONFIG / "project_registry.json"
 
@@ -105,7 +110,7 @@ for pid, meta in registry.items():
             cron = f"{offset} {hour_offset}-23/8 * * *"
 
     runner = "python3" if script.suffix == ".py" else "bash"
-    cmd = f"cd {project_dir} \u0026\u0026 {runner} {script.name} \u003e\u003e /dev/null 2\u003e\u00261"
+    cmd = f"cd {project_dir} && {runner} {script.name} >> /dev/null 2>&1"
 
     entries.append(f"{cron} {cmd}")
 
@@ -121,8 +126,9 @@ if comment_lines:
     output.append("")
 
 output.extend(entries)
+orch_dir = SEC / "orchestrator"
 output.append("")
 output.append("# === Orchestrator heartbeat ===")
-output.append("*/5 * * * * cd /home/kirk/.picoclaw/workspace/PicoShogun/orchestrator \u0026\u0026 python3 master.py status \u003e\u003e /dev/null 2\u003e\u00261")
+output.append(f"*/5 * * * * cd {orch_dir} && python3 master.py status >> /dev/null 2>&1")
 
 print("\n".join(output))

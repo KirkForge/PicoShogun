@@ -264,12 +264,12 @@ class PluginManager:
 
     def get_status(self) -> dict[str, Any]:
         """Get status of all loaded plugins."""
-        status = {}
+        status: dict[str, Any] = {}
         for name, plugin in self.plugins.items():
             try:
                 health = plugin.health_check()
                 status[name] = {
-                    "metadata": dict(self.metadata[name].__dict__),
+                    "metadata": {k: v for k, v in self.metadata[name].__dict__.items()},
                     "health": health,
                 }
             except Exception as e:

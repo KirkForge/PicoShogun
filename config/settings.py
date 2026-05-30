@@ -3,6 +3,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import get_type_hints
 
 BASE_DIR = Path(__file__).parent.parent
 
@@ -197,18 +198,20 @@ class Settings:
         with open(path) as f:
             data = json.load(f)
 
+        # Resolve type hints (handles forward refs and string annotations)
+        known_hints = get_type_hints(cls)
+        known_field_names = {f.name for f in dc_fields(cls)}
+
         # Filter to only known fields to prevent attribute injection
-        known_fields = {f.name: f.type for f in dc_fields(cls)}
-        unknown = set(data.keys()) - set(known_fields.keys())
+        unknown = set(data.keys()) - known_field_names
         if unknown:
             logger.warning("Ignoring unknown config fields in %s: %s", path, unknown)
-        data = {k: v for k, v in data.items() if k in known_fields}
+        data = {k: v for k, v in data.items() if k in known_field_names}
 
         # Convert nested dicts to their dataclass types
-        for field_name, field_type in known_fields.items():
+        for field_name, field_type in known_hints.items():
             if field_name in data and isinstance(data[field_name], dict):
-                # Check if the field type is a dataclass
-                if hasattr(field_type, "__dataclass_fields__"):  # type: ignore[operator]
+                if hasattr(field_type, "__dataclass_fields__"):
                     data[field_name] = field_type(**data[field_name])
 
         return cls(**data)

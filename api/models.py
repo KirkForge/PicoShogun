@@ -98,7 +98,7 @@ class WebhookCreateRequest(BaseModel):
     """Validated request model for creating webhooks."""
     url: str = Field(..., description="Webhook callback URL (HTTPS recommended)")
     events: list[str] = Field(default=["*"], description="Event types to subscribe to")
-    name: str = Field(default="default", min_length=1, max_length=100, description="Webhook name")
+    name: str = Field(..., min_length=1, max_length=100, description="Webhook name")
     secret: str | None = Field(default=None, min_length=16, max_length=128, description="HMAC signing secret")
 
 

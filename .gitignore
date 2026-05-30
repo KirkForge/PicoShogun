@@ -85,3 +85,10 @@ credentials.json
 *.db.bak
 .venv
 picoshogun.db
+
+# ── Generated artifacts (should not be in source archives) ──────────
+picoshogun.egg-info/
+build/
+dist/
+*.whl
+*.tar.gz

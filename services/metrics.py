@@ -126,15 +126,10 @@ class MetricsCollector:
 
     def to_dict(self) -> dict[str, Any]:
         """Export as JSON-serializable dict."""
-        result = {
-            "uptime_seconds": self.uptime_seconds(),
-            "metrics": {},  # type: ignore[index]
-            "counters": dict(self.counters)
-        }
-
         with self._lock:
-            for _name, metrics_list in self.metrics.items():
-                result["metrics"][_name] = [
+            metrics_data: dict[str, Any] = {}
+            for name, metrics_list in self.metrics.items():
+                metrics_data[name] = [
                     {
                         "value": m.value,
                         "labels": m.labels,
@@ -144,7 +139,11 @@ class MetricsCollector:
                     for m in metrics_list[-100:]
                 ]
 
-        return result
+        return {
+            "uptime_seconds": self.uptime_seconds(),
+            "metrics": metrics_data,
+            "counters": dict(self.counters)
+        }
 
 # Global metrics instance
 metrics = MetricsCollector()

@@ -21,7 +21,7 @@ LABEL org.opencontainers.image.title="PicoShogun Command Centre" \
       org.opencontainers.image.description="Command centre for the Pico Security Series" \
       org.opencontainers.image.vendor="KirkForge" \
       org.opencontainers.image.source="https://github.com/KirkForge/PicoShogun" \
-      org.opencontainers.image.licenses="MIT"
+      org.opencontainers.image.licenses="BUSL-1.1"
 
 # Security: non-root user
 RUN groupadd -r picoshogun && useradd -r -g picoshogun -d /app -s /sbin/nologin picoshogun

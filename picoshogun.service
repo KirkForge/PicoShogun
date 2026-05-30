@@ -6,10 +6,10 @@ After=network.target
 Type=simple
 User=kirk
 Group=kirk
-WorkingDirectory=/home/kirk/Madlab/Clean-Live/Shogun
+WorkingDirectory=/home/kirk/Madlab/Clean-Live/PicoShogun
 Environment=PICOSHOGUN_ENV=production
-Environment=PYTHONPATH=/home/kirk/Madlab/Clean-Live/Shogun
-ExecStart=/home/kirk/Madlab/Clean-Live/Shogun/venv/bin/python -m uvicorn api.server:app --host 0.0.0.0 --port 8765 --workers 4
+Environment=PYTHONPATH=/home/kirk/Madlab/Clean-Live/PicoShogun
+ExecStart=/home/kirk/Madlab/Clean-Live/PicoShogun/.venv/bin/python -m uvicorn api.server:app --host 127.0.0.1 --port 8765 --workers 4
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal

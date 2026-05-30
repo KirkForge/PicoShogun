@@ -86,7 +86,7 @@ async def health_history(limit: int = 50, user: dict = Depends(get_current_user)
     """Historical health check results (requires auth)."""
     from database.manager import db as _db
     rows = _db.execute(
-        "SELECT * FROM health_checks ORDER BY timestamp DESC LIMIT ?",
+        "SELECT * FROM health_checks ORDER BY created_at DESC LIMIT ?",
         (limit,),
     )
     return [dict(r) for r in rows] if rows else []

@@ -7,7 +7,8 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-PICOSHOGUN_DIR = Path(os.environ.get("PICOSHOGUN_DIR", "/home/kirk/Madlab/Clean-Live/PicoShogun"))
+# Resolve project root relative to this script, with env var override
+PICOSHOGUN_DIR = Path(os.environ.get("PICOSHOGUN_DIR", str(Path(__file__).resolve().parent.parent)))
 BACKLOG_FILE = PICOSHOGUN_DIR / "backlog.md"
 LOG_FILE = PICOSHOGUN_DIR / "logs/daily_worker.log"
 
@@ -101,7 +102,6 @@ def execute_task(task):
             ""
         )
         # Also remove any dynamically generated key lines
-        import re
         content = re.sub(r"Environment=SHOGUN_SECRET_KEY=.+\n", "", content)
         service_file.write_text(content)
 
@@ -128,7 +128,7 @@ def execute_task(task):
             [
                 str(PICOSHOGUN_DIR / ".venv/bin/python"),
                 "-m", "uvicorn", "api.server:app",
-                "--host", "0.0.0.0", "--port", "8765",
+                "--host", "127.0.0.1", "--port", "8765",
                 "--workers", "1"
             ],
             cwd=PICOSHOGUN_DIR,
@@ -141,7 +141,7 @@ def execute_task(task):
         import time
         time.sleep(2)
 
-        success, out = run_command("curl -s http://localhost:8765/health", timeout=5)
+        success, out = run_command("curl -s http://127.0.0.1:8765/health", timeout=5)
         if success and "ok" in out.lower():
             return "DONE", f"API running on port 8765 (PID {proc.pid}), /health responds"
         else:

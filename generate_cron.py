@@ -9,12 +9,18 @@ Schedule design:
 - Light projects (monitoring) run continuously
 - Heavy projects (GPU cracking) run once daily off-peak
 - Stagger offsets: 00, 15, 30, 45 past the hour
+
+All paths are resolved relative to PICOSHOGUN_DIR env var
+or the project root (parent of this script's directory).
 """
 
 import json
+import os
 from pathlib import Path
 
-CONFIG = Path("/home/kirk/.picoclaw/workspace/PicoShogun/config")
+# Resolve project root — env var override or relative to this script
+PICOSHOGUN_DIR = Path(os.environ.get("PICOSHOGUN_DIR", str(Path(__file__).resolve().parent)))
+CONFIG = PICOSHOGUN_DIR / "config"
 REGISTRY = CONFIG / "project_registry.json"
 
 # Load registry
@@ -93,10 +99,12 @@ for pid, meta in registry.items():
             hour_offset = num % 8
             cron = f"{minute_offset} {hour_offset}-23/8 * * *"
 
-    cmd = f"cd {Path('/home/kirk/.picoclaw/workspace/Hivemind-projects') / short_name} && python3 *.py 2>>1 | logger -t picoshogun-{short_name}"
+    # Resolve Hivemind-projects dir from env or relative to project root
+    hive_dir = Path(os.environ.get("HIVEMIND_PROJECTS_DIR", str(PICOSHOGUN_DIR.parent / "Hivemind-projects")))
+    project_dir = hive_dir / short_name
+    cmd = f"cd {project_dir} && python3 *.py 2>>1 | logger -t picoshogun-{short_name}"
 
     # Check if main script is Python or Shell
-    project_dir = Path("/home/kirk/.picoclaw/workspace/Hivemind-projects") / short_name
     main_script = None
     if project_dir.exists():
         for ext in [".py", ".sh"]:
@@ -114,7 +122,9 @@ for pid, meta in registry.items():
 
     print(f"{cron} {cmd}")
 
+# Orchestrator heartbeat + intelligence sweep (resolve paths dynamically)
+orch_dir = PICOSHOGUN_DIR / "orchestrator"
 print()
 print("# Orchestrator heartbeat + intelligence sweep")
-print("*/5 * * * * cd /home/kirk/.picoclaw/workspace/PicoShogun/orchestrator && python3 master.py status 2>>1 | logger -t picoshogun-heartbeat")
-print("0 */6 * * * cd /home/kirk/.picoclaw/workspace/PicoShogun/orchestrator && python3 /home/kirk/.picoclaw/workspace/scripts/Intelligence_report_summary.py 2>>1 | logger -t picoshogun-intel")
+print(f"*/5 * * * * cd {orch_dir} && python3 master.py status 2>>1 | logger -t picoshogun-heartbeat")
+print(f"0 */6 * * * cd {PICOSHOGUN_DIR} && python3 scripts/Intelligence_report_summary.py 2>>1 | logger -t picoshogun-intel")

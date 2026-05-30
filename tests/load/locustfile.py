@@ -15,11 +15,9 @@ This produces baseline throughput and latency numbers for:
 
 Results are logged to GAPS.md when baselines are established.
 """
-import json
 import os
 
-from locust import HttpUser, between, task, tag
-
+from locust import HttpUser, between, tag, task
 
 # Test credentials created by the load-test setup
 TEST_USER = os.environ.get("LOCUST_TEST_USER", "loadtest_bot")

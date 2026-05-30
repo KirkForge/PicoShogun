@@ -1,0 +1,15 @@
+# Include runtime data files that aren't in Python packages
+include config/*.json
+include config/*.py
+include plugins/*/plugin.json
+include plugins/*/*.py
+include architecture/*.json
+include front/**.*
+include deploy/*
+include nginx/*
+include LICENSE*
+include COMMERCIAL-LICENSE.md
+include README.md
+include pyproject.toml
+include requirements.txt
+include picoshogun.service

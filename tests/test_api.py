@@ -10,7 +10,7 @@ import pytest
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 os.environ["PICOSHOGUN_ENV"] = "test"
-os.environ["PICOSHOGUN_SECRET_KEY"] = "test-key-for-pytest"
+os.environ["PICOSHOGUN_SECRET_KEY"] = "test-key-for-pytest-at-least-32-bytes!"
 
 
 @pytest.fixture
@@ -140,9 +140,77 @@ class TestDashboardSummary:
     def test_dashboard_summary_returns_data(self, client, auth_token):
         headers = auth_headers(auth_token)
         resp = client.get("/api/v1/dashboard/summary", headers=headers)
-        if resp.status_code == 200:
-            data = resp.json()
-            assert "status" in data or "health" in data
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
+        data = resp.json()
+        assert "status" in data or "health" in data
+
+    def test_dashboard_summary_has_timestamp(self, client, auth_token):
+        headers = auth_headers(auth_token)
+        resp = client.get("/api/v1/dashboard/summary", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "timestamp" in data
+
+    def test_dashboard_summary_has_recent_projects(self, client, auth_token):
+        headers = auth_headers(auth_token)
+        resp = client.get("/api/v1/dashboard/summary", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "recent_projects" in data
+        assert isinstance(data["recent_projects"], list)
+
+    def test_dashboard_summary_has_pending_alerts(self, client, auth_token):
+        headers = auth_headers(auth_token)
+        resp = client.get("/api/v1/dashboard/summary", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "pending_alerts_count" in data
+
+    def test_dashboard_summary_unauthenticated(self, client):
+        resp = client.get("/api/v1/dashboard/summary")
+        assert resp.status_code in (401, 403)
+
+
+class TestHealthSmokeTests:
+    """Smoke tests for health, readiness, and liveness endpoints."""
+
+    def test_health_live(self, client):
+        resp = client.get("/health/live")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "alive"
+
+    def test_health_ready(self, client):
+        resp = client.get("/health/ready")
+        assert resp.status_code in (200, 503)
+        data = resp.json()
+        assert "status" in data
+
+    def test_health_root(self, client):
+        resp = client.get("/health")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["overall"] in ("healthy", "degraded", "critical")
+        assert "checks" in data
+        assert len(data["checks"]) > 0
+
+    def test_health_history_requires_auth(self, client):
+        resp = client.get("/health/history")
+        assert resp.status_code in (401, 403)
+
+    def test_health_history_with_auth(self, client, auth_token):
+        headers = auth_headers(auth_token)
+        resp = client.get("/health/history?limit=5", headers=headers)
+        assert resp.status_code == 200
+
+    def test_status_with_auth(self, client, auth_token):
+        headers = auth_headers(auth_token)
+        resp = client.get("/status", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "projects_total" in data
+        assert "uptime_seconds" in data
+        assert "system_health" in data
 
 
 class TestAPIVersion:

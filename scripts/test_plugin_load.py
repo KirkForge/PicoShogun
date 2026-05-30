@@ -1,12 +1,14 @@
 """Test plugin loading for PLUGIN-01 acceptance criteria."""
-import os
 import sys
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Resolve project root relative to this script's parent directory
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
 
 from services.plugin_manager import PluginManager
 
-pm = PluginManager()
+pm = PluginManager(plugin_dir=str(ROOT / "plugins"))
 print(f"Plugins loaded: {list(pm.plugins.keys())}")
 print(f"Metadata keys: {list(pm.metadata.keys())}")
 
