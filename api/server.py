@@ -1012,7 +1012,13 @@ async def create_scan(
     """Run an L2 supply chain scan on a project directory."""
     from pathlib import Path as _Path
 
-    from pico_dome.L2_validation.engine import create_default_engine as _create_engine
+    try:
+        from pico_dome.L2_validation.engine import create_default_engine as _create_engine
+    except ImportError:
+        raise HTTPException(
+            status_code=501,
+            detail="L2 scan engine requires the picodome package. Install with: pip install picodome",
+        ) from None
 
     target = _Path(request.target).resolve()
     if not target.exists():

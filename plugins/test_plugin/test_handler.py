@@ -1,10 +1,12 @@
 """Test plugin for PLUGIN-01 acceptance criteria."""
 import logging
+
+# Need to import PluginInterface — add project root to path
+import os
 import sys
 from typing import Any
 
-# Need to import PluginInterface — add project root to path
-sys.path.insert(0, '/home/kirk/Madlab/Clean-Live/PicoShogun')
+sys.path.insert(0, os.environ.get('PICOSHOGUN_DIR', '/home/kirk/Madlab/Clean-Live/PicoShogun'))
 from services.plugin_manager import PluginInterface
 
 logger = logging.getLogger("picoshogun.Plugin.Test")

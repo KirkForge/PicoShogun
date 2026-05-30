@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Daily SaaS gap worker — picks top task from backlog, executes, commits."""
+import os
 import re
 import shlex
 import subprocess
 from datetime import datetime
 from pathlib import Path
 
-PICOSHOGUN_DIR = Path("/home/kirk/Madlab/Clean-Live/PicoShogun")
+PICOSHOGUN_DIR = Path(os.environ.get("PICOSHOGUN_DIR", "/home/kirk/Madlab/Clean-Live/PicoShogun"))
 BACKLOG_FILE = PICOSHOGUN_DIR / "backlog.md"
 LOG_FILE = PICOSHOGUN_DIR / "logs/daily_worker.log"
 
@@ -90,7 +91,7 @@ def execute_task(task):
         # Fix ExecStart to use venv Python and correct path
         content = content.replace(
             "ExecStart=/usr/bin/python3 -m uvicorn api.server:app",
-            "ExecStart=/home/kirk/Madlab/Clean-Live/PicoShogun/venv/bin/python -m uvicorn api.server:app"
+            f"ExecStart={PICOSHOGUN_DIR / '.venv/bin/python'} -m uvicorn api.server:app"
         )
         # SECURITY: Do NOT set SHOGUN_SECRET_KEY in the service file.
         # The secret must come from the environment or a secrets manager.
@@ -125,7 +126,7 @@ def execute_task(task):
         # Start the API
         proc = subprocess.Popen(
             [
-                "/home/kirk/Madlab/Clean-Live/PicoShogun/venv/bin/python",
+                str(PICOSHOGUN_DIR / ".venv/bin/python"),
                 "-m", "uvicorn", "api.server:app",
                 "--host", "0.0.0.0", "--port", "8765",
                 "--workers", "1"
@@ -148,7 +149,7 @@ def execute_task(task):
 
     elif task_id == "DB-01":
         # Database v3 migrations already done
-        success, out = run_command("/home/kirk/Madlab/Clean-Live/PicoShogun/venv/bin/python -c \"from database.manager import db; print('DB OK')\"")
+        success, out = run_command(str(PICOSHOGUN_DIR / ".venv/bin/python") + " -c \"from database.manager import db; print('DB OK')\"")
         if success:
             return "DONE", "Database manager initializes correctly with v3 schema"
         else:

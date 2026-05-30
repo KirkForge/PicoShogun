@@ -191,15 +191,23 @@ class AuthService:
         )
 
         return {
-            "id": key["user_id"],
+            "id": key["id"],
+            "key_id": key["id"],
             "user_id": key["user_id"],
             "username": key["username"],
             "role": key["role"],
             "permissions": key["permissions"]
         }
 
-    def revoke_api_key(self, key_id: int) -> bool:
-        """Revoke API key."""
+    def revoke_api_key(self, key_id: int, user_id: int | None = None) -> bool:
+        """Revoke API key. If user_id is provided, only revoke if the key belongs to that user."""
+        if user_id is not None:
+            key = db.execute_one(
+                "SELECT id FROM api_keys WHERE id = ? AND user_id = ? AND is_active = 1",
+                (key_id, user_id)
+            )
+            if not key:
+                return False
         with db.transaction() as conn:
             conn.execute(
                 "UPDATE api_keys SET is_active = 0, revoked_at = ? WHERE id = ?",
@@ -232,7 +240,7 @@ class AuthService:
         db.execute_insert("""
             INSERT INTO api_keys (key_hash, user_id, name, permissions, expires_at)
             VALUES (?, ?, ?, ?, ?)
-        """, (key_hash, user_id, key.get("name", "rotated-key"), key.get("permissions", "read"), expires))
+        """, (key_hash, user_id, key["name"] or "rotated-key", key["permissions"] or "read", expires))
 
         logger.info(f"API key rotated for user {user_id}, key_id {key_id}")
         return new_api_key
