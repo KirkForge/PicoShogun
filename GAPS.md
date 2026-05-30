@@ -28,7 +28,7 @@ Priority-ordered list of what needs work before this can be called 1.0.
 4. ~~**MyPy strict**~~ **Fixed in session 6**: All 10 errors resolved. `services/metrics.py` (explicit dict type), `services/alert_hub.py` (`dict[str, Any]` annotations, Slack indent fix), `services/orgs.py` (separate variable for Row), `config/settings.py` (`typing.get_type_hints()` for nested dataclass resolution), `services/plugin_manager.py` (explicit `dict[str, Any]`), `services/webhooks.py` (`dict[str, Any]` for event payload). MyPy now passes clean with 0 errors.
 5. ~~**Dashboard E2E tests**~~ **Fixed in session 6**: Added `TestHealthSmokeTests` (7 tests) and expanded `TestDashboardSummary` (5 tests) covering health/liveness/readiness/history, dashboard summary fields, and auth-gated endpoints. Also fixed `health_history` SQL column (`timestamp` → `created_at`). Total: 162 tests passing.
 
-## P2 — Should have for 1.0
+## P2 — Should have for 1.0 ✅ All resolved
 
 6. ~~**`api/server.py` too large (1171 lines)** — Should be split into routers.~~ **Fixed in session 5**: Split into `api/deps.py`, `api/models.py`, and 12 router modules in `api/routers/`. `server.py` now 248 lines (lifecycle, middleware, mount).
 7. ~~**Intelligence engine false positives**~~ **Fixed (session 7)** — Context-aware false-positive filtering: private IP ranges excluded, banner context detection, filename/identifier keyword filtering, import statement detection, safe domain list expanded.
@@ -83,3 +83,14 @@ Priority-ordered list of what needs work before this can be called 1.0.
 - **Dashboard smoke tests**: Added TestHealthSmokeTests (7 tests) + expanded TestDashboardSummary (5 tests)
 - **Bug fix**: health_history endpoint SQL used wrong column (timestamp -> created_at)
 - **All 162 tests pass**, ruff clean
+
+
+## Session 7 — Changes Summary
+
+### PicoShogun
+- **Intelligence false-positive filtering**: Private IP exclusion (RFC 1918, link-local), banner context detection (SSH, Apache, nginx), filename/identifier keyword filtering (`scan` in `port_scanner.py` not flagged), import statement detection, expanded `SAFE_DOMAINS` and `MODULE_FALSE_POSITIVES`
+- **RBAC policy engine**: `services/rbac.py` — 18 permissions across `Permission` enum, `ROLE_PERMISSIONS` mapping (viewer=9, operator=13, admin=18), `require_permission()` FastAPI dependency in `api/deps.py`, 6 tests
+- **Postgres migration path**: `database/pools.py` — `SQLitePool` (thread-local, WAL, backup), `PostgresPool` (stub with migration instructions), `DatabaseManager` refactored to use pool abstraction, `PICOSHOGUN_DATABASE_BACKEND` and `PICOSHOGUN_DATABASE_URL` config
+- **Plugin Ed25519 signed manifests**: `verify_manifest_signature()` with pynacl lazy imports, `PICOSHOGUN_REQUIRE_SIGNED_PLUGINS=1` enforcement, `scripts/sign_manifest.py` (generate-key, sign, verify), `PluginMetadata` includes `public_key`, `signature`, `signed` fields
+- **Docker CI E2E**: Full `PICOSHOGUN_*` env vars in CI workflow, authenticated endpoint tests (register → login → JWT → status/projects/dashboard), `scripts/docker_e2e_test.sh` for local validation
+- **All 168 tests pass**, ruff clean, mypy clean (0 errors, 54 source files)
