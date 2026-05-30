@@ -84,3 +84,4 @@ credentials.json
 *.db.bak-*
 *.db.bak
 .venv
+picoshogun.db
