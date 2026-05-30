@@ -1,7 +1,7 @@
-import os
 #!/usr/bin/env python3
 """Test AUTH-01 (registration) and AUTH-02 (RBAC) end-to-end."""
 import json
+import os
 import subprocess
 import sys
 

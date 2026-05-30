@@ -2,6 +2,8 @@
 import logging
 import os
 
+from config.version import __version__
+
 logger = logging.getLogger("picoshogun.Observability")
 
 # ── Tracer setup ─────────────────────────────────────────────────────
@@ -43,7 +45,7 @@ def init_telemetry(service_name: str = "picoshogun", endpoint: str | None = None
 
         resource = Resource.create({
             "service.name": service_name,
-            "service.version": "0.1.0",
+            "service.version": __version__,
             "deployment.environment": os.environ.get("SHOGUN_ENV", "development"),
         })
 
@@ -55,18 +57,19 @@ def init_telemetry(service_name: str = "picoshogun", endpoint: str | None = None
             span_exporter = OTLPSpanExporter(endpoint=endpoint)
         _tracer_provider.add_span_processor(BatchSpanProcessor(span_exporter))
         trace.set_tracer_provider(_tracer_provider)
-        _tracer = trace.get_tracer(service_name, "0.1.0")
+        _tracer = trace.get_tracer(service_name, __version__)
 
-        # Metrics
+        # Metrics — wired through PeriodicExportingMetricReader
         if use_grpc:
             _metric_exporter = OTLPMetricExporter(endpoint=endpoint, insecure=True)
         else:
             _metric_exporter = OTLPMetricExporter(endpoint=endpoint)
-        # TODO: wire _metric_exporter into PeriodicExportingMetricReader for production
-        _meter_provider = MeterProvider(resource=resource)
-        # Note: PeriodicExportingMetricReader requires additional setup in production
+
+        from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+        _metric_reader = PeriodicExportingMetricReader(_metric_exporter, export_interval_millis=60000)
+        _meter_provider = MeterProvider(resource=resource, metric_readers=[_metric_reader])
         metrics.set_meter_provider(_meter_provider)
-        _meter = metrics.get_meter(service_name, "0.1.0")
+        _meter = metrics.get_meter(service_name, __version__)
 
         logger.info(f"OpenTelemetry initialized — endpoint={endpoint}, grpc={use_grpc}")
         return True

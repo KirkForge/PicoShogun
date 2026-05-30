@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Daily SaaS gap worker — picks top task from backlog, executes, commits."""
 import re
+import shlex
 import subprocess
 from datetime import datetime
 from pathlib import Path
@@ -53,7 +54,6 @@ def update_task_status(content, task_id, new_status, note=""):
         updated = updated.replace("## Completed", f"## Completed\n{task_id}|{datetime.now().strftime('%Y-%m-%d')}|{new_status}|{note}")
     return updated
 
-import shlex
 
 def run_command(cmd, cwd=None, timeout=60):
     """Run shell command and return (success, output).

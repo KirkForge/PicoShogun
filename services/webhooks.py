@@ -122,14 +122,22 @@ class WebhookManager:
         self._load_webhooks()
         return True
 
-    def _sign_payload(self, payload: dict, secret: str) -> str:
-        """Generate HMAC-SHA256 signature for payload."""
+    def sign_payload(self, payload: dict, secret: str) -> str:
+        """Generate HMAC-SHA256 signature for a dict payload.
+
+        Serializes the payload to JSON with sorted keys, then signs.
+        For verifying incoming webhook signatures from raw bytes, use verify_signature().
+        """
         payload_json = json.dumps(payload, sort_keys=True)
         return hmac.new(
             secret.encode(),
             payload_json.encode(),
             hashlib.sha256
         ).hexdigest()
+
+    def _sign_payload(self, payload: dict, secret: str) -> str:
+        """Internal: sign a dict payload for outgoing webhooks."""
+        return self.sign_payload(payload, secret)
 
     def dispatch(self, event: str, payload: dict) -> list[dict]:
         """Dispatch event to all matching webhooks."""
@@ -184,7 +192,12 @@ class WebhookManager:
         return results
 
     def verify_signature(self, payload: bytes, signature: str, secret: str) -> bool:
-        """Verify incoming webhook signature using constant-time comparison."""
+        """Verify incoming webhook signature using constant-time comparison.
+
+        For raw bytes payloads (e.g. from incoming HTTP request bodies), pass the
+        raw body bytes. For dict payloads, use sign_payload() to generate the
+        expected signature instead.
+        """
         expected = hmac.new(
             secret.encode(),
             payload,

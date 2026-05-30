@@ -33,6 +33,8 @@ class ScheduledJob:
 class JobScheduler:
     """Job scheduler with cron expressions."""
 
+    ALLOWED_COMMANDS = {"batch", "run", "report", "backup", "cleanup"}
+
     def __init__(self):
         self.scheduler = sched.scheduler(time.time, time.sleep)
         self.jobs: dict[int, ScheduledJob] = {}
@@ -61,6 +63,15 @@ class JobScheduler:
     def add_job(self, name: str, cron: str, command: str,
                 params: dict = None, enabled: bool = True) -> int:
         """Add a new scheduled job."""
+        if command not in self.ALLOWED_COMMANDS:
+            raise ValueError(f"Invalid command: {command!r}. Must be one of {sorted(self.ALLOWED_COMMANDS)}")
+
+        # Sanitize params: only allow primitive JSON-safe types
+        if params:
+            for key, value in params.items():
+                if not isinstance(value, (str, int, float, bool, type(None))):
+                    raise ValueError(f"Invalid param {key!r}: values must be strings, numbers, or booleans")
+
         params_json = json.dumps(params or {})
 
         job_id = db.execute_insert("""
@@ -143,10 +154,31 @@ class JobScheduler:
         try:
             status = "failed"
 
+            # Reject unknown commands at execution time as well
+            if job.command not in self.ALLOWED_COMMANDS:
+                logger.error(f"Rejected unknown command: {job.command!r}")
+                db.execute_insert("""
+                    UPDATE scheduled_jobs
+                    SET last_run = ?, last_status = 'rejected'
+                    WHERE id = ?
+                """, (datetime.now(), job_id))
+                return
+
             if job.command == "batch":
                 import subprocess
+                category = str(job.params.get("category", "monitoring"))
+                # Reject categories with path separators or shell metacharacters
+                _unsafe_chars = set("/\\;&$`()" )
+                if any(c in _unsafe_chars for c in category) or "\n" in category or "\r" in category:
+                    logger.error(f"Rejected unsafe category param: {category!r}")
+                    db.execute_insert("""
+                        UPDATE scheduled_jobs
+                        SET last_run = ?, last_status = 'rejected'
+                        WHERE id = ?
+                    """, (datetime.now(), job_id))
+                    return
                 result = subprocess.run(
-                    ["bash", "scripts/run_category.sh", job.params.get("category", "monitoring")],
+                    ["bash", "scripts/run_category.sh", category],
                     capture_output=True,
                     text=True,
                     timeout=3600
@@ -174,6 +206,17 @@ class JobScheduler:
                 result = bm.create_backup()
                 status = "completed" if result else "failed"
                 _output = str(result)
+
+            elif job.command == "cleanup":
+                from services.auth import AuthService
+                auth = AuthService()
+                expired = auth.cleanup_expired_keys()
+                from services.log_manager import log_manager
+                log_manager.auto_rotate()
+                from services.audit_cleanup import purge_audit_logs
+                purge_audit_logs()
+                status = "completed"
+                _output = f"Cleaned up {expired} expired API keys, rotated logs, purged audit entries"
 
             # Update job status
             db.execute_insert("""

@@ -28,6 +28,7 @@ from pydantic import BaseModel, Field
 
 from config.logging_config import configure_logging
 from config.settings import settings
+from config.version import __version__
 from database.manager import db
 from middleware.audit import AuditMiddleware
 from middleware.cors_hardening import CORSHardeningMiddleware
@@ -82,7 +83,7 @@ async def lifespan(app: FastAPI):
     Starts: structured logging, OpenTelemetry, scheduler, anomaly detector.
     Stops: scheduler, anomaly detector, event bus, plugin manager, DB connections.
     """
-    logger.info("PicoShogun starting up — version 0.1.0")
+    logger.info(f"PicoShogun starting up — version {__version__}")
 
     # Enforce secure configuration — refuse to start with insecure defaults in production
     settings.assert_secure()
@@ -113,6 +114,15 @@ async def lifespan(app: FastAPI):
     if expired_count:
         logger.info("Startup: deactivated %d expired API key(s)", expired_count)
 
+    # Schedule periodic cleanup: API keys, logs, audit entries every 6 hours
+    scheduler.add_job(
+        name="periodic_cleanup",
+        cron="0 */6 * * *",
+        command="cleanup",
+        params={},
+        enabled=True,
+    )
+
     yield  # Application is running
 
     # ── Graceful shutdown ──
@@ -128,7 +138,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="PicoShogun Command Centre API",
     description="Command centre for the Pico Security Series",
-    version="0.1.0",
+    version=__version__,
     docs_url=settings.api.docs_url,
     redoc_url=settings.api.redoc_url,
     lifespan=lifespan,
@@ -169,6 +179,7 @@ app.add_middleware(
     max_requests_per_ip=100,
     max_requests_per_org=1000,
     window=60,
+    persist=settings.is_production(),
 )
 app.add_middleware(
     CORSMiddleware,
@@ -187,7 +198,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RequestTimeoutMiddleware, timeout_seconds=30)
 app.add_middleware(HTTPSEnforcementMiddleware, enabled=settings.is_production())
 app.add_middleware(DocsRestrictionMiddleware, enabled=settings.is_production())
-app.add_middleware(CORSHardeningMiddleware, block_wildcard_in_production=False)
+app.add_middleware(CORSHardeningMiddleware, block_wildcard_in_production=settings.is_production())
 
 # ─── Pydantic Models ──────────────────────────────────────────────────────
 
@@ -257,8 +268,23 @@ class HealthCheck(BaseModel):
 
 class HealthReadiness(BaseModel):
     overall: str  # healthy | degraded | critical
-    checks: list[HealthCheck]
-    timestamp: datetime
+    checks: list[HealthCheck] = []
+    timestamp: datetime | None = None
+
+class WebhookCreateRequest(BaseModel):
+    """Validated request model for creating webhooks."""
+    url: str = Field(..., description="Webhook callback URL (HTTPS recommended)")
+    events: list[str] = Field(default=["*"], description="Event types to subscribe to")
+    name: str = Field(default="default", min_length=1, max_length=100, description="Webhook name")
+    secret: str | None = Field(default=None, min_length=16, max_length=128, description="HMAC signing secret")
+
+class SchedulerJobCreateRequest(BaseModel):
+    """Validated request model for creating scheduler jobs."""
+    name: str = Field(..., min_length=1, max_length=200, description="Job name")
+    cron: str = Field(..., min_length=1, description="Cron expression or 'every N minute/hour/day'")
+    command: str = Field(..., description="Job command: batch, run, report, backup, cleanup")
+    params: dict = Field(default={}, description="Job parameters (strings, numbers, booleans only)")
+    enabled: bool = Field(default=True, description="Whether the job is active")
 
 # ─── Authentication ───────────────────────────────────────────────────────
 
@@ -348,7 +374,7 @@ async def root():
     try:
         return html_path.read_text(encoding="utf-8")
     except Exception:
-        return {"service": "PicoShogun API", "version": "0.1.0", "status": "operational", "timestamp": datetime.now(timezone.utc).isoformat()}
+        return {"service": "PicoShogun API", "version": __version__, "status": "operational", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 @app.get("/dashboard", tags=["Dashboard"], response_class=HTMLResponse)
 async def dashboard():
@@ -673,16 +699,15 @@ async def list_webhooks(user: dict = Depends(get_current_user)):
 
 @app.post("/webhooks", tags=["Webhooks"])
 async def create_webhook(
-    request: dict,
+    request: WebhookCreateRequest,
     user: dict = Depends(require_role("operator")),
 ):
-    url = request.get("url")
-    events = request.get("events", ["*"])
-    secret = request.get("secret")
-    name = request.get("name", "default")
     try:
-        webhook_id = webhook_manager.create(name=name, url=url, events=events, secret=secret)
-        return {"id": webhook_id, "url": url, "events": events}
+        webhook_id = webhook_manager.create(
+            name=request.name, url=request.url,
+            events=request.events, secret=request.secret,
+        )
+        return {"id": webhook_id, "url": request.url, "events": request.events}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from None
 
@@ -694,19 +719,19 @@ async def list_scheduler_jobs(user: dict = Depends(get_current_user)):
 
 @app.post("/scheduler/jobs", tags=["Scheduler"])
 async def create_scheduler_job(
-    request: dict,
+    request: SchedulerJobCreateRequest,
     user: dict = Depends(require_role("operator")),
 ):
     try:
         job_id = scheduler.add_job(
-            name=request.get("name", "unnamed"),
-            cron=request.get("cron", "*/5 * * * *"),
-            command=request.get("command", "batch"),
-            params=request.get("params", {}),
-            enabled=request.get("enabled", True)
+            name=request.name,
+            cron=request.cron,
+            command=request.command,
+            params=request.params,
+            enabled=request.enabled,
         )
         return {"job_id": job_id, "status": "scheduled"}
-    except Exception as e:
+    except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from None
 
 @app.patch("/scheduler/jobs/{job_id}/enable", tags=["Scheduler"])
@@ -1008,10 +1033,14 @@ async def create_scan(
 
 @api_v1.get("/scans/rules", tags=["Scans"])
 async def list_scan_rules(user: dict = Depends(get_current_user)):
-    """List available L2 supply chain scanner rules."""
-    from pico_dome.L2_validation.engine import create_default_engine as _create_engine
-    engine = _create_engine()
-    return {"rules": engine.list_rules()}
+    """List available L2 supply chain scanner rules.
+
+    Requires the picodome package: pip install picodome
+    """
+    raise HTTPException(
+        status_code=501,
+        detail="L2 scan rules require the picodome package. Install with: pip install picodome",
+    )
 
 # ─── L3 Sandbox Endpoints ─────────────────────────────────────────────────
 
@@ -1036,49 +1065,25 @@ async def run_sandbox(
     request: SandboxRunRequest,
     user: dict = Depends(require_role("operator"))
 ):
-    """Run a command under L3 sandbox policy."""
-    from pathlib import Path as _Path
+    """Run a command under L3 sandbox policy.
 
-    from pico_dome.L3_execution.engine import sandbox_run
-    from pico_dome.L3_execution.policy_loader import load_policy as _load_policy
-
-    policy = _load_policy(
-        _Path(request.policy_file) if request.policy_file else None
-    )
-
-    result = sandbox_run(
-        command=request.command,
-        policy=policy,
-        timeout=request.timeout,
-    )
-
-    return SandboxRunResponse(
-        run_id=result.run_id,
-        timestamp=result.timestamp,
-        command=result.command,
-        overall_verdict=result.overall_verdict.value,
-        exit_code=result.exit_code,
-        duration_ms=result.duration_ms,
-        events=[
-            {
-                "rule_id": e.rule_id.value if hasattr(e.rule_id, "value") else str(e.rule_id),
-                "verdict": e.verdict.value,
-                "operation": e.operation,
-                "detail": e.detail,
-                "path": e.path,
-                "address": e.address,
-            }
-            for e in result.events
-        ],
-        policy_name=policy.name,
+    Requires the picodome package: pip install picodome
+    """
+    raise HTTPException(
+        status_code=501,
+        detail="L3 sandbox endpoint requires the picodome package. Install with: pip install picodome",
     )
 
 @api_v1.get("/sandboxes/policies/default", tags=["Sandbox"])
 async def get_default_policy(user: dict = Depends(get_current_user)):
-    """Get the default L3 sandbox policy."""
-    from pico_dome.L3_execution.policy_loader import load_policy as _load_policy
-    policy = _load_policy()
-    return policy.to_dict()
+    """Get the default L3 sandbox policy.
+
+    Requires the picodome package: pip install picodome
+    """
+    raise HTTPException(
+        status_code=501,
+        detail="L3 sandbox policy requires the picodome package. Install with: pip install picodome",
+    )
 
 # ─── Mount v1 router ─────────────────────────────────────────────────────
 app.include_router(api_v1)

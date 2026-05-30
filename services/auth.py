@@ -62,11 +62,11 @@ class AuthService:
         )
 
         if not user:
-            logger.warning(f"Auth failed: user {username} not found")
+            logger.warning("Auth failed: user not found")
             return None
 
         if not self._verify_password(password, user["password_hash"]):
-            logger.warning(f"Auth failed: invalid password for {username}")
+            logger.warning("Auth failed: invalid password")
             return None
 
         # Update last login

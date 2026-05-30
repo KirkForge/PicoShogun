@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from config.settings import settings
+from config.version import __version__
 
 logger = logging.getLogger("picoshogun.Backup")
 
@@ -37,7 +38,7 @@ class BackupManager:
 
             # Create metadata
             meta = {
-                "version": "0.1.0",
+                "version": __version__,
                 "created": datetime.now(timezone.utc).isoformat(),
                 "database_size": db_backup.stat().st_size,
                 "include_logs": include_logs

@@ -1,3 +1,2 @@
 """PicoShogun — command centre for the Pico Security Series."""
-__version__ = "0.1.0"
-
+from config.version import __version__  # noqa: F401

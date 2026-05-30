@@ -1,21 +1,22 @@
-"""DDoS Shield middleware — wraps AdaptiveRateLimiter for FastAPI."""
-import time
+"""DDoS Shield middleware — placeholder until picodome is installed.
+
+The L1 Perimeter DDoS shield was part of the vendored pico_dome package.
+Install picodome to restore this middleware: pip install picodome
+"""
+import logging
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import JSONResponse
 
-from pico_dome.L1_perimeter.ddos_shield import limiter
+logger = logging.getLogger("picoshogun.DDoSShield")
 
 
 class DDoSShieldMiddleware(BaseHTTPMiddleware):
-    """
-    Adaptive DDoS protection middleware.
+    """Pass-through DDoS shield placeholder.
 
-    Integrates the L1 Perimeter shield into FastAPI:
-    - Trust scoring per client IP
-    - Graduated response: allow → delay → challenge → block
-    - Reports 4xx/5xx errors back to shield for trust decay
+    When picodome is installed, this wraps the L1 Perimeter adaptive
+    rate limiter. Without it, requests pass through unfiltered — rely
+    on the standard RateLimitMiddleware instead.
     """
 
     def __init__(self, app, enabled: bool = True):
@@ -26,40 +27,5 @@ class DDoSShieldMiddleware(BaseHTTPMiddleware):
         if not self.enabled:
             return await call_next(request)
 
-        client_ip = request.client.host if request.client else "unknown"
-        path = request.url.path
-        method = request.method
-        user_agent = request.headers.get("user-agent", "")
-
-        # Check with shield
-        action, delay, challenge_type = limiter.check_request(
-            ip=client_ip,
-            path=path,
-            method=method,
-            user_agent=user_agent
-        )
-
-        if action == "block":
-            return JSONResponse(
-                {"error": "Request blocked — suspicious activity detected"},
-                status_code=403
-            )
-
-        elif action == "challenge":
-            return JSONResponse(
-                {"error": "Challenge required", "type": challenge_type},
-                status_code=429,
-                headers={"Retry-After": "60"}
-            )
-
-        elif action == "delay" and delay:
-            time.sleep(delay)
-
-        # Process request
-        response = await call_next(request)
-
-        # Report errors back to shield
-        if response.status_code >= 400:
-            limiter.report_error(client_ip, response.status_code)
-
-        return response
+        # Pass-through: DDoS shielding requires the picodome package
+        return await call_next(request)
