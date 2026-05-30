@@ -36,6 +36,8 @@ def _parse_cors_origins() -> list[str]:
 
 @dataclass
 class DatabaseConfig:
+    backend: str = field(default_factory=lambda: _env("DATABASE_BACKEND", "sqlite"))
+    url: str = field(default_factory=lambda: _env("DATABASE_URL", ""))
     path: Path = BASE_DIR / "picoshogun.db"
     backup_dir: Path = BASE_DIR / "backups"
     max_connections: int = 10

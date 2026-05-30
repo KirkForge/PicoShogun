@@ -6,6 +6,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from services.auth import AuthService
 from services.orgs import Organization
+from services.rbac import Permission, has_permission
 
 logger = logging.getLogger("picoshogun.deps")
 
@@ -42,6 +43,25 @@ def require_role(required: str):
             )
         return user
     return _check_role
+
+
+def require_permission(permission: Permission):
+    """FastAPI dependency that enforces a specific RBAC permission.
+
+    This is more granular than require_role — it checks explicit
+    role→permission mappings from the RBAC policy engine.
+
+    Usage: user: dict = Depends(require_permission(Permission.RUN_PROJECTS))
+    """
+    async def _check_permission(user: dict = Depends(get_current_user)):
+        if not has_permission(user, permission):
+            role = user.get("role", "viewer")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Requires permission: {permission.value} (role: {role})",
+            )
+        return user
+    return _check_permission
 
 
 async def get_current_org(

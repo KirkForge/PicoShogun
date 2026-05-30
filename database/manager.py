@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 from config.settings import settings
+from database.pools import SQLitePool, create_pool
 
 
 # ─── Python 3.12+ datetime adapter ─────────────────────────────────────
@@ -291,41 +292,41 @@ MIGRATIONS = [
 
 
 class DatabaseManager:
-    """Thread-safe database manager with connection pooling."""
+    """Thread-safe database manager with connection pooling.
 
-    def __init__(self, db_path: Path | None = None):
-        self.db_path = db_path or settings.database.path
-        self._local = threading.local()
-        self._lock = threading.Lock()
-        self._ensure_dir()
+    Uses SQLitePool by default. Switch to PostgresPool by setting
+    PICOSHOGUN_DATABASE_BACKEND=postgres and PICOSHOGUN_DATABASE_URL.
+    """
+
+    def __init__(self, db_path: Path | None = None, backend: str | None = None):
+        self._backend = backend or settings.database.backend
+        self._pool = create_pool(backend=self._backend, db_path=db_path)
+        self._lock = self._pool.lock() if isinstance(self._pool, SQLitePool) else threading.Lock()
         self._init_migrations()
 
-    def _ensure_dir(self):
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+    @property
+    def db_path(self) -> Path:
+        """Database path (SQLite only). Returns Path('') for other backends."""
+        if isinstance(self._pool, SQLitePool):
+            return self._pool.db_path
+        return Path("")
 
-    def _get_connection(self) -> sqlite3.Connection:
-        if not hasattr(self._local, "conn") or self._local.conn is None:
-            self._local.conn = sqlite3.connect(
-                str(self.db_path),
-                timeout=settings.database.timeout,
-                check_same_thread=False,
-                detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
-            )
-            # WAL mode + sane defaults from config
-            journal = settings.database.journal_mode.upper()
-            sync_level = settings.database.synchronous.upper()
-            self._local.conn.execute(f"PRAGMA journal_mode={journal}")
-            self._local.conn.execute(f"PRAGMA synchronous={sync_level}")
-            # Auto-checkpoint at configured threshold (WAL only)
-            if journal == "WAL":
-                threshold = settings.database.wal_checkpoint_threshold
-                self._local.conn.execute(f"PRAGMA wal_autocheckpoint={threshold}")
-            self._local.conn.row_factory = sqlite3.Row
-        return self._local.conn
+    @property
+    def backend(self) -> str:
+        """Active database backend ('sqlite' or 'postgres')."""
+        return self._backend
+
+    def _get_connection(self):
+        """Get a connection from the pool."""
+        return self._pool.acquire()
 
     @contextmanager
     def transaction(self):
-        """Context manager for database transactions."""
+        """Context manager for database transactions.
+
+        Yields the connection so callers can execute statements
+        directly on it (e.g. ``with db.transaction() as conn:``).
+        """
         conn = self._get_connection()
         try:
             conn.execute("BEGIN")
@@ -335,14 +336,14 @@ class DatabaseManager:
             conn.rollback()
             raise
 
-    def execute(self, sql: str, params: tuple = ()) -> list[sqlite3.Row]:
+    def execute(self, sql: str, params: tuple = ()) -> list:
         """Execute SQL and return results."""
         with self._lock:
             conn = self._get_connection()
             cursor = conn.execute(sql, params)
             return cursor.fetchall()
 
-    def execute_one(self, sql: str, params: tuple = ()) -> sqlite3.Row | None:
+    def execute_one(self, sql: str, params: tuple = ()) -> dict | None:
         """Execute SQL and return first result."""
         results = self.execute(sql, params)
         return results[0] if results else None
@@ -392,27 +393,22 @@ class DatabaseManager:
                 logger.info(f"Migration {migration.version} applied")
 
     def backup(self) -> Path:
-        """Create a backup of the database."""
+        """Create a backup of the database (SQLite only)."""
         backup_dir = settings.database.backup_dir
         backup_dir.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_path = backup_dir / f"picoshogun_{timestamp}.db"
 
-        with self._lock:
-            source = sqlite3.connect(str(self.db_path))
-            dest = sqlite3.connect(str(backup_path))
-            source.backup(dest)
-            dest.close()
-            source.close()
-
-        logger.info(f"Database backed up to {backup_path}")
+        if isinstance(self._pool, SQLitePool):
+            self._pool.backup(backup_path)
+            logger.info(f"Database backed up to {backup_path}")
+        else:
+            logger.warning("Backup is only supported for SQLite backend. Use pg_dump for Postgres.")
         return backup_path
 
     def close(self):
-        """Close all connections."""
-        if hasattr(self._local, "conn") and self._local.conn:
-            self._local.conn.close()
-            self._local.conn = None
+        """Close all connections in the pool."""
+        self._pool.close_all()
 
 # Global instance
 db = DatabaseManager()

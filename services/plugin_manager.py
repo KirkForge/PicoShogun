@@ -6,9 +6,9 @@ before loading: entry_point must be a simple Python identifier (no dots,
 no path separators), and hooks must be from the known whitelist. Arbitrary
 code execution via path traversal or importlib abuse is prevented.
 
-For production deployments with untrusted plugins, signed manifests
-(SHA-256 checksum of the entry module + Ed25519 signature) should be
-added. See GAPS.md P2 #12.
+For production deployments, manifests can be Ed25519-signed to verify
+plugin authenticity. Set PICOSHOGUN_REQUIRE_SIGNED_PLUGINS=1 to enforce
+signature verification.
 """
 import hashlib
 import importlib
@@ -20,6 +20,16 @@ import re
 import sys
 from dataclasses import dataclass
 from typing import Any
+
+# Ed25519 signature support — lazy-imported to avoid hard dependency
+HAS_NACL = False
+try:
+    import nacl.exceptions  # noqa: F401
+    import nacl.signing  # noqa: F401
+    HAS_NACL = True
+except ImportError:
+    pass
+
 
 logger = logging.getLogger("picoshogun.Plugins")
 
@@ -46,6 +56,9 @@ class PluginMetadata:
     entry_point: str
     hooks: list[str]
     dependencies: list[str]
+    public_key: str | None = None
+    signature: str | None = None
+    signed: bool = False
 
 
 class PluginInterface:
@@ -145,6 +158,56 @@ class PluginManager:
 
         return issues
 
+    @staticmethod
+    def _compute_manifest_signature_content(meta: dict, module_checksum: str) -> str:
+        """Compute the canonical content to sign/verify for a plugin manifest.
+
+        The signed content includes the manifest name, version, entry_point,
+        hooks, and the SHA-256 checksum of the entry module. This ensures
+        both the manifest and code are verified.
+        """
+        hooks = meta.get("hooks", [])
+        return json.dumps({
+            "name": meta.get("name", ""),
+            "version": meta.get("version", ""),
+            "entry_point": meta.get("entry_point", ""),
+            "hooks": sorted(hooks) if isinstance(hooks, list) else [],
+            "module_sha256": module_checksum,
+        }, sort_keys=True, separators=(",", ":"))
+
+    @staticmethod
+    def verify_manifest_signature(meta: dict, module_checksum: str,
+                                  signature_hex: str, public_key_hex: str) -> bool:
+        """Verify an Ed25519 signature on a plugin manifest.
+
+        Args:
+            meta: The parsed plugin.json manifest dict.
+            module_checksum: SHA-256 hex digest of the entry module file.
+            signature_hex: Hex-encoded Ed25519 signature.
+            public_key_hex: Hex-encoded Ed25519 public key.
+
+        Returns:
+            True if signature is valid, False otherwise.
+        """
+        if not HAS_NACL:
+            logger.warning("pynacl not installed — cannot verify Ed25519 signatures")
+            return False
+
+        try:
+            from nacl.exceptions import BadSignatureError
+            from nacl.signing import VerifyKey
+
+            verify_key = VerifyKey(bytes.fromhex(public_key_hex))
+            message = PluginManager._compute_manifest_signature_content(meta, module_checksum)
+            verify_key.verify(message.encode(), bytes.fromhex(signature_hex))
+            return True
+        except BadSignatureError:
+            logger.warning("Ed25519 signature verification failed: BadSignatureError")
+            return False
+        except Exception as e:
+            logger.warning(f"Ed25519 signature verification failed: {e}")
+            return False
+
     def _load_plugins(self):
         """Discover and load all plugins from plugin directory."""
         if not os.path.exists(self.plugin_dir):
@@ -183,14 +246,38 @@ class PluginManager:
         name = meta["name"]
         entry = meta["entry_point"]
 
-        # Compute expected module checksum for audit logging
+        # Compute full module checksum for signature verification
         module_file = os.path.join(path, f"{entry}.py")
+        module_checksum = ""
         if os.path.exists(module_file):
             with open(module_file, "rb") as f:
-                checksum = hashlib.sha256(f.read()).hexdigest()[:16]
-            logger.info(f"Plugin '{name}' entry module checksum: sha256:{checksum}")
+                module_checksum = hashlib.sha256(f.read()).hexdigest()
+            logger.info(f"Plugin '{name}' entry module checksum: sha256:{module_checksum[:16]}")
         else:
             logger.warning(f"Plugin '{name}' entry module not found at {module_file}")
+
+        # Ed25519 signature verification
+        require_signed = os.environ.get("PICOSHOGUN_REQUIRE_SIGNED_PLUGINS", "").lower() in ("1", "true", "yes")
+        sig_hex = meta.get("signature")
+        pub_key_hex = meta.get("public_key")
+
+        if require_signed:
+            if not sig_hex or not pub_key_hex:
+                logger.error(f"Plugin '{name}': PICOSHOGUN_REQUIRE_SIGNED_PLUGINS=1 but no signature/public_key in manifest")
+                return
+            if not module_checksum:
+                logger.error(f"Plugin '{name}': cannot verify signature — entry module not found")
+                return
+            if not self.verify_manifest_signature(meta, module_checksum, sig_hex, pub_key_hex):
+                logger.error(f"Plugin '{name}': Ed25519 signature verification FAILED — refusing to load")
+                return
+            logger.info(f"Plugin '{name}': Ed25519 signature verified")
+        elif sig_hex and pub_key_hex and module_checksum and HAS_NACL:
+            # Optional: verify if signature is present but not required
+            if self.verify_manifest_signature(meta, module_checksum, sig_hex, pub_key_hex):
+                logger.info(f"Plugin '{name}': Ed25519 signature verified (optional)")
+            else:
+                logger.warning(f"Plugin '{name}': Ed25519 signature present but INVALID — loading anyway (not required)")
 
         # Add plugin path to sys.path (scoped — removed in finally)
         sys.path.insert(0, path)
@@ -222,6 +309,9 @@ class PluginManager:
                     entry_point=entry,
                     hooks=meta.get("hooks", []),
                     dependencies=meta.get("dependencies", []),
+                    public_key=pub_key_hex if meta.get("public_key") else None,
+                    signature=sig_hex if meta.get("signature") else None,
+                    signed=require_signed or bool(sig_hex and pub_key_hex),
                 )
 
                 # Register hooks (only validated ones)

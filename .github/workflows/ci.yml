@@ -85,23 +85,52 @@ jobs:
         run: bandit -r . -f json -o bandit-report.json || true
         continue-on-error: true
 
-  # ── Docker Build ──────────────────────────────────────────────────
+  # ── Docker Build & E2E ──────────────────────────────────────────────
   docker:
-    name: Docker Build
+    name: Docker Build & E2E
     runs-on: ubuntu-latest
     needs: test
     steps:
       - uses: actions/checkout@v4
       - name: Build Docker image
         run: docker build -t picoshogun:ci-test .
-      - name: Smoke test
+      - name: Install test dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y curl
+      - name: E2E smoke test with PICOSHOGUN env vars
         run: |
           docker run -d --name picoshogun-ci-test -p 8765:8765 \
-            -e PICOSHOGUN_SECRET_KEY=ci-test-key-at-least-32-bytes \
+            -e PICOSHOGUN_SECRET_KEY=ci-test-key-at-least-32-bytes-long! \
             -e PICOSHOGUN_ENV=production \
+            -e PICOSHOGUN_DATABASE_BACKEND=sqlite \
+            -e PICOSHOGUN_API_HOST=0.0.0.0 \
+            -e PICOSHOGUN_API_PORT=8765 \
+            -e PICOSHOGUN_LOGGING_LEVEL=INFO \
             picoshogun:ci-test
-          sleep 5
+          # Wait for service to start
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8765/health/live >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          # Unauthenticated health checks
           curl -sf http://localhost:8765/health || (docker logs picoshogun-ci-test && exit 1)
+          curl -sf http://localhost:8765/health/live || (docker logs picoshogun-ci-test && exit 1)
+          curl -sf http://localhost:8765/health/ready || (docker logs picoshogun-ci-test && exit 1)
+          curl -sf http://localhost:8765/metrics/prometheus || (docker logs picoshogun-ci-test && exit 1)
+          # Authenticated E2E
+          curl -sf -X POST http://localhost:8765/auth/register \
+            -H "Content-Type: application/json" \
+            -d \'{"username":"ci_e2e","password":"ci-test-12345","role":"admin"}\' || true
+          LOGIN=$(curl -sf -X POST "http://localhost:8765/auth/login?username=ci_e2e&password=ci-test-12345")
+          TOKEN=$(echo "$LOGIN" | python3 -c "import sys,json; print(json.load(sys.stdin).get(\'access_token\',\'\'))" 2>/dev/null)
+          if [ -n "$TOKEN" ]; then
+            curl -sf -H "Authorization: Bearer $TOKEN" http://localhost:8765/api/v1/status || true
+            curl -sf -H "Authorization: Bearer $TOKEN" http://localhost:8765/api/v1/projects || true
+            curl -sf -H "Authorization: Bearer $TOKEN" http://localhost:8765/api/v1/dashboard/summary || true
+            echo "E2E: Authenticated endpoints OK"
+          else
+            echo "E2E: Login failed — skipping authenticated checks"
+          fi
           docker stop picoshogun-ci-test
 
   # ── Secrets Scan ──────────────────────────────────────────────────

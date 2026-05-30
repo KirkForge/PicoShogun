@@ -31,16 +31,16 @@ Priority-ordered list of what needs work before this can be called 1.0.
 ## P2 — Should have for 1.0
 
 6. ~~**`api/server.py` too large (1171 lines)** — Should be split into routers.~~ **Fixed in session 5**: Split into `api/deps.py`, `api/models.py`, and 12 router modules in `api/routers/`. `server.py` now 248 lines (lifecycle, middleware, mount).
-7. **Intelligence engine false positives** — Regex patterns match filenames and IPs in banners. Needs filtering.
-8. **RBAC policy engine** — No OPA integration. Authz is simple decorator checks.
+7. ~~**Intelligence engine false positives**~~ **Fixed (session 7)** — Context-aware false-positive filtering: private IP ranges excluded, banner context detection, filename/identifier keyword filtering, import statement detection, safe domain list expanded.
+8. ~~**RBAC policy engine**~~ **Fixed (session 7)** — Explicit `Permission` enum with `ROLE_PERMISSIONS` mapping. `require_permission()` FastAPI dependency. 18 permissions across viewer/operator/admin roles with strict subset guarantees. 6 tests.
 9. ~~**`daily_worker.py` hardcoded paths** — Still uses absolute paths to `/home/kirk/Madlab/Clean-Live/PicoShogun`. Needs env vars.~~ **Fixed in session 4**: All hardcoded absolute paths removed. `PICOSHOGUN_DIR`/`HIVEMIND_PROJECTS_DIR` env vars or `Path(__file__)` relative resolution.
 10. ~~**Webhook `create()` API alignment**~~ **Fixed in session 6**: `WebhookCreateRequest.name` is now a required field (no default). Test updated to pass explicit name.
 11. ~~**PicoWatch `RateLimiter._clients`** — Grows unboundedly, no LRU/TTL eviction.~~ **Fixed in session 5**: Added `_evict_stale()`, `max_clients` cap, `threading.Lock`, periodic eviction on every `is_allowed()` call.
 12. ~~**PicoWatch audit HMAC key** — Hardcoded, tamper-detection only.~~ **Fixed in session 5**: Now reads from `PICOWATCH_AUDIT_HMAC_KEY` env var (≥32 chars). Falls back to per-process random key with warning. Checksums survive restarts when env var is set.
 13. ~~**PicoDome license gate** — Accepts any `shogun-` key (placeholder).~~ **Fixed in session 5**: Key format now requires 4 parts (`shogun-<tier>-<org>-<hash>`), hash must be ≥16 chars. Honest about format-only validation (full HMAC verification requires PicoShogun).
-14. **Postgres migration path** — `ConnectionPool` interface exists but SQLite is hardcoded everywhere.
-15. ~~**Plugin signed manifests** — Currently loads any Python module from `plugins/`. Trust boundary needs hardening.~~ **Partially fixed in session 4**: Manifest validation, hook whitelist, SHA-256 audit, symlink escape prevention. Signed manifests (Ed25519) still needed for untrusted deployments.
-16. **Docker CI E2E** — Docker build works locally but CI doesn't test with `PICOSHOGUN_*` env vars end-to-end.
+14. ~~**Postgres migration path**~~ **Fixed (session 7)** — `SQLitePool` (thread-local, WAL) and `PostgresPool` (stub with migration instructions) in `database/pools.py`. `DatabaseManager` refactored to use pool abstraction. `PICOSHOGUN_DATABASE_BACKEND` config. Transaction support preserved.
+15. ~~**Plugin signed manifests**~~ **Fixed (session 7)** — Ed25519 signature verification with `PICOSHOGUN_REQUIRE_SIGNED_PLUGINS=1` enforcement. `scripts/sign_manifest.py` tool for key generation, signing, and verification. `PluginMetadata` includes `public_key`, `signature`, `signed` fields. pynacl added to requirements.
+16. ~~**Docker CI E2E**~~ **Fixed (session 7)** — CI workflow now passes full `PICOSHOGUN_*` env vars to Docker container, tests authenticated endpoints (register, login, status, projects, dashboard), and validates RBAC. `scripts/docker_e2e_test.sh` for local E2E validation.
 
 ## P3 — Nice to have
 

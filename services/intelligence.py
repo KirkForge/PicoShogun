@@ -33,7 +33,35 @@ class IntelligenceEngine:
     }
 
     # Known-safe patterns to exclude from matches
+    # Simple pattern for fast private-IP check (avoid importing ipaddress in hot path)
+    _SIMPLE_IPV4_RE = re.compile(
+        r"(?<![a-zA-Z0-9._-])(?:(?:25[0-5]|2[0-4]\d|1\d\d|\d{1,2})\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|\d{1,2})(?![a-zA-Z0-9._-])"
+    )
+
     SAFE_IPS = {"0.0.0.0", "127.0.0.1", "127.0.1.1", "255.255.255.255", "::1", "localhost"}
+
+    # Private/reserved IP ranges — not threat indicators
+    PRIVATE_IP_PREFIXES = frozenset({
+        "10.", "172.16.", "172.17.", "172.18.", "172.19.", "172.20.", "172.21.",
+        "172.22.", "172.23.", "172.24.", "172.25.", "172.26.", "172.27.", "172.28.",
+        "172.29.", "172.30.", "172.31.", "192.168.", "169.254.",
+    })
+
+    # Server banner patterns — IPs/domains inside these are informational, not threats
+    BANNER_PATTERNS = [
+        re.compile(r"SSH-[\d.]+-", re.IGNORECASE),
+        re.compile(r"(?:Apache|nginx|Postfix|Dovecot|ProFTPD|vsFTPd|OpenSSH|Dnsmasq)/[\d.]+", re.IGNORECASE),
+        re.compile(r"^Server:\s", re.IGNORECASE),
+        re.compile(r"(?:running|powered|built)\s+(?:on|with|using)\s", re.IGNORECASE),
+    ]
+
+    # Extensions that indicate a filename, not a keyword match
+    FILENAME_EXTENSIONS = frozenset({
+        ".py", ".js", ".ts", ".rb", ".go", ".rs", ".java", ".c", ".cpp", ".h",
+        ".sh", ".bash", ".zsh", ".yml", ".yaml", ".json", ".toml", ".xml",
+        ".html", ".css", ".md", ".txt", ".cfg", ".ini", ".conf", ".log",
+        ".sql", ".proto", ".tf", ".dockerfile",
+    })
     SAFE_DOMAINS = {
         "github.com", "gitlab.com", "bitbucket.org", "docker.com", "dockerhub.com",
         "pypi.org", "npmjs.com", "godotengine.org", "unity.com", "unrealengine.com",
@@ -129,37 +157,96 @@ class IntelligenceEngine:
 
     def _is_inside_path(self, text: str, match_start: int, match_end: int) -> bool:
         """Check if a match is inside a file path (e.g., /home/user/project.py)."""
-        # Look for path separators around the match
-        before = text[max(0, match_start - 50):match_start]
-        # Check for file extension after match
-        # If there's a / or \ within 20 chars before and .py or similar after
-        if '/' in before[-20:] or '\\' in before[-20:]:
-            return True
-        # If match ends with .com, .io, etc and is preceded by a known module name
-        match_text = text[match_start:match_end].lower()
-        return any(match_text.startswith(mod + '.') for mod in self.MODULE_FALSE_POSITIVES)
+        before = text[max(0, match_start - 80):match_start]
+        after = text[match_end:min(len(text), match_end + 40)]
+
+        # Path separators before the match
+        if '/' in before[-30:] or '\\' in before[-30:]:
+            # But check it's not a URL (http:// etc)
+            stripped_before = before.rstrip()
+            if not stripped_before.endswith(("://", ":\\", "http:", "https:", "ftp:")):
+                return True
+
+        # Filename extension after the match (e.g., "scan_activity.py")
+        for ext in self.FILENAME_EXTENSIONS:
+            if after.startswith(ext) or after.lower().startswith(ext):
+                return True
+
+        # Import statement before match
+        stripped = before.lstrip()
+        return stripped.startswith(("import ", "from ", "require(", "include(", "#include"))
 
     def _is_inside_quotes(self, text: str, match_start: int, match_end: int) -> bool:
-        """Check if match is inside a quoted string."""
-        # Simple heuristic: count quotes before match
+        """Check if match is inside a quoted string (import/require/code context)."""
         before = text[:match_start]
+        # Walk backwards to find the nearest opening quote
         single_quotes = before.count("'")
         double_quotes = before.count('"')
-        # Odd number of unescaped quotes suggests we're inside a string
-        # This is imperfect but catches most cases
         return (single_quotes % 2 == 1) or (double_quotes % 2 == 1)
 
+    def _is_in_banner_context(self, text: str, match_start: int) -> bool:
+        """Check if the match appears inside a service banner (informational, not a threat)."""
+        # Check 120 chars before the match for banner-like patterns
+        before = text[max(0, match_start - 120):match_start]
+        line_start = before.rfind("\n") + 1
+        line_before = before[line_start:]
+
+        for banner_re in self.BANNER_PATTERNS:
+            if banner_re.search(line_before):
+                return True
+
+        # Also check: is this on a line that looks like a version/banner string?
+        line = line_before.strip()
+        # "Something 1.2.3" looks like a version string
+        return bool(re.match(r"^[A-Za-z][A-Za-z0-9_.\-]*\s+\d", line))
+
+    def _is_private_ip(self, ip: str) -> bool:
+        """Check if IP is in private/reserved ranges (RFC 1918, link-local)."""
+        ip = ip.strip()
+        if ip in self.SAFE_IPS:
+            return True
+        for prefix in self.PRIVATE_IP_PREFIXES:
+            if ip.startswith(prefix):
+                return True
+        # Strict check for 172.16.0.0/12
+        if ip.startswith("172."):
+            parts = ip.split(".")
+            if len(parts) == 4:
+                try:
+                    second_octet = int(parts[1])
+                    if 16 <= second_octet <= 31:
+                        return True
+                except ValueError:
+                    pass
+        return False
+
     def _is_safe_ip(self, ip: str) -> bool:
-        """Check if IP is known-safe."""
-        return ip.strip() in self.SAFE_IPS
+        """Check if IP is known-safe or private (not a threat indicator)."""
+        return ip.strip() in self.SAFE_IPS or self._is_private_ip(ip.strip())
 
     def _is_safe_domain(self, domain: str) -> bool:
         """Check if domain is known-safe."""
         d = domain.strip().lower()
         if d in self.SAFE_DOMAINS:
             return True
-        # Check if it starts with a known false-positive module name
         return any(d.startswith(mod + '.') for mod in self.MODULE_FALSE_POSITIVES)
+
+    def _is_filename_keyword(self, text: str, match_start: int, match_end: int) -> bool:
+        """Check if a keyword match is actually part of a filename or identifier."""
+        after = text[match_end:min(len(text), match_end + 20)]
+        # "scan" followed by .py, .log, etc. is a filename
+        for ext in self.FILENAME_EXTENSIONS:
+            if after.startswith(ext):
+                return True
+        # "scan" followed by _ (scan_activity, scan_results) is likely an identifier
+        if after.startswith("_"):
+            return True
+        # "scan" preceded by _ (port_scan, vuln_scan) is an identifier
+        before = text[max(0, match_start - 1):match_start]
+        if before.endswith("_"):
+            return True
+        # "scan" in snake_case identifiers (port_scanner, scan_runner)
+        return bool(after and after[0].islower())
 
     def extract_from_output(self, project_id: str, output: str, min_confidence: float = 0.3) -> list[dict[str, Any]]:
         """Parse project output for intelligence signals with context-aware filtering."""
@@ -192,7 +279,20 @@ class IntelligenceEngine:
                 if intel_type == "threat_ip" and self._is_safe_ip(match_text):
                     continue
 
+                # Private IPs are not threat indicators
+                if intel_type == "threat_ip" and self._is_private_ip(match_text):
+                    continue
+
+                # IPs/domains inside service banners are informational
+                if intel_type in ("threat_ip", "suspicious_domain") and self._is_in_banner_context(output, start):
+                    continue
+
                 if intel_type == "suspicious_domain" and self._is_safe_domain(match_text):
+                    continue
+
+                # Keyword patterns in filenames/identifiers are false positives
+                if intel_type in ("scan_activity", "malware_signal", "persistence", "auth_failure",
+                                  "anomaly", "phishing") and self._is_filename_keyword(output, start, end):
                     continue
 
                 valid_matches.append(match_text)

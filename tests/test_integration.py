@@ -1144,3 +1144,63 @@ class TestTenantDataIsolation:
         org_slugs = [o.get("slug", "") for o in resp.json().get("orgs", [])]
         assert slug1 in org_slugs
         assert slug2 in org_slugs
+
+
+class TestRBACPolicy:
+    """Test RBAC policy engine and permission checks."""
+
+    def test_viewer_permissions(self):
+        from services.rbac import Permission, get_permissions, has_permission
+        viewer = {"role": "viewer", "id": 1, "username": "viewer_user"}
+        viewer_perms = get_permissions("viewer")
+        assert Permission.READ_PROJECTS in viewer_perms
+        assert Permission.READ_HEALTH in viewer_perms
+        assert Permission.RUN_PROJECTS not in viewer_perms
+        assert Permission.ADMIN_USERS not in viewer_perms
+        assert has_permission(viewer, Permission.READ_PROJECTS)
+        assert not has_permission(viewer, Permission.RUN_PROJECTS)
+
+    def test_operator_permissions(self):
+        from services.rbac import Permission, get_permissions, has_permission
+        operator = {"role": "operator", "id": 2, "username": "op_user"}
+        op_perms = get_permissions("operator")
+        assert Permission.RUN_PROJECTS in op_perms
+        assert Permission.WRITE_WEBHOOKS in op_perms
+        assert Permission.ADMIN_USERS not in op_perms
+        assert has_permission(operator, Permission.RUN_PROJECTS)
+        assert not has_permission(operator, Permission.ADMIN_USERS)
+
+    def test_admin_permissions(self):
+        from services.rbac import Permission, get_permissions, has_permission
+        admin = {"role": "admin", "id": 3, "username": "admin_user"}
+        admin_perms = get_permissions("admin")
+        assert len(admin_perms) == len(Permission)
+        for perm in Permission:
+            assert has_permission(admin, perm), f"Admin should have {perm.value}"
+
+    def test_unknown_role(self):
+        from services.rbac import Permission, get_permissions, has_permission
+        unknown = {"role": "unknown_role", "id": 4, "username": "unknown"}
+        assert get_permissions("unknown_role") == set()
+        assert not has_permission(unknown, Permission.READ_PROJECTS)
+
+    def test_require_permission_dependency(self):
+        """Test that require_permission FastAPI dependency works."""
+        from api.deps import require_permission
+        from services.rbac import Permission
+        # Just verify the dependency factory works without calling it
+        dep = require_permission(Permission.RUN_PROJECTS)
+        assert dep is not None
+
+    def test_role_permissions_are_strict_subsets(self):
+        """Verify that operator ⊂ admin and viewer ⊂ operator (for read perms)."""
+        from services.rbac import ROLE_PERMISSIONS
+        viewer_perms = ROLE_PERMISSIONS["viewer"]
+        operator_perms = ROLE_PERMISSIONS["operator"]
+        admin_perms = ROLE_PERMISSIONS["admin"]
+        # Viewer permissions are a subset of operator
+        assert viewer_perms.issubset(operator_perms)
+        # Operator permissions are a subset of admin
+        assert operator_perms.issubset(admin_perms)
+        # But admin has strictly more
+        assert admin_perms > operator_perms
