@@ -107,8 +107,18 @@ class PluginManager:
     """
 
     def __init__(self, plugin_dir: str | None = None):
-        self.plugin_dir = plugin_dir or os.path.join(os.path.dirname(__file__), "../plugins")
-        self.plugin_dir = os.path.realpath(self.plugin_dir)
+        if plugin_dir:
+            self.plugin_dir = os.path.realpath(plugin_dir)
+        else:
+            # Resolve plugins directory: try installed package location first,
+            # then fall back to relative path for development
+            try:
+                import plugins as _plugins_pkg
+                self.plugin_dir = os.path.realpath(os.path.dirname(_plugins_pkg.__file__))
+            except ImportError:
+                self.plugin_dir = os.path.realpath(os.path.join(os.path.dirname(__file__), "../plugins"))
+        if not os.path.isdir(self.plugin_dir):
+            logger.warning("Plugin directory not found: %s — no plugins loaded", self.plugin_dir)
         self.plugins: dict[str, PluginInterface] = {}
         self.metadata: dict[str, PluginMetadata] = {}
         self.hooks: dict[str, list[str]] = {

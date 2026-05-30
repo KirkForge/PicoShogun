@@ -74,11 +74,14 @@ include = [
     "database*",
     "middleware*",
     "services*",
+    "plugins*",
+    "front*",
 ]
 
 [tool.setuptools.package-data]
 config = ["*.json"]
 plugins = ["*/plugin.json", "*/*.py"]
+front = ["*.html", "*.css", "*.js", "*.svg", "*.png", "assets/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

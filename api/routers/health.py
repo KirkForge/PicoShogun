@@ -34,7 +34,11 @@ async def root():
 async def dashboard():
     """SPA dashboard — serves the compiled frontend."""
     from pathlib import Path
-    dashboard_path = Path(__file__).resolve().parent.parent.parent / "front" / "build" / "index.html"
+    base = Path(__file__).resolve().parent.parent.parent / "front"
+    # Prefer compiled frontend (npm run build) over source index.html
+    dashboard_path = base / "build" / "index.html"
+    if not dashboard_path.exists():
+        dashboard_path = base / "index.html"
     if dashboard_path.exists():
         return dashboard_path.read_text()
     return f"""<!DOCTYPE html>
@@ -43,7 +47,7 @@ async def dashboard():
 <div style="text-align:center">
 <h1 style="color:#00ff88">⚔️ Dashboard</h1>
 <p>PicoShogun v{__version__}</p>
-<p style="color:#888">Frontend not built — run <code>npm run build</code> in <code>front/</code></p>
+<p style="color:#888">Dashboard not found — expected <code>front/build/index.html</code> or <code>front/index.html</code></p>
 </div></body></html>"""
 
 

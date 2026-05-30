@@ -210,7 +210,11 @@ app.include_router(api_v1)
 
 try:
     from pathlib import Path as _Path
-    _front = _Path(__file__).resolve().parent.parent / "front" / "build"
+    _base = _Path(__file__).resolve().parent.parent / "front"
+    _front = _base / "build"
+    # Fall back to source front/ if no build/ directory exists
+    if not _front.is_dir() and (_base / "index.html").exists():
+        _front = _base
     if _front.is_dir():
         app.mount("/static", StaticFiles(directory=str(_front)), name="static")
 except Exception:
@@ -220,6 +224,34 @@ except Exception:
 # ─── Entry point ─────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+   import signal
+
+   import uvicorn
+
+   def _graceful_shutdown(signum, frame):
+       """Handle SIGTERM/SIGINT by stopping background services before exit."""
+       sig_name = signal.strsignal(signum) or str(signum)
+       logger.info("Received %s — initiating graceful shutdown", sig_name)
+       anomaly_detector.stop()
+       scheduler.stop()
+       event_bus.shutdown()
+       plugin_manager.unload_all()
+       db.close()
+       logger.info("Graceful shutdown complete — exiting")
+       raise SystemExit(0)
+
+   signal.signal(signal.SIGTERM, _graceful_shutdown)
+   signal.signal(signal.SIGINT, _graceful_shutdown)
+
+   uvicorn.run(
+       app,
+       host=settings.api.host,
+       port=settings.api.port,
+       workers=settings.api.workers,
+       reload=settings.api.reload,
+   )
+def main() -> None:
+    """CLI entry point — starts the PicoShogun server with signal handling."""
     import signal
 
     import uvicorn
@@ -246,3 +278,7 @@ if __name__ == "__main__":
         workers=settings.api.workers,
         reload=settings.api.reload,
     )
+
+
+if __name__ == "__main__":
+    main()
