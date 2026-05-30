@@ -35,7 +35,7 @@ def _parse_cors_origins() -> list[str]:
 
 @dataclass
 class DatabaseConfig:
-    path: Path = BASE_DIR / "shogun.db"
+    path: Path = BASE_DIR / "picoshogun.db"
     backup_dir: Path = BASE_DIR / "backups"
     max_connections: int = 10
     timeout: int = 30

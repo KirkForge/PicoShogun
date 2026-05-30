@@ -95,7 +95,7 @@ database/manager.py        # Thread-safe SQLite WAL + migrations + ConnectionPoo
 services/auth.py           # JWT + API keys + RBAC + expiration enforcement
 services/audit_cleanup.py # Per-severity audit log retention + purge API
 middleware/                # 12-layer middleware stack
-iron_dome/                 # L1-L4 defense layers (PicoDome integration)
+pico_dome/                 # L1-L4 defense layers (PicoDome integration)
 picosentry/                # Supply chain scanner (246 tests, deterministic)
 ```
 

@@ -395,7 +395,7 @@ class DatabaseManager:
         backup_dir = settings.database.backup_dir
         backup_dir.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_path = backup_dir / f"shogun_{timestamp}.db"
+        backup_path = backup_dir / f"picoshogun_{timestamp}.db"
 
         with self._lock:
             source = sqlite3.connect(str(self.db_path))

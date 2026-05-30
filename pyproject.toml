@@ -74,7 +74,7 @@ include = [
     "database*",
     "middleware*",
     "services*",
-    "iron_dome*",
+    "pico_dome*",
 ]
 
 [tool.pytest.ini_options]

@@ -975,7 +975,7 @@ async def create_scan(
     """Run an L2 supply chain scan on a project directory."""
     from pathlib import Path as _Path
 
-    from iron_dome.L2_validation.engine import create_default_engine as _create_engine
+    from pico_dome.L2_validation.engine import create_default_engine as _create_engine
 
     target = _Path(request.target).resolve()
     if not target.exists():
@@ -997,7 +997,7 @@ async def create_scan(
 @api_v1.get("/scans/rules", tags=["Scans"])
 async def list_scan_rules(user: dict = Depends(get_current_user)):
     """List available L2 supply chain scanner rules."""
-    from iron_dome.L2_validation.engine import create_default_engine as _create_engine
+    from pico_dome.L2_validation.engine import create_default_engine as _create_engine
     engine = _create_engine()
     return {"rules": engine.list_rules()}
 
@@ -1027,8 +1027,8 @@ async def run_sandbox(
     """Run a command under L3 sandbox policy."""
     from pathlib import Path as _Path
 
-    from iron_dome.L3_execution.engine import sandbox_run
-    from iron_dome.L3_execution.policy_loader import load_policy as _load_policy
+    from pico_dome.L3_execution.engine import sandbox_run
+    from pico_dome.L3_execution.policy_loader import load_policy as _load_policy
 
     policy = _load_policy(
         _Path(request.policy_file) if request.policy_file else None
@@ -1064,7 +1064,7 @@ async def run_sandbox(
 @api_v1.get("/sandboxes/policies/default", tags=["Sandbox"])
 async def get_default_policy(user: dict = Depends(get_current_user)):
     """Get the default L3 sandbox policy."""
-    from iron_dome.L3_execution.policy_loader import load_policy as _load_policy
+    from pico_dome.L3_execution.policy_loader import load_policy as _load_policy
     policy = _load_policy()
     return policy.to_dict()
 

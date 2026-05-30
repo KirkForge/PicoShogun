@@ -92,7 +92,7 @@ from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 
 # --- Reuse from L3 ---
-from iron_dome.L3_execution.models import Verdict, Severity
+from pico_dome.L3_execution.models import Verdict, Severity
 
 class BehavioralVerdict(str, Enum):
     NORMAL = "NORMAL"         # Within baseline tolerance
@@ -384,7 +384,7 @@ L4 includes a **canary planting** system that works with L3:
 
 3. **After L3 run**: L4 checks which canary files were touched → `L4-HONEY-001`
 
-4. **Canary DNS**: Plant `canary.shogun.internal` in `/etc/resolv.conf` → L3-NET events → `L4-HONEY-002`
+4. **Canary DNS**: Plant `canary.picoshogun.internal` in `/etc/resolv.conf` → L3-NET events → `L4-HONEY-002`
 
 5. **Canary tokens**: Inject fake credentials into environment → L4-HONEY-003
 
@@ -406,7 +406,7 @@ canary_files:
   - path: "/home/user/.env"
     content: |
       API_KEY=sk-canary-shogun-token-00000000
-      DATABASE_URL=postgres://canary:canary@canary.shogun.internal:5432/fake
+      DATABASE_URL=postgres://canary:canary@canary.picoshogun.internal:5432/fake
     rule: L4-HONEY-001
 
   - path: "/home/user/.ssh/id_rsa"
@@ -417,7 +417,7 @@ canary_files:
     rule: L4-HONEY-001
 
 canary_dns:
-  - domain: "canary.shogun.internal"
+  - domain: "canary.picoshogun.internal"
     should_resolve: false
     rule: L4-HONEY-002
 
@@ -476,12 +476,12 @@ L2 Scan (static)
 ### Pipeline Integration Code
 
 ```python
-from iron_dome.L2_validation.engine import ScanEngine
-from iron_dome.L3_execution.engine import sandbox_run
-from iron_dome.L3_execution.policy_generator import generate_from_findings
-from iron_dome.L4_behavioral.engine import BehavioralEngine
-from iron_dome.L4_behavioral.profiler import BehavioralProfiler
-from iron_dome.L4_behavioral.baseline import BaselineStore
+from pico_dome.L2_validation.engine import ScanEngine
+from pico_dome.L3_execution.engine import sandbox_run
+from pico_dome.L3_execution.policy_generator import generate_from_findings
+from pico_dome.L4_behavioral.engine import BehavioralEngine
+from pico_dome.L4_behavioral.profiler import BehavioralProfiler
+from pico_dome.L4_behavioral.baseline import BaselineStore
 
 def full_pipeline(target_path: str, command: List[str]) -> dict:
     """L2 → L3 → L4 full analysis pipeline."""
@@ -517,7 +517,7 @@ def full_pipeline(target_path: str, command: List[str]) -> dict:
 ## File Structure
 
 ```
-iron_dome/
+pico_dome/
 ├── L1_perimeter/
 │   └── ddos_shield.py              # existing
 ├── L2_validation/
@@ -597,7 +597,7 @@ shogun behavioral baseline build \
 # Plant honeypots before an L3 sandbox run
 shogun behavioral honeypot plant \
   --config honeypots/default.yml \
-  --target /tmp/shogun-sandbox-root/
+  --target /tmp/picoshogun-sandbox-root/
 
 # Full pipeline: L2 scan → L3 sandbox → L4 behavioral
 shogun pipeline run \
@@ -635,7 +635,7 @@ POST /api/v1/pipeline
 1. **L3 Integration**: L4 consumes `SandboxResult` (L3 output) as input. No L3 changes needed.
 2. **L2 Integration**: L2 findings auto-generate L3 policies. L4 baselines can be scoped per L2 finding type.
 3. **API**: `POST /api/v1/behavioral/analyze` — submit trace + baseline key, get verdict
-4. **CLI**: `python -m iron_dome.L4_behavioral.cli analyze --trace t.json --baseline b.json`
+4. **CLI**: `python -m pico_dome.L4_behavioral.cli analyze --trace t.json --baseline b.json`
 5. **CI/CD**: Exit code 0=NORMAL, 1=SUSPICIOUS, 2=MALICIOUS, 3=UNKNOWN (no baseline), 4=error
 6. **Webhook**: SUSPICIOUS/MALICIOUS verdicts → AlertHub → Discord/Slack/Email
 7. **SARIF**: Same format as L2/L3, extended with `behavioralFindings` property

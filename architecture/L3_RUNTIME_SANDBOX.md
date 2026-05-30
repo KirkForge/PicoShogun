@@ -25,7 +25,7 @@ L1 (perimeter/DDoS) and L2 (supply chain static analysis) catch known patterns b
 - **Resource limits** — CPU time, memory, wall-clock timeout, max processes
 - **Behavioral logging** — structured JSON trace of all intercepted operations
 - **Policy DSL** — YAML/JSON policy files that define what a "safe" run looks like
-- **CLI tool** — `shogun sandbox run --policy policy.yml -- ./test_runner.sh`
+- **CLI tool** — `picoshogun sandbox run --policy policy.yml -- ./test_runner.sh`
 - **REST API endpoint** — `POST /api/v1/sandboxes` — submit code + policy, get verdict
 - **Integration** — feeds verdicts back to PicoShogun AlertHub (webhook on DENY/AUDIT)
 - **SARIF + JSON output** — same format as L2, extended with runtime findings
@@ -41,7 +41,7 @@ L1 (perimeter/DDoS) and L2 (supply chain static analysis) catch known patterns b
 ```
 ┌──────────────────────────────────────────────────┐
 │                    CLI / API                       │
-│  shogun sandbox run --policy policy.yml ./test    │
+│  picoshogun sandbox run --policy policy.yml ./test    │
 │  POST /api/v1/sandboxes                            │
 └──────────────────────┬───────────────────────────┘
                        │
@@ -172,7 +172,7 @@ filesystem:
     - "/lib"
   write_allowlist:
     - "./node_modules/.cache"
-    - "/tmp/shogun-sandbox-*"
+    - "/tmp/picoshogun-sandbox-*"
   deny_paths:
     - "/etc/shadow"
     - "/root/.ssh"
@@ -226,7 +226,7 @@ resources:
 ## File Structure
 
 ```
-iron_dome/
+pico_dome/
 ├── L1_perimeter/
 │   └── ddos_shield.py              # existing
 ├── L2_validation/
@@ -269,7 +269,7 @@ iron_dome/
 ## Integration Points
 
 1. **API**: `POST /api/v1/sandboxes` — accepts command + policy, returns SandboxResult
-2. **CLI**: `python -m iron_dome.L3_execution.cli run --policy default.yml -- ./command`
+2. **CLI**: `python -m pico_dome.L3_execution.cli run --policy default.yml -- ./command`
 3. **CI/CD**: Exit code 0=ALLOW, 1=DENY, 2=AUDIT (needs review), 3=error
 4. **L2 Integration**: L2 findings can auto-generate L3 policies (e.g., "package X has post-install script → sandbox it")
 5. **Webhook**: DENY/AUDIT verdicts → AlertHub → Discord/Slack/Email

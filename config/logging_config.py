@@ -82,7 +82,7 @@ def configure_logging(
 
         log_dir.mkdir(parents=True, exist_ok=True)
         file_handler = RotatingFileHandler(
-            log_dir / "shogun.log",
+            log_dir / "picoshogun.log",
             maxBytes=max_bytes,
             backupCount=backup_count,
         )

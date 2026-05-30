@@ -11,7 +11,7 @@ _meter_provider = None
 _tracer = None
 _meter = None
 
-def init_telemetry(service_name: str = "shogun", endpoint: str | None = None) -> bool:
+def init_telemetry(service_name: str = "picoshogun", endpoint: str | None = None) -> bool:
     """Initialize OpenTelemetry tracing and metrics.
 
     Returns True if OTEL is available and configured, False otherwise.

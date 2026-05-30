@@ -40,7 +40,7 @@ GitHub, npm, pnpm supply chain attacks are accelerating. Compromised forks, post
 ```
 ┌─────────────────────────────────────────────┐
 │                  CLI / API                    │
-│  shogun scan ./project --format sarif        │
+│  picoshogun scan ./project --format sarif        │
 │  POST /api/v1/scans                          │
 └──────────────────┬──────────────────────────┘
                    │
@@ -107,7 +107,7 @@ class ScanResult:
 ## File Structure
 
 ```
-iron_dome/
+pico_dome/
 ├── L1_perimeter/
 │   └── ddos_shield.py          # existing
 ├── L2_validation/
@@ -127,7 +127,7 @@ iron_dome/
 │   │   ├── json_fmt.py         # JSON output
 │   │   ├── sarif.py             # SARIF for GitHub/GitLab
 │   │   └── table.py             # Human-readable table
-│   └── cli.py                   # shogun-scan CLI entry point
+│   └── cli.py                   # picoshogun-scan CLI entry point
 ├── L3_execution/                # future
 ├── L4_behavioral/               # future
 └── L5_prompt_shield/            # future
@@ -136,7 +136,7 @@ iron_dome/
 ## Integration Points
 
 1. **API**: `POST /api/v1/scans` — accepts project path or tarball, returns ScanResult
-2. **CLI**: `python -m iron_dome.L2_validation.cli scan ./project`
+2. **CLI**: `python -m pico_dome.L2_validation.cli scan ./project`
 3. **CI/CD**: Exit code 0=clean, 1=findings, 2=error. SARIF output for GitHub Security tab.
 4. **Webhook**: Scan complete → AlertHub → Discord/Slack/Email notification
 

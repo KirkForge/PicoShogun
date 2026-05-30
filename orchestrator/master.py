@@ -36,7 +36,7 @@ PROJECTS_DIR = Path("/home/kirk/.picoclaw/workspace/Hivemind-projects")
 UPGRADE_DIR = BASE_DIR / "projects"
 LOGS_DIR = BASE_DIR / "logs"
 CONFIG_DIR = BASE_DIR / "config"
-DB_PATH = BASE_DIR / "shogun.db"
+DB_PATH = BASE_DIR / "picoshogun.db"
 REGISTRY_PATH = CONFIG_DIR / "project_registry.json"
 
 LOGS_DIR.mkdir(exist_ok=True)
@@ -51,7 +51,7 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout)
     ]
 )
-logger = logging.getLogger("shogun")
+logger = logging.getLogger("picoshogun")
 
 # ─── Database ───────────────────────────────────────────────────────────────
 

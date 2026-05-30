@@ -35,7 +35,7 @@ services:
       retries: 3
       start_period: 10s
     networks:
-      - picoshogun-net
+      - picopicoshogun-net
 
   # ── Optional: Prometheus for metrics scraping ──
   prometheus:
@@ -48,7 +48,7 @@ services:
     volumes:
       - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     networks:
-      - picoshogun-net
+      - picopicoshogun-net
 
   # ── Optional: Grafana for dashboards ──
   grafana:
@@ -63,7 +63,7 @@ services:
     volumes:
       - grafana-data:/var/lib/grafana
     networks:
-      - shogun-net
+      - picoshogun-net
     depends_on:
       - prometheus
 
@@ -80,7 +80,7 @@ services:
       - "4317:4317"
       - "4318:4318"
     networks:
-      - picoshogun-net
+      - picopicoshogun-net
 
 volumes:
   picoshogun-data:
@@ -88,5 +88,5 @@ volumes:
   grafana-data:
 
 networks:
-  picoshogun-net:
+  picopicoshogun-net:
     driver: bridge

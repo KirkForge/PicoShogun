@@ -68,7 +68,7 @@ PicoShogun/
 │   ├── docs_restriction.py   # Block /docs and /redoc in production
 │   ├── audit.py              # Request audit logging
 │   └── ddos_shield.py        # Adaptive DDoS protection
-├── iron_dome/
+├── pico_dome/
 │   ├── L1_perimeter/         # DDoS shield (middleware)
 │   ├── L2_validation/        # Supply chain scanner (13 rules, deterministic)
 │   ├── L3_execution/         # Sandbox (seccomp/seatbelt/subprocess)

@@ -96,13 +96,13 @@ jobs:
         run: docker build -t picoshogun:ci-test .
       - name: Smoke test
         run: |
-          docker run -d --name picoshogun-test -p 8765:8765 \
+          docker run -d --name picopicoshogun-test -p 8765:8765 \
             -e PICOSHOGUN_SECRET_KEY=ci-test-key \
             -e PICOSHOGUN_ENV=production \
             picoshogun:ci-test
           sleep 5
-          curl -sf http://localhost:8765/health || (docker logs shogun-test && exit 1)
-          docker stop picoshogun-test
+          curl -sf http://localhost:8765/health || (docker logs picoshogun-test && exit 1)
+          docker stop picopicoshogun-test
 
   # ── PicoSentry Tests ──────────────────────────────────────────────
   picosentry:
