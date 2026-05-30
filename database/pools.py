@@ -96,7 +96,7 @@ class PostgresPool:
     To complete the Postgres migration:
     1. Install psycopg (v3): ``pip install psycopg[binary]``
     2. Set ``PICOSHOGUN_DATABASE_BACKEND=postgres``
-    3. Set ``PICOSHOGUN_DATABASE_URL=postgresql://user:REDACTED@host:5432/dbname``
+    3. Set ``PICOSHOGUN_DATABASE_URL=PICOSHOGUN_DATABASE_URL=<your-postgres-url>``
     4. Implement the acquire/release/close_all methods below.
     5. Adjust SQL in migrations and queries:
        - Replace ``?`` params with ``%s``
