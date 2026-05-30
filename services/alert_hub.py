@@ -217,7 +217,7 @@ Time: {datetime.now(timezone.utc).isoformat()}
 
             # Choose connection method: SSL direct or STARTTLS
             if settings.alerts.email_smtp_use_ssl:
-                server = smtplib.SMTP_SSL(
+                server: smtplib.SMTP_SSL | smtplib.SMTP = smtplib.SMTP_SSL(
                     settings.alerts.email_smtp_host,
                     settings.alerts.email_smtp_port
                 )
@@ -278,7 +278,7 @@ Time: {datetime.now(timezone.utc).isoformat()}
             GROUP BY severity, channel, sent
         """, (hours,))
 
-        stats = defaultdict(lambda: defaultdict(int))
+        stats: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
         for row in rows:
             stats[row["severity"]]["total"] += row["count"]
             if row["sent"]:

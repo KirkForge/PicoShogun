@@ -208,7 +208,7 @@ class Settings:
         for field_name, field_type in known_fields.items():
             if field_name in data and isinstance(data[field_name], dict):
                 # Check if the field type is a dataclass
-                if hasattr(field_type, "__dataclass_fields__"):
+                if hasattr(field_type, "__dataclass_fields__"):  # type: ignore[operator]
                     data[field_name] = field_type(**data[field_name])
 
         return cls(**data)

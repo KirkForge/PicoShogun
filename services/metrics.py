@@ -128,7 +128,7 @@ class MetricsCollector:
         """Export as JSON-serializable dict."""
         result = {
             "uptime_seconds": self.uptime_seconds(),
-            "metrics": {},
+            "metrics": {},  # type: ignore[index]
             "counters": dict(self.counters)
         }
 

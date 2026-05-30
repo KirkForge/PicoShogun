@@ -6,6 +6,7 @@ import shutil
 import tarfile
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from config.settings import settings
 from config.version import __version__
@@ -78,7 +79,7 @@ class BackupManager:
             if temp_dir.exists():
                 shutil.rmtree(str(temp_dir))
 
-    def restore_backup(self, backup_path: str, force: bool = False) -> bool:
+    def restore_backup(self, backup_path: str | Path, force: bool = False) -> bool:
         """Restore from a backup archive."""
         backup_path = Path(backup_path)
 
@@ -142,9 +143,9 @@ class BackupManager:
             if temp_dir.exists():
                 shutil.rmtree(str(temp_dir))
 
-    def list_backups(self) -> list[dict]:
+    def list_backups(self) -> list[dict[str, Any]]:
         """List all available backups."""
-        backups = []
+        backups: list[dict[str, Any]] = []
 
         if not self.backup_dir.exists():
             return backups

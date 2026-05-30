@@ -4,6 +4,7 @@ import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 
 class JSONFormatter(logging.Formatter):
@@ -17,8 +18,8 @@ class JSONFormatter(logging.Formatter):
         super().__init__()
         self.structured = structured
 
-    def format(self, record: logging.LogRecord) -> str:
-        entry = {
+    def format(self, record: logging.LogRecord) -> str:  # type: ignore[override]
+        entry: dict[str, Any] = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": record.levelname,
             "logger": record.name,

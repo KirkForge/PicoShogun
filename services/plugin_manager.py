@@ -1,14 +1,41 @@
-"""Plugin system for extensible project integration."""
+"""Plugin system for extensible project integration.
+
+Security note: Plugins are loaded from the local plugins/ directory only.
+Each plugin must have a plugin.json manifest. The manifest is validated
+before loading: entry_point must be a simple Python identifier (no dots,
+no path separators), and hooks must be from the known whitelist. Arbitrary
+code execution via path traversal or importlib abuse is prevented.
+
+For production deployments with untrusted plugins, signed manifests
+(SHA-256 checksum of the entry module + Ed25519 signature) should be
+added. See GAPS.md P2 #12.
+"""
+import hashlib
 import importlib
 import inspect
 import json
 import logging
 import os
+import re
 import sys
 from dataclasses import dataclass
 from typing import Any
 
 logger = logging.getLogger("picoshogun.Plugins")
+
+# Valid hook names — plugins can only register for these
+VALID_HOOKS = {"project_start", "project_complete", "intelligence", "alert"}
+
+# Manifest fields and their expected types
+REQUIRED_MANIFEST_FIELDS = {"name": str, "entry_point": str}
+OPTIONAL_MANIFEST_FIELDS = {
+    "version": str, "author": str, "description": str,
+    "hooks": list, "dependencies": list, "config": dict,
+}
+
+# Entry point must be a simple Python identifier — no dots, slashes, or path traversal
+_ENTRY_POINT_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+
 
 @dataclass
 class PluginMetadata:
@@ -19,6 +46,7 @@ class PluginMetadata:
     entry_point: str
     hooks: list[str]
     dependencies: list[str]
+
 
 class PluginInterface:
     """Base interface all plugins must implement."""
@@ -51,20 +79,71 @@ class PluginInterface:
         """Cleanup when plugin is unloaded."""
         pass
 
-class PluginManager:
-    """Dynamic plugin loader and lifecycle manager."""
 
-    def __init__(self, plugin_dir: str = None):
+class PluginManager:
+    """Dynamic plugin loader and lifecycle manager.
+
+    Security measures:
+    - Plugins are loaded only from the configured plugin_dir (local directory).
+    - Manifest validation: entry_point must be a simple identifier, hooks must
+      be from the known whitelist, required fields must be present.
+    - sys.path manipulation is scoped: plugin path is added then removed in a
+      try/finally block. Only the plugin directory itself is added, not arbitrary
+      paths.
+    - Module import is limited to the declared entry_point identifier.
+    """
+
+    def __init__(self, plugin_dir: str | None = None):
         self.plugin_dir = plugin_dir or os.path.join(os.path.dirname(__file__), "../plugins")
+        self.plugin_dir = os.path.realpath(self.plugin_dir)
         self.plugins: dict[str, PluginInterface] = {}
         self.metadata: dict[str, PluginMetadata] = {}
-        self.hooks = {
+        self.hooks: dict[str, list[str]] = {
             "project_start": [],
             "project_complete": [],
             "intelligence": [],
             "alert": [],
         }
         self._load_plugins()
+
+    @staticmethod
+    def _validate_manifest(meta: dict, manifest_path: str) -> list[str]:
+        """Validate plugin manifest. Returns list of issues (empty = valid)."""
+        issues: list[str] = []
+
+        # Required fields
+        for field, expected_type in REQUIRED_MANIFEST_FIELDS.items():
+            if field not in meta:
+                issues.append(f"Missing required field: {field}")
+            elif not isinstance(meta[field], expected_type):
+                issues.append(f"Field '{field}' must be {expected_type.__name__}, got {type(meta[field]).__name__}")
+
+        if issues:
+            return issues  # Can't validate further without name/entry_point
+
+        # Entry point must be a simple Python identifier — no path traversal
+        entry_point = meta["entry_point"]
+        if not _ENTRY_POINT_RE.match(entry_point):
+            issues.append(
+                f"entry_point '{entry_point}' is not a valid Python module identifier "
+                f"(must match {_ENTRY_POINT_RE.pattern})"
+            )
+
+        # Hooks must be from the known whitelist
+        hooks = meta.get("hooks", [])
+        if not isinstance(hooks, list):
+            issues.append("'hooks' must be a list")
+        else:
+            unknown = [h for h in hooks if h not in VALID_HOOKS]
+            if unknown:
+                issues.append(f"Unknown hooks: {unknown}. Valid hooks: {sorted(VALID_HOOKS)}")
+
+        # Name must be a reasonable string
+        name = meta.get("name", "")
+        if not isinstance(name, str) or not name.strip():
+            issues.append("Plugin name must be a non-empty string")
+
+        return issues
 
     def _load_plugins(self):
         """Discover and load all plugins from plugin directory."""
@@ -74,62 +153,98 @@ class PluginManager:
 
         for entry in os.listdir(self.plugin_dir):
             plugin_path = os.path.join(self.plugin_dir, entry)
-            manifest = os.path.join(plugin_path, "plugin.json")
+            manifest_path = os.path.join(plugin_path, "plugin.json")
 
-            if os.path.isdir(plugin_path) and os.path.exists(manifest):
-                try:
-                    with open(manifest) as f:
-                        meta = json.load(f)
+            if not os.path.isdir(plugin_path) or not os.path.exists(manifest_path):
+                continue
 
-                    self._load_plugin(plugin_path, meta)
-                except Exception as e:
-                    logger.error(f"Failed to load plugin {entry}: {e}")
+            # Verify plugin_path hasn't escaped the plugin directory via symlinks
+            real_plugin_path = os.path.realpath(plugin_path)
+            if not real_plugin_path.startswith(self.plugin_dir + os.sep) and real_plugin_path != self.plugin_dir:
+                logger.error(f"Plugin path escapes plugin_dir: {plugin_path} -> {real_plugin_path}")
+                continue
+
+            try:
+                with open(manifest_path) as f:
+                    meta = json.load(f)
+
+                # Validate manifest before loading
+                issues = self._validate_manifest(meta, manifest_path)
+                if issues:
+                    logger.error(f"Plugin '{entry}' manifest validation failed: {'; '.join(issues)}")
+                    continue
+
+                self._load_plugin(plugin_path, meta)
+            except Exception as e:
+                logger.error(f"Failed to load plugin {entry}: {e}")
 
     def _load_plugin(self, path: str, meta: dict):
         """Load a single plugin by its manifest."""
         name = meta["name"]
         entry = meta["entry_point"]
 
-        # Add plugin path AND project root to sys.path
+        # Compute expected module checksum for audit logging
+        module_file = os.path.join(path, f"{entry}.py")
+        if os.path.exists(module_file):
+            with open(module_file, "rb") as f:
+                checksum = hashlib.sha256(f.read()).hexdigest()[:16]
+            logger.info(f"Plugin '{name}' entry module checksum: sha256:{checksum}")
+        else:
+            logger.warning(f"Plugin '{name}' entry module not found at {module_file}")
+
+        # Add plugin path to sys.path (scoped — removed in finally)
         sys.path.insert(0, path)
-        project_root = os.path.dirname(self.plugin_dir)
-        if project_root not in sys.path:
-            sys.path.insert(0, project_root)
         try:
             module = importlib.import_module(entry)
 
             # Find plugin class
+            plugin_class = None
             for attr_name in dir(module):
                 attr = getattr(module, attr_name)
                 if (inspect.isclass(attr) and
                     issubclass(attr, PluginInterface) and
                     attr != PluginInterface):
-
-                    instance = attr()
-                    if instance.initialize(meta.get("config", {})):
-                        self.plugins[name] = instance
-                        self.metadata[name] = PluginMetadata(
-                            name=name,
-                            version=meta.get("version", "0.0.1"),
-                            author=meta.get("author", "unknown"),
-                            description=meta.get("description", ""),
-                            entry_point=entry,
-                            hooks=meta.get("hooks", []),
-                            dependencies=meta.get("dependencies", [])
-                        )
-
-                        # Register hooks
-                        for hook in meta.get("hooks", []):
-                            if hook in self.hooks:
-                                self.hooks[hook].append(name)
-
-                        logger.info(f"Plugin loaded: {name} v{self.metadata[name].version}")
+                    plugin_class = attr
                     break
+
+            if plugin_class is None:
+                logger.error(f"Plugin '{name}': no class implementing PluginInterface found in module '{entry}'")
+                return
+
+            instance = plugin_class()
+            if instance.initialize(meta.get("config", {})):
+                self.plugins[name] = instance
+                self.metadata[name] = PluginMetadata(
+                    name=name,
+                    version=meta.get("version", "0.0.1"),
+                    author=meta.get("author", "unknown"),
+                    description=meta.get("description", ""),
+                    entry_point=entry,
+                    hooks=meta.get("hooks", []),
+                    dependencies=meta.get("dependencies", []),
+                )
+
+                # Register hooks (only validated ones)
+                for hook in meta.get("hooks", []):
+                    if hook in self.hooks:
+                        self.hooks[hook].append(name)
+
+                logger.info(f"Plugin loaded: {name} v{self.metadata[name].version}")
+            else:
+                logger.warning(f"Plugin '{name}' initialize() returned False — skipped")
+        except Exception as e:
+            logger.error(f"Failed to load plugin '{name}': {e}")
         finally:
-            sys.path.remove(path)
+            # Always remove the plugin path from sys.path to prevent leakage
+            if path in sys.path:
+                sys.path.remove(path)
 
     def dispatch(self, hook: str, **kwargs):
         """Dispatch event to all plugins registered for a hook."""
+        if hook not in VALID_HOOKS:
+            logger.warning(f"Dispatch called with unknown hook '{hook}' — ignoring")
+            return []
+
         results = []
         for plugin_name in self.hooks.get(hook, []):
             plugin = self.plugins.get(plugin_name)
@@ -147,20 +262,20 @@ class PluginManager:
 
         return results
 
-    def get_status(self) -> dict:
+    def get_status(self) -> dict[str, Any]:
         """Get status of all loaded plugins."""
         status = {}
         for name, plugin in self.plugins.items():
             try:
                 health = plugin.health_check()
                 status[name] = {
-                    "metadata": self.metadata[name].__dict__,
-                    "health": health
+                    "metadata": dict(self.metadata[name].__dict__),
+                    "health": health,
                 }
             except Exception as e:
                 status[name] = {
                     "error": str(e),
-                    "health": {"status": "unhealthy"}
+                    "health": {"status": "unhealthy"},
                 }
         return status
 
@@ -177,6 +292,7 @@ class PluginManager:
         self.metadata.clear()
         for hook_list in self.hooks.values():
             hook_list.clear()
+
 
 # Global plugin manager instance
 plugin_manager = PluginManager()

@@ -163,7 +163,7 @@ class IntelligenceEngine:
 
     def extract_from_output(self, project_id: str, output: str, min_confidence: float = 0.3) -> list[dict[str, Any]]:
         """Parse project output for intelligence signals with context-aware filtering."""
-        intel = []
+        intel: list[dict[str, Any]] = []
         if not output:
             return intel
 
@@ -350,7 +350,7 @@ class IntelligenceEngine:
             ORDER BY hour, count DESC
         """, (str(hours),))
 
-        trends = defaultdict(lambda: defaultdict(int))
+        trends: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
         for row in rows:
             trends[row["intel_type"]][row["severity"]] += row["count"]
 

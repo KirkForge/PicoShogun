@@ -118,7 +118,7 @@ class EnhancedOrchestrator:
                      status_filter: str | None = None,
                      limit: int = 100, offset: int = 0) -> list[dict]:
         query = "SELECT * FROM projects WHERE 1=1"
-        params = []
+        params: list[str | int] = []
 
         if category:
             query += " AND category = ?"
@@ -374,7 +374,7 @@ class EnhancedOrchestrator:
                          source: str | None = None,
                          limit: int = 50) -> list[dict]:
         query = "SELECT * FROM intelligence WHERE 1=1"
-        params = []
+        params: list[str | int] = []
 
         if severity:
             query += " AND severity = ?"
@@ -429,7 +429,7 @@ class EnhancedOrchestrator:
                    severity: str | None = None,
                    limit: int = 50) -> list[dict]:
         query = "SELECT * FROM alerts WHERE 1=1"
-        params = []
+        params: list[str | int] = []
 
         if sent is not None:
             query += " AND sent = ?"
@@ -454,7 +454,7 @@ class EnhancedOrchestrator:
                    metric_name: str | None = None,
                    limit: int = 100) -> list[dict]:
         query = "SELECT * FROM metrics WHERE 1=1"
-        params = []
+        params: list[str | int] = []
 
         if project_id:
             query += " AND project_id = ?"

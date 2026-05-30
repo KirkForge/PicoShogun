@@ -5,8 +5,10 @@ import ipaddress
 import json
 import logging
 import secrets
+import socket
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import Any
 from urllib.parse import urlparse
 
 try:
@@ -32,10 +34,30 @@ SSRF_BLOCKED_NETWORKS = [
 ]
 
 
-def _is_safe_webhook_url(url: str) -> tuple:
+def _resolve_hostname(hostname: str) -> list[str] | None:
+    """Resolve a hostname to a list of IP address strings.
+
+    Returns None if the hostname cannot be resolved.
+    This function is a seam for testing: mock this to avoid live DNS lookups.
+    """
+    try:
+        results = socket.getaddrinfo(hostname, None)
+        return [str(addr[4][0]) for addr in results]
+    except socket.gaierror:
+        return None
+
+
+def _is_safe_webhook_url(url: str, dns_resolver=None) -> tuple:
     """Validate webhook URL against SSRF attacks.
 
     Returns (is_safe, reason) tuple.
+
+    Args:
+        url: The webhook URL to validate.
+        dns_resolver: Optional callable that takes a hostname string and returns
+            a list of IP address strings, or None if unresolvable.
+            Defaults to socket.getaddrinfo-based resolution.
+            Pass a mock for testing without live DNS.
     """
     try:
         parsed = urlparse(url)
@@ -51,18 +73,25 @@ def _is_safe_webhook_url(url: str) -> tuple:
         return False, "URL must have a hostname"
 
     # Resolve hostname and check against blocked networks
-    import socket
-    try:
-        resolved_ips = socket.getaddrinfo(parsed.hostname, None)
-        for _, _, _, _, addr in resolved_ips:
-            ip = ipaddress.ip_address(addr[0])
-            for network in SSRF_BLOCKED_NETWORKS:
-                if ip in network:
-                    return False, f"Target IP {ip} is in blocked network {network}"
-    except socket.gaierror:
+    resolve = dns_resolver or _resolve_hostname
+    ips = resolve(parsed.hostname)
+
+    if ips is None:
+        # Hostname cannot be resolved — reject in production, but allow the
+        # caller to decide based on context (e.g. test mode may skip DNS).
         return False, f"Cannot resolve hostname '{parsed.hostname}'"
 
+    for ip_str in ips:
+        try:
+            ip = ipaddress.ip_address(ip_str)
+        except ValueError:
+            continue
+        for network in SSRF_BLOCKED_NETWORKS:
+            if ip in network:
+                return False, f"Target IP {ip} is in blocked network {network}"
+
     return True, "OK"
+
 
 @dataclass
 class Webhook:
@@ -78,7 +107,8 @@ class Webhook:
 class WebhookManager:
     """Manage outgoing webhooks with HMAC signing and retry logic."""
 
-    def __init__(self):
+    def __init__(self, dns_resolver=None):
+        self.dns_resolver = dns_resolver
         self.webhooks: dict[str, Webhook] = {}
         self._load_webhooks()
 
@@ -101,7 +131,7 @@ class WebhookManager:
     def create(self, name: str, url: str, events: list[str], secret: str = None) -> int:
         """Create a new webhook endpoint."""
         # SSRF protection: validate URL
-        is_safe, reason = _is_safe_webhook_url(url)
+        is_safe, reason = _is_safe_webhook_url(url, dns_resolver=self.dns_resolver)
         if not is_safe:
             raise ValueError(f"Webhook URL rejected: {reason}")
 
@@ -139,9 +169,9 @@ class WebhookManager:
         """Internal: sign a dict payload for outgoing webhooks."""
         return self.sign_payload(payload, secret)
 
-    def dispatch(self, event: str, payload: dict) -> list[dict]:
+    def dispatch(self, event: str, payload: dict) -> list[dict[str, Any]]:
         """Dispatch event to all matching webhooks."""
-        results = []
+        results: list[dict[str, Any]] = []
 
         if not HAS_REQUESTS:
             logger.warning("requests library not available, skipping webhooks")
@@ -207,5 +237,5 @@ class WebhookManager:
         # Use hmac.compare_digest for constant-time comparison (prevents timing attacks)
         return hmac.compare_digest(signature, expected)
 
-# Global webhook manager
+# Global webhook manager instance
 webhook_manager = WebhookManager()

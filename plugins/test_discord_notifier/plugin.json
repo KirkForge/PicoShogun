@@ -1,8 +1,8 @@
 {
-  "name": "test_discord_notifier",
+  "name": "discord_notifier",
   "version": "1.0.0",
   "author": "PicoShogun",
-  "description": "Log-only notifier — does NOT send to Discord, logs to Python logger only",
+  "description": "Sends alerts to Discord via webhook. Falls back to log-only if DISCORD_WEBHOOK_URL is not set.",
   "entry_point": "notifier",
   "hooks": ["project_complete", "alert"],
   "dependencies": []

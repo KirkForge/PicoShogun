@@ -16,10 +16,10 @@ class ConnectionManager:
         self.connections: dict[str, set[WebSocket]] = {}
         self.client_channels: dict[WebSocket, set[str]] = {}
 
-    async def connect(self, websocket: WebSocket, channels: list = None):
+    async def connect(self, websocket: WebSocket, channels: list[str] | None = None):
         await websocket.accept()
-        channels = set(channels or ["*"])
-        self._add_sub(websocket, channels)
+        channels_set: set[str] = set(channels) if channels else {"*"}
+        self._add_sub(websocket, channels_set)
 
     def _add_sub(self, websocket: WebSocket, channels: set):
         self.client_channels[websocket] = channels

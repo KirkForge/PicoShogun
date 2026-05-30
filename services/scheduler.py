@@ -177,7 +177,7 @@ class JobScheduler:
                         WHERE id = ?
                     """, (datetime.now(), job_id))
                     return
-                result = subprocess.run(
+                result: subprocess.CompletedProcess = subprocess.run(
                     ["bash", "scripts/run_category.sh", category],
                     capture_output=True,
                     text=True,
@@ -189,10 +189,10 @@ class JobScheduler:
             elif job.command == "run":
                 from services.orchestrator import EnhancedOrchestrator
                 orch = EnhancedOrchestrator()
-                result = orch.run_project(job.params.get("project_id"),
+                run_result = orch.run_project(job.params.get("project_id"),
                                          job.params.get("timeout", 300))
-                status = "completed" if result.get("success") else "failed"
-                _output = str(result)
+                status = "completed" if run_result.get("success") else "failed"
+                _output = str(run_result)
 
             elif job.command == "report":
                 from services.orchestrator import EnhancedOrchestrator
@@ -203,9 +203,9 @@ class JobScheduler:
             elif job.command == "backup":
                 from services.backup import BackupManager
                 bm = BackupManager()
-                result = bm.create_backup()
-                status = "completed" if result else "failed"
-                _output = str(result)
+                backup_result = bm.create_backup()
+                status = "completed" if backup_result else "failed"
+                _output = str(run_result)
 
             elif job.command == "cleanup":
                 from services.auth import AuthService
