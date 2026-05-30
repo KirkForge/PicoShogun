@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
-logger = logging.getLogger("shogun.EventBus")
+logger = logging.getLogger("picoshogun.EventBus")
 
 @dataclass
 class Event:
@@ -20,7 +20,7 @@ class Event:
     priority: str = "normal"  # low, normal, high, critical
 
 class EventBus:
-    """Enterprise event bus with priority queues and filtering."""
+    """Event bus with priority queues and filtering."""
 
     def __init__(self):
         self.subscribers: dict[str, list[Callable]] = defaultdict(list)

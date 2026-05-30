@@ -1,33 +1,33 @@
-# Shogun Command Centre — Docker Compose
+# PicoShogun Command Centre — Docker Compose
 # Usage: docker compose up -d
 version: "3.9"
 
 services:
-  shogun:
+  picoshogun:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: shogun
+    container_name: picoshogun
     restart: unless-stopped
     ports:
       - "${SHOGUN_PORT:-8765}:8765"
     environment:
-      SHOGUN_ENV: "${SHOGUN_ENV:-production}"
-      SHOGUN_SECRET_KEY: "${SHOGUN_SECRET_KEY:?Set SHOGUN_SECRET_KEY}"
-      SHOGUN_DEBUG: "${SHOGUN_DEBUG:-false}"
-      SHOGUN_DDOS_SHIELD: "${SHOGUN_DDOS_SHIELD:-true}"
+      PICOSHOGUN_ENV: "${PICOSHOGUN_ENV:-${SHOGUN_ENV:-production}}"
+      PICOSHOGUN_SECRET_KEY: "${PICOSHOGUN_SECRET_KEY:-${SHOGUN_SECRET_KEY:?Set secret key}}"
+      PICOSHOGUN_DEBUG: "${PICOSHOGUN_DEBUG:-${SHOGUN_DEBUG:-false}}"
+      PICOSHOGUN_DDOS_SHIELD: "${PICOSHOGUN_DDOS_SHIELD:-${SHOGUN_DDOS_SHIELD:-true}}"
       DISCORD_WEBHOOK_URL: "${DISCORD_WEBHOOK_URL:-}"
       SLACK_WEBHOOK_URL: "${SLACK_WEBHOOK_URL:-}"
       SMTP_HOST: "${SMTP_HOST:-}"
       SMTP_PORT: "${SMTP_PORT:-587}"
       SMTP_USER: "${SMTP_USER:-}"
       SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
-      EMAIL_FROM: "${EMAIL_FROM:-shogun@localhost}"
+      EMAIL_FROM: "${EMAIL_FROM:-picoshogun@localhost}"
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-}"
-      OTEL_SERVICE_NAME: "${OTEL_SERVICE_NAME:-shogun}"
+      OTEL_SERVICE_NAME: "${OTEL_SERVICE_NAME:-picoshogun}"
     volumes:
-      - shogun-data:/app/data
-      - shogun-logs:/app/logs
+      - picoshogun-data:/app/data
+      - picoshogun-logs:/app/logs
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8765/health')"]
       interval: 30s
@@ -35,12 +35,12 @@ services:
       retries: 3
       start_period: 10s
     networks:
-      - shogun-net
+      - picoshogun-net
 
   # ── Optional: Prometheus for metrics scraping ──
   prometheus:
     image: prom/prometheus:latest
-    container_name: shogun-prometheus
+    container_name: picoshogun-prometheus
     profiles: ["monitoring"]
     restart: unless-stopped
     ports:
@@ -48,12 +48,12 @@ services:
     volumes:
       - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     networks:
-      - shogun-net
+      - picoshogun-net
 
   # ── Optional: Grafana for dashboards ──
   grafana:
     image: grafana/grafana:latest
-    container_name: shogun-grafana
+    container_name: picoshogun-grafana
     profiles: ["monitoring"]
     restart: unless-stopped
     ports:
@@ -70,7 +70,7 @@ services:
   # ── Optional: OTel Collector for tracing ──
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
-    container_name: shogun-otel
+    container_name: picoshogun-otel
     profiles: ["tracing"]
     restart: unless-stopped
     command: ["--config", "/etc/otel-collector-config.yml"]
@@ -80,13 +80,13 @@ services:
       - "4317:4317"
       - "4318:4318"
     networks:
-      - shogun-net
+      - picoshogun-net
 
 volumes:
-  shogun-data:
-  shogun-logs:
+  picoshogun-data:
+  picoshogun-logs:
   grafana-data:
 
 networks:
-  shogun-net:
+  picoshogun-net:
     driver: bridge

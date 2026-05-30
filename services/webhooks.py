@@ -17,7 +17,7 @@ except ImportError:
 
 from database.manager import db
 
-logger = logging.getLogger("shogun.Webhooks")
+logger = logging.getLogger("picoshogun.Webhooks")
 
 # Blocked URL patterns for SSRF protection
 SSRF_BLOCKED_SCHEMES = {"file", "ftp", "data", "javascript", "vbscript"}
@@ -157,9 +157,9 @@ class WebhookManager:
                     json=event_payload,
                     headers={
                         "Content-Type": "application/json",
-                        "X-Shogun-Signature": f"sha256={signature}",
-                        "X-Shogun-Event": event,
-                        "User-Agent": "Shogun-Webhook/2.0"
+                        "X-PicoShogun-Signature": f"sha256={signature}",
+                        "X-PicoShogun-Event": event,
+                        "User-Agent": "PicoShogun-Webhook/2.0"
                     },
                     timeout=10
                 )

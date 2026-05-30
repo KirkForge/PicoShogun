@@ -1,4 +1,4 @@
-# OpenTelemetry Collector config for Shogun
+# OpenTelemetry Collector config for PicoShogun
 receivers:
   otlp:
     protocols:

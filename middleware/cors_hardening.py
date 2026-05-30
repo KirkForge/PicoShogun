@@ -7,7 +7,7 @@ from starlette.responses import JSONResponse
 
 from config.settings import settings
 
-logger = logging.getLogger("shogun.CORS")
+logger = logging.getLogger("picoshogun.CORS")
 
 
 class CORSHardeningMiddleware(BaseHTTPMiddleware):

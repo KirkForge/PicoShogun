@@ -6,7 +6,7 @@ L1 (perimeter/DDoS) and L2 (supply chain static analysis) catch known patterns b
 
 ## Product
 
-**Shogun Runtime Sandbox** — a lightweight process sandbox that monitors runtime behavior against a policy engine, producing deterministic verdicts (ALLOW / DENY / AUDIT) per operation. Runs locally, no cloud, no LLM.
+**PicoShogun Runtime Sandbox** — a lightweight process sandbox that monitors runtime behavior against a policy engine, producing deterministic verdicts (ALLOW / DENY / AUDIT) per operation. Runs locally, no cloud, no LLM.
 
 ### Core Principles
 1. **Deterministic** — same behavior trace, same verdict. Policy-driven, not heuristic.
@@ -27,7 +27,7 @@ L1 (perimeter/DDoS) and L2 (supply chain static analysis) catch known patterns b
 - **Policy DSL** — YAML/JSON policy files that define what a "safe" run looks like
 - **CLI tool** — `shogun sandbox run --policy policy.yml -- ./test_runner.sh`
 - **REST API endpoint** — `POST /api/v1/sandboxes` — submit code + policy, get verdict
-- **Integration** — feeds verdicts back to Shogun AlertHub (webhook on DENY/AUDIT)
+- **Integration** — feeds verdicts back to PicoShogun AlertHub (webhook on DENY/AUDIT)
 - **SARIF + JSON output** — same format as L2, extended with runtime findings
 
 ### Out of Scope (Future Layers)

@@ -1,5 +1,5 @@
-# Shogun Command Centre — CI Pipeline
-name: Shogun CI
+# PicoShogun Command Centre — CI Pipeline
+name: PicoShogun CI
 
 on:
   push:
@@ -9,8 +9,8 @@ on:
 
 env:
   PYTHON_VERSION: "3.12"
-  SHOGUN_ENV: test
-  SHOGUN_SECRET_KEY: ci-test-key-not-for-production
+  PICOSHOGUN_ENV: test
+  PICOSHOGUN_SECRET_KEY: ci-test-key-not-for-production
 
 jobs:
   # ── Lint ─────────────────────────────────────────────────────────
@@ -55,8 +55,8 @@ jobs:
         run: |
           python -m pytest tests/ -v --tb=short --cov=. --cov-report=term-missing --cov-report=xml
         env:
-          SHOGUN_ENV: test
-          SHOGUN_SECRET_KEY: ci-test-key
+          PICOSHOGUN_ENV: test
+          PICOSHOGUN_SECRET_KEY: ci-test-key
       - name: Upload coverage
         uses: actions/upload-artifact@v4
         if: matrix.python-version == '3.12'
@@ -93,16 +93,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build Docker image
-        run: docker build -t shogun:ci-test .
+        run: docker build -t picoshogun:ci-test .
       - name: Smoke test
         run: |
-          docker run -d --name shogun-test -p 8765:8765 \
-            -e SHOGUN_SECRET_KEY=ci-test-key \
-            -e SHOGUN_ENV=production \
-            shogun:ci-test
+          docker run -d --name picoshogun-test -p 8765:8765 \
+            -e PICOSHOGUN_SECRET_KEY=ci-test-key \
+            -e PICOSHOGUN_ENV=production \
+            picoshogun:ci-test
           sleep 5
           curl -sf http://localhost:8765/health || (docker logs shogun-test && exit 1)
-          docker stop shogun-test
+          docker stop picoshogun-test
 
   # ── PicoSentry Tests ──────────────────────────────────────────────
   picosentry:

@@ -20,10 +20,10 @@ except ImportError:
 from config.settings import settings
 from database.manager import db
 
-logger = logging.getLogger("shogun.Auth")
+logger = logging.getLogger("picoshogun.Auth")
 
 class AuthService:
-    """Enterprise authentication with JWT tokens and API key management."""
+    """Authentication with JWT tokens and API key management."""
 
     def __init__(self):
         self.secret_key = settings.security.secret_key

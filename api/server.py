@@ -1,4 +1,4 @@
-"""Enterprise REST API for Shogun — security orchestration & intelligence platform."""
+"""REST API for PicoShogun — security orchestration & intelligence platform."""
 import json
 import logging
 from contextlib import asynccontextmanager
@@ -63,7 +63,7 @@ configure_logging(
     backup_count=settings.logging.backup_count,
 )
 
-logger = logging.getLogger("shogun.api")
+logger = logging.getLogger("picoshogun.api")
 
 # ─── Service instances (created before app for lifespan access) ─────
 auth_service = AuthService()
@@ -77,12 +77,12 @@ security = HTTPBearer()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Enterprise startup/shutdown lifecycle.
+    """Startup/shutdown lifecycle.
 
     Starts: structured logging, OpenTelemetry, scheduler, anomaly detector.
     Stops: scheduler, anomaly detector, event bus, plugin manager, DB connections.
     """
-    logger.info("Shogun starting up — version 2.15.0")
+    logger.info("PicoShogun starting up — version 2.16.0")
 
     # Enforce secure configuration — refuse to start with insecure defaults in production
     settings.assert_secure()
@@ -94,7 +94,7 @@ async def lifespan(app: FastAPI):
             logger.warning("CONFIG: %s", issue)
 
     # OpenTelemetry (graceful no-op if not configured)
-    init_telemetry(service_name="shogun")
+    init_telemetry(service_name="picoshogun")
     setup_fastapi_instrumentation(app)
     logger.info("OpenTelemetry initialized (if endpoint configured)")
 
@@ -116,7 +116,7 @@ async def lifespan(app: FastAPI):
     yield  # Application is running
 
     # ── Graceful shutdown ──
-    logger.info("Shogun shutting down — stopping background services")
+    logger.info("PicoShogun shutting down — stopping background services")
     anomaly_detector.stop()
     scheduler.stop()
     event_bus.shutdown()
@@ -126,9 +126,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Shogun Command Centre API",
-    description="Enterprise-grade security orchestration and intelligence platform",
-    version="2.15.0",
+    title="PicoShogun Command Centre API",
+    description="Command centre for the Pico Security Series",
+    version="2.16.0",
     docs_url=settings.api.docs_url,
     redoc_url=settings.api.redoc_url,
     lifespan=lifespan,
@@ -183,7 +183,7 @@ app.add_middleware(RequestSizeLimitMiddleware, max_body_bytes=10 * 1024 * 1024) 
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 
-# ── Enterprise hardening middleware ──────────────────────────────────────
+# ── Security middleware ──────────────────────────────────────
 app.add_middleware(RequestTimeoutMiddleware, timeout_seconds=30)
 app.add_middleware(HTTPSEnforcementMiddleware, enabled=settings.is_production())
 app.add_middleware(DocsRestrictionMiddleware, enabled=settings.is_production())
@@ -348,7 +348,7 @@ async def root():
     try:
         return html_path.read_text(encoding="utf-8")
     except Exception:
-        return {"service": "Shogun Enterprise API", "version": "2.15.0", "status": "operational", "timestamp": datetime.now(timezone.utc).isoformat()}
+        return {"service": "PicoShogun API", "version": "2.16.0", "status": "operational", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 @app.get("/dashboard", tags=["Dashboard"], response_class=HTMLResponse)
 async def dashboard():

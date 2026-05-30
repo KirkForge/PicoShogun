@@ -1,9 +1,19 @@
-# Shogun — Enterprise Security Platform
+# PicoShogun — Command Centre for the Pico Security Series
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support%20my%20hardware-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/KirkForge)
 
+Command centre, firewall, and monitoring for the Pico Security Series. FastAPI + SQLite + Python 3.12.
 
-Enterprise-grade security orchestration and intelligence platform. FastAPI + SQLite + Python 3.12.
+| Product | Purpose | Repo |
+|---------|---------|------|
+| PicoSentry | Supply chain scanner | KirkForge/PicoSentry |
+| PicoDome | LLM injection protection | KirkForge/PicoDome |
+| **PicoShogun** | **Command centre & firewall** | **KirkForge/PicoShogun** |
+| PicoWatch | Runtime monitor | KirkForge/PicoWatch |
+
+## Status
+
+**Pre-1.0 beta.** Active development started late May 2026. The core API, auth, middleware stack, and orchestration work. The frontend dashboard is functional but rough. Several features are scaffolding — see STATE.md and GAPS.md for what's real vs. aspirational.
 
 ## Quick Start
 
@@ -16,7 +26,8 @@ source .venv/bin/activate
 python -m uvicorn api.server:app --reload
 
 # Or use the entrypoint
-shogun
+picoshogun
+# (shogun also works as backward compat alias)
 
 # Run batch
 bash scripts/run_category.sh monitoring --parallel 4 --verbose
@@ -24,15 +35,17 @@ bash scripts/run_category.sh monitoring --parallel 4 --verbose
 
 ## Environment Variables
 
+Primary prefix is `PICOSHOGUN_*`. `SHOGUN_*` works as backward compat.
+
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SHOGUN_ENV` | `development` | Environment (`development`/`production`) |
-| `SHOGUN_SECRET_KEY` | **required in production** | JWT signing key — `assert_secure()` refuses boot with default |
-| `SHOGUN_CORS_ORIGINS` | `http://localhost:8765` | Comma-separated CORS origins |
-| `SHOGUN_DDOS_SHIELD` | `false` | Enable DDoS shield |
-| `SHOGUN_DB_PATH` | `shogun.db` | SQLite database path |
-| `SHOGUN_API_PORT` | `8765` | API listen port |
-| `SHOGUN_AUDIT_RETENTION_DAYS` | `90` | Audit log retention period |
+| `PICOSHOGUN_ENV` | `development` | Environment (`development`/`production`) |
+| `PICOSHOGUN_SECRET_KEY` | **required in production** | JWT signing key — `assert_secure()` refuses boot with default |
+| `PICOSHOGUN_CORS_ORIGINS` | `http://localhost:8765` | Comma-separated CORS origins |
+| `PICOSHOGUN_DDOS_SHIELD` | `false` | Enable DDoS shield |
+| `PICOSHOGUN_DB_PATH` | `picoshogun.db` | SQLite database path |
+| `PICOSHOGUN_API_PORT` | `8765` | API listen port |
+| `PICOSHOGUN_AUDIT_RETENTION_DAYS` | `90` | Audit log retention period |
 
 See `.env.example` for the full list.
 
@@ -43,52 +56,46 @@ See `.env.example` for the full list.
 - **JWT + API keys + RBAC**: Token auth, API key rotation, expired key cleanup
 - **Audit log management**: Per-severity retention, purge API, dry-run support
 - **Graceful shutdown**: SIGTERM/SIGINT handlers for Kubernetes pod termination
-- **Project Orchestration**: Run 100+ security projects with async execution
+- **PicoDome integration**: L1-L4 defense layers (perimeter, validation, sandbox, behavioral)
+- **PicoSentry integration**: Supply chain scanner (246 tests, deterministic)
+- **Project Orchestration**: Run 75+ security projects with async execution
 - **Intelligence Engine**: 16-pattern threat extraction with correlation
 - **Alert Hub**: Multi-channel alerts (Discord/Slack/Email/Syslog)
-- **Plugin System**: Dynamic extensibility with lifecycle hooks
 - **Metrics**: Prometheus-compatible with built-in collection
-- **Webhooks**: HMAC-signed outgoing integrations
 - **Scheduler**: Cron-based job scheduling
 - **Backup/Restore**: Compressed archives with retention
 - **Event Bus**: Pub/sub with WebSocket real-time streaming
-- **Log Management**: Auto-rotation with compression
-- **OpenTelemetry**: Distributed tracing with graceful no-op fallback
-- **Docker**: Production-ready containers with monitoring profiles
 
 ## Security
 
 ### Startup Validation
-Shogun refuses to boot in production with insecure defaults. The `assert_secure()` check runs on startup and enforces:
-- **No default secret key** — `SHOGUN_SECRET_KEY` must be set; the `change-me-in-production` default is rejected in production
-- **No wildcard CORS** — `SHOGUN_CORS_ORIGINS` must list explicit origins in production
-- **No wildcard allowed hosts** — `SHOGUN_ALLOWED_HOSTS` must be explicit in production
-- **No debug mode** — `SHOGUN_DEBUG=false` in production
+PicoShogun refuses to boot in production with insecure defaults. The `assert_secure()` check runs on startup and enforces:
+- **No default secret key** — `PICOSHOGUN_SECRET_KEY` must be set; the default is rejected in production
+- **No wildcard CORS** — `PICOSHOGUN_CORS_ORIGINS` must list explicit origins in production
+- **No wildcard allowed hosts** — `PICOSHOGUN_ALLOWED_HOSTS` must be explicit in production
+- **No debug mode** — `PICOSHOGUN_DEBUG=false` in production
 
-Override with `SHOGUN_SKIP_SECURE_ASSERT=1` (not recommended; only for CI/testing).
+Override with `PICOSHOGUN_SKIP_SECURE_ASSERT=1` (not recommended; only for CI/testing).
 
 ### TLS Termination
-Shogun does not terminate TLS itself. It expects to run behind a reverse proxy (nginx, Caddy, cloud load balancer) that handles TLS. The `ssl_cert_path` and `ssl_key_path` settings in `SecurityConfig` are for documentation — actual TLS is configured in `nginx/shogun-default.conf` or your upstream proxy.
+PicoShogun does not terminate TLS itself. It expects to run behind a reverse proxy (nginx, Caddy, cloud load balancer) that handles TLS.
 
 ### Plugin Trust Boundary
-The plugin system (`services/plugin_manager.py`) loads Python modules from the `plugins/` directory at runtime. **This directory is a trust boundary equivalent to giving someone a shell on the server.** Plugin code runs in-process with full access to the Shogun runtime, database, and network. Before any multi-tenant or external deployment:
-- Restrict plugin directory permissions to the Shogun process owner only
-- Consider signed plugin manifests with verification
-- Consider sandboxed plugin execution (separate process, reduced privileges)
+The plugin system loads Python modules from the `plugins/` directory at runtime. **This directory is a trust boundary equivalent to giving someone a shell on the server.** Plugin code runs in-process with full access to the runtime, database, and network.
 
 ### Token Auth
-Shogun uses JWT (PyJWT) for authentication. The legacy simple-token format has been removed — it used non-timing-safe comparison and lacked expiration claims. Existing simple tokens will be rejected.
+JWT (PyJWT) for authentication. The legacy simple-token format has been removed — it used non-timing-safe comparison and lacked expiration claims.
 
 ## Architecture
 
 ```
 api/server.py              # FastAPI REST API + WebSocket + Dashboard
-config/settings.py         # Dataclass config from env vars (SHOGUN_*)
+config/settings.py         # Dataclass config from env vars (PICOSHOGUN_*)
 database/manager.py        # Thread-safe SQLite WAL + migrations + ConnectionPool interface
 services/auth.py           # JWT + API keys + RBAC + expiration enforcement
 services/audit_cleanup.py # Per-severity audit log retention + purge API
-middleware/                # 12-layer enterprise middleware stack
-iron_dome/                 # L1-L4 defense layers (perimeter, validation, sandbox, behavioral)
+middleware/                # 12-layer middleware stack
+iron_dome/                 # L1-L4 defense layers (PicoDome integration)
 picosentry/                # Supply chain scanner (246 tests, deterministic)
 ```
 
@@ -129,14 +136,14 @@ ruff check .                                    # Lint
 ## Docker
 
 ```bash
-docker build -t shogun:latest .
+docker build -t picoshogun:latest .
 docker run -d -p 8765:8765 \
-  -e SHOGUN_SECRET_KEY=your-production-secret \
-  -e SHOGUN_ENV=production \
-  -e SHOGUN_CORS_ORIGINS=https://app.example.com \
-  shogun:latest
+  -e PICOSHOGUN_SECRET_KEY=your-production-secret \
+  -e PICOSHOGUN_ENV=production \
+  -e PICOSHOGUN_CORS_ORIGINS=https://app.example.com \
+  picoshogun:latest
 ```
 
 ## License
 
-Enterprise internal use.
+BUSL-1.1

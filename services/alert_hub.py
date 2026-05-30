@@ -1,4 +1,4 @@
-"""Enterprise alert hub with multi-channel delivery and deduplication."""
+"""Alert hub with multi-channel delivery and deduplication."""
 import logging
 import threading
 from collections import defaultdict
@@ -14,7 +14,7 @@ except ImportError:
 from config.settings import settings
 from database.manager import db
 
-logger = logging.getLogger("shogun.Alerts")
+logger = logging.getLogger("picoshogun.Alerts")
 
 class AlertHub:
     """Smart alerting with deduplication, escalation, and multi-channel delivery."""
@@ -117,7 +117,7 @@ class AlertHub:
         }
 
         embed = {
-            "title": "🛡️ Shogun Alert",
+            "title": "🛡️ PicoShogun Alert",
             "description": message,
             "color": colors.get(severity, 3447003),
             "fields": [
@@ -125,7 +125,7 @@ class AlertHub:
                 {"name": "Severity", "value": severity.upper(), "inline": True},
                 {"name": "Time", "value": datetime.now(timezone.utc).isoformat(), "inline": True}
             ],
-            "footer": {"text": "Shogun Enterprise"}
+            "footer": {"text": "PicoShogun"}
         }
 
         if metadata:
@@ -166,7 +166,7 @@ class AlertHub:
         payload = {
             "attachments": [{
                 "color": colors.get(severity, "#808080"),
-                "title": f"Shogun Alert: {project_id}",
+                "title": f"PicoShogun Alert: {project_id}",
                 "text": message,
                 "fields": [
                     {"title": "Severity", "value": severity.upper(), "short": True},
@@ -202,7 +202,7 @@ class AlertHub:
 
         try:
             msg = MIMEText(f"""
-Shogun Alert
+PicoShogun Alert
 
 Project: {project_id}
 Severity: {severity.upper()}
@@ -211,8 +211,8 @@ Time: {datetime.now(timezone.utc).isoformat()}
 {message}
             """)
 
-            msg["Subject"] = f"[Shogun] {severity.upper()}: {project_id}"
-            msg["From"] = settings.alerts.email_from or "shogun@localhost"
+            msg["Subject"] = f"[PicoShogun] {severity.upper()}: {project_id}"
+            msg["From"] = settings.alerts.email_from or "picoshogun@localhost"
             msg["To"] = ", ".join(settings.alerts.email_to)
 
             # Choose connection method: SSL direct or STARTTLS
@@ -260,7 +260,7 @@ Time: {datetime.now(timezone.utc).isoformat()}
         try:
             syslog.syslog(
                 levels.get(severity, syslog.LOG_INFO),
-                f"Shogun[{project_id}]: [{severity.upper()}] {message[:500]}"
+                f"PicoShogun[{project_id}]: [{severity.upper()}] {message[:500]}"
             )
         except Exception:
             pass  # Syslog might not be available

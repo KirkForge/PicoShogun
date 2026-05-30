@@ -9,10 +9,10 @@ from pathlib import Path
 
 from config.settings import settings
 
-logger = logging.getLogger("shogun.Backup")
+logger = logging.getLogger("picoshogun.Backup")
 
 class BackupManager:
-    """Enterprise backup and restore for Shogun."""
+    """Backup and restore for PicoShogun."""
 
     def __init__(self):
         self.backup_dir = Path(settings.database.backup_dir)

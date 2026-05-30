@@ -1,14 +1,14 @@
 #!/bin/bash
-# Shogun Enterprise Setup Script
+# PicoShogun Enterprise Setup Script
 # Initializes database, installs dependencies, and configures the platform
 
 set -e
 
-BASE="/home/kirk/.picoclaw/workspace/Shogun"
+BASE="/home/kirk/.picoclaw/workspace/PicoShogun"
 PYTHON="python3"
 
 echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║     Shogun Enterprise Setup                            ║"
+echo "║     PicoShogun Enterprise Setup                            ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 

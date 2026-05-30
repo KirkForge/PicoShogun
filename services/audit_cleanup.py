@@ -1,10 +1,10 @@
-"""Audit log retention and cleanup for enterprise compliance."""
+"""Audit log retention and cleanup."""
 import logging
 from datetime import datetime, timedelta, timezone
 
 from database.manager import db
 
-logger = logging.getLogger("shogun.AuditRetention")
+logger = logging.getLogger("picoshogun.AuditRetention")
 
 # Default retention periods by severity
 DEFAULT_RETENTION: dict[str, int] = {

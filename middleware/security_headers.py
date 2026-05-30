@@ -1,4 +1,4 @@
-"""Security headers middleware — adds enterprise-grade security headers to all responses."""
+"""Security headers middleware — adds security headers to all responses."""
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 

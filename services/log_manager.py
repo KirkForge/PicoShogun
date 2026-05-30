@@ -1,4 +1,4 @@
-"""Log rotation and management for Shogun."""
+"""Log rotation and management for PicoShogun."""
 import gzip
 import logging
 import shutil
@@ -6,10 +6,10 @@ import threading
 from datetime import datetime, timedelta
 from pathlib import Path
 
-logger = logging.getLogger("shogun.LogManager")
+logger = logging.getLogger("picoshogun.LogManager")
 
 class LogManager:
-    """Enterprise log rotation with compression and retention."""
+    """Log rotation with compression and retention."""
 
     def __init__(self, log_dir: str = None, max_size_mb: int = 100,
                  max_files: int = 10, retention_days: int = 30):

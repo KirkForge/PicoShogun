@@ -1,4 +1,4 @@
-"""Structured JSON logging configuration for enterprise deployments."""
+"""Structured JSON logging configuration for PicoShogun."""
 import json
 import logging
 import sys

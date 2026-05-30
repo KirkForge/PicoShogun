@@ -1,13 +1,13 @@
 #!/bin/bash
-# Shogun Enterprise Batch Runner
+# PicoShogun Enterprise Batch Runner
 # Executes project categories with full logging, health checks, and DB tracking
 
 set -euo pipefail
 
 BASE="/home/kirk/.picoclaw/workspace"
 HIVE="$BASE/Hivemind-projects"
-LOGS="$BASE/Shogun/logs"
-DB="$BASE/Shogun/shogun.db"
+LOGS="$BASE/PicoShogun/logs"
+DB="$BASE/PicoShogun/shogun.db"
 PYTHON="python3"
 
 mkdir -p "$LOGS"
@@ -50,7 +50,7 @@ if [[ -z "$category" ]]; then
     usage
 fi
 
-echo "=== Shogun Enterprise Batch Runner ==="
+echo "=== PicoShogun Enterprise Batch Runner ==="
 echo "Category: $category"
 echo "Timeout: ${timeout}s"
 echo "Parallel: $parallel"

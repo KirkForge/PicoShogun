@@ -7,10 +7,10 @@ from typing import Any
 
 from database.manager import db
 
-logger = logging.getLogger("shogun.Intelligence")
+logger = logging.getLogger("picoshogun.Intelligence")
 
 class IntelligenceEngine:
-    """Enterprise intelligence engine with pattern matching and correlation."""
+    """Intelligence engine with pattern matching and correlation."""
 
     # Core pattern database — tightened to reduce false positives
     PATTERNS = {

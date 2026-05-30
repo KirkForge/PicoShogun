@@ -1,5 +1,5 @@
 [Unit]
-Description=Shogun Enterprise Security Orchestration Platform
+Description=PicoShogun Command Centre for the Pico Security Series
 After=network.target
 
 [Service]
@@ -7,14 +7,14 @@ Type=simple
 User=kirk
 Group=kirk
 WorkingDirectory=/home/kirk/Madlab/Clean-Live/Shogun
-Environment=SHOGUN_ENV=production
+Environment=PICOSHOGUN_ENV=production
 Environment=PYTHONPATH=/home/kirk/Madlab/Clean-Live/Shogun
 ExecStart=/home/kirk/Madlab/Clean-Live/Shogun/venv/bin/python -m uvicorn api.server:app --host 0.0.0.0 --port 8765 --workers 4
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=shogun
+SyslogIdentifier=picoshogun
 
 [Install]
 WantedBy=multi-user.target

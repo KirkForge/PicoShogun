@@ -4,7 +4,7 @@ DEPRECATED: This module is superseded by services/orchestrator.py (EnhancedOrche
 It is retained for backward compatibility only and will be removed in v3.0.
 All orchestration should go through the API server (api/server.py).
 
-Shogun Master Orchestrator
+PicoShogun Master Orchestrator
 Central brain for the 75-project smart security lab.
 Coordinates, learns, adapts, and evolves.
 
@@ -340,7 +340,7 @@ class AlertHub:
 
         payload = {
             "embeds": [{
-                "title": f"🛡️ Shogun Alert: {project_id}",
+                "title": f"🛡️ PicoShogun Alert: {project_id}",
                 "description": message,
                 "color": colors.get(severity, 3447003),
                 "fields": [
@@ -525,7 +525,7 @@ class APIGateway:
         # GET /threat-score - current threat level
 
 # ─── Master Orchestrator ────────────────────────────────────────────────────
-class ShogunOrchestrator:
+class PicoShogunOrchestrator:
     """Main orchestrator that ties everything together."""
 
     def __init__(self):
@@ -583,7 +583,7 @@ class ShogunOrchestrator:
 
         report = f"""
 ╔════════════════════════════════════════════════════════════════╗
-║     Shogun Enterprise Security Lab Report                ║
+║     PicoShogun Security Lab Report                ║
 ╚════════════════════════════════════════════════════════════════╝
 
 Generated: {status['timestamp']}
@@ -607,7 +607,7 @@ THREAT SCORE BREAKDOWN
 
 # ─── CLI ──────────────────────────────────────────────────────────────────────
 def main():
-    orch = ShogunOrchestrator()
+    orch = PicoShogunOrchestrator()
 
     if len(sys.argv) < 2:
         print(orch.generate_report())
@@ -634,7 +634,7 @@ def main():
         print(orch.generate_report())
 
     elif cmd == "init":
-        print("Shogun initialized. Registry built.")
+        print("PicoShogun initialized. Registry built.")
         print(f"Projects registered: {len(orch.registry.projects)}")
 
     else:

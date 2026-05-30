@@ -8,7 +8,7 @@ import sys
 from dataclasses import dataclass
 from typing import Any
 
-logger = logging.getLogger("shogun.Plugins")
+logger = logging.getLogger("picoshogun.Plugins")
 
 @dataclass
 class PluginMetadata:

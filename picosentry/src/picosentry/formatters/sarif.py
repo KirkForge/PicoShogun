@@ -80,7 +80,7 @@ def format_sarif(result: ScanResult) -> str:
                     "driver": {
                         "name": "picosentry",
                         "version": result.engine_version,
-                        "informationUri": "https://github.com/55N10E/SecDev_kimi",
+                        "informationUri": "https://github.com/KirkForge/PicoSentry",
                         "rules": [rules_seen[rid] for rid in sorted(rules_seen.keys())],
                     }
                 },

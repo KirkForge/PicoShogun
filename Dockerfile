@@ -17,14 +17,14 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 # ── Runtime ──────────────────────────────────────────────────────────
 FROM python:3.12-slim AS runtime
 
-LABEL org.opencontainers.image.title="Shogun Command Centre" \
-      org.opencontainers.image.description="Enterprise security orchestration & intelligence platform" \
+LABEL org.opencontainers.image.title="PicoShogun Command Centre" \
+      org.opencontainers.image.description="Command centre for the Pico Security Series" \
       org.opencontainers.image.vendor="KirkForge" \
-      org.opencontainers.image.source="https://github.com/KirkForge/Shogun" \
+      org.opencontainers.image.source="https://github.com/KirkForge/PicoShogun" \
       org.opencontainers.image.licenses="MIT"
 
 # Security: non-root user
-RUN groupadd -r shogun && useradd -r -g shogun -d /app -s /sbin/nologin shogun
+RUN groupadd -r picoshogun && useradd -r -g picoshogun -d /app -s /sbin/nologin picoshogun
 
 WORKDIR /app
 
@@ -36,11 +36,11 @@ COPY . .
 
 # Create necessary directories with proper ownership
 RUN mkdir -p /app/logs /app/backups && \
-    chown -R shogun:shogun /app
+    chown -R picoshogun:picoshogun /app
 
-USER shogun
+USER picoshogun
 
-ENV SHOGUN_ENV=production \
+ENV PICOSHOGUN_ENV=production \
     SHOGUN_SECRET_KEY=change-me-in-production \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1

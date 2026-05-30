@@ -6,7 +6,7 @@ GitHub, npm, pnpm supply chain attacks are accelerating. Compromised forks, post
 
 ## Product
 
-**Shogun Supply Chain Scanner** — a deterministic injection detection engine that runs locally, produces verifiable results, and integrates into CI/CD.
+**PicoShogun Supply Chain Scanner** — a deterministic injection detection engine that runs locally, produces verifiable results, and integrates into CI/CD.
 
 ### Core Principles
 1. **Deterministic** — same input, same output. No LLM, no probabilistic guessing.
@@ -25,7 +25,7 @@ GitHub, npm, pnpm supply chain attacks are accelerating. Compromised forks, post
 - Package manifest integrity (version range attacks, optional deps)
 - Fork trust drift (divergence from upstream)
 - SARIF + JSON output for CI/CD integration
-- REST API endpoint for Shogun platform
+- REST API endpoint for PicoShogun platform
 - CLI tool for local/CI use
 
 ### Out of Scope (Future Layers)

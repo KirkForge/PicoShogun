@@ -1,4 +1,4 @@
-"""Shogun middleware package."""
+"""PicoShogun middleware package."""
 
 __all__ = [
     "AuditMiddleware",

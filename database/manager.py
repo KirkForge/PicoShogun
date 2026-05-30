@@ -1,4 +1,4 @@
-"""Enterprise database layer with migrations, connection pooling, and ORM-like interface."""
+"""Database layer with migrations, connection pooling, and ORM-like interface."""
 import logging
 import sqlite3
 import threading
@@ -29,7 +29,7 @@ def _convert_timestamp(val):
 sqlite3.register_adapter(datetime, _adapt_datetime)
 sqlite3.register_converter("TIMESTAMP", _convert_timestamp)
 
-logger = logging.getLogger("shogun.DB")
+logger = logging.getLogger("picoshogun.DB")
 
 
 # ─── Abstract connection interface for future Postgres migration ────────

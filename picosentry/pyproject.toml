@@ -10,7 +10,6 @@ readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
 authors = [
-    {name = "55N10E"},
 ]
 keywords = ["supply-chain", "security", "npm", "pnpm", "scanner", "deterministic", "ml-safe", "picosentry"]
 classifiers = [

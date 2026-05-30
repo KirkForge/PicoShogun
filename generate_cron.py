@@ -14,7 +14,7 @@ Schedule design:
 import json
 from pathlib import Path
 
-CONFIG = Path("/home/kirk/.picoclaw/workspace/Shogun/config")
+CONFIG = Path("/home/kirk/.picoclaw/workspace/PicoShogun/config")
 REGISTRY = CONFIG / "project_registry.json"
 
 # Load registry
@@ -41,7 +41,7 @@ DAILY_OFFPEAK = {
     "66-vulnerability-scanner": "1",
 }
 
-print("# Shogun Cron Schedule")
+print("# PicoShogun Cron Schedule")
 print(f"# Generated for {len(registry)} projects")
 print()
 
@@ -116,5 +116,5 @@ for pid, meta in registry.items():
 
 print()
 print("# Orchestrator heartbeat + intelligence sweep")
-print("*/5 * * * * cd /home/kirk/.picoclaw/workspace/Shogun/orchestrator && python3 master.py status 2>>1 | logger -t shogun-heartbeat")
-print("0 */6 * * * cd /home/kirk/.picoclaw/workspace/Shogun/orchestrator && python3 /home/kirk/.picoclaw/workspace/scripts/Intelligence_report_summary.py 2>>1 | logger -t shogun-intel")
+print("*/5 * * * * cd /home/kirk/.picoclaw/workspace/PicoShogun/orchestrator && python3 master.py status 2>>1 | logger -t shogun-heartbeat")
+print("0 */6 * * * cd /home/kirk/.picoclaw/workspace/PicoShogun/orchestrator && python3 /home/kirk/.picoclaw/workspace/scripts/Intelligence_report_summary.py 2>>1 | logger -t shogun-intel")

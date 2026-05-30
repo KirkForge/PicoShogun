@@ -12,7 +12,7 @@ from typing import Any
 from database.manager import DatabaseManager
 from services.metrics import metrics
 
-logger = logging.getLogger("shogun.Anomaly")
+logger = logging.getLogger("picoshogun.Anomaly")
 
 CONFIG_PATH = Path(__file__).parent.parent / "config" / "anomaly_rules.json"
 

@@ -1,10 +1,10 @@
-# Iron Dome Architecture — Shogun v3.0
+# PicoDome Architecture — PicoShogun v3.0
 
 ## Philosophy
 
-The Iron Dome is not a single firewall. It is **five concentric layers** of deterministic defense. Each layer assumes the previous one has been breached. No single point of failure. No trust without verification.
+The PicoDome is not a single firewall. It is **five concentric layers** of deterministic defense. Each layer assumes the previous one has been breached. No single point of failure. No trust without verification.
 
-> "The best security is layered security where each layer is simple enough to be formally verified." — Iron Dome Principle
+> "The best security is layered security where each layer is simple enough to be formally verified." — PicoDome Principle
 
 ---
 
@@ -189,7 +189,7 @@ Instead of letting LLM decide actions directly:
 
 ## SaaS Differentiation
 
-While competitors sell "AI-powered security" (= a black box LLM), **Iron Dome** sells:
+While competitors sell "AI-powered security" (= a black box LLM), **PicoDome** sells:
 
 1. **Deterministic defense**: Every layer is auditable and testable
 2. **Defense in depth**: 5 independent layers, not one

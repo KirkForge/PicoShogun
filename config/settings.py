@@ -1,4 +1,4 @@
-"""Enterprise configuration management for Shogun."""
+"""Configuration management for PicoShogun."""
 import json
 import os
 from dataclasses import dataclass, field
@@ -6,14 +6,28 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).parent.parent
 
+
+def _env(key: str, default: str = "") -> str:
+    """Read env var with PICOSHOGUN_ prefix first, fall back to SHOGUN_ prefix."""
+    val = os.environ.get(f"PICOSHOGUN_{key}")
+    if val is not None:
+        return val
+    return os.environ.get(f"SHOGUN_{key}", default)
+
+
+def _env_bool(key: str, default: str = "false") -> bool:
+    """Read boolean env var with PICOSHOGUN_ / SHOGUN_ fallback."""
+    return _env(key, default).lower() == "true"
+
+
 def _parse_cors_origins() -> list[str]:
-    """Parse SHOGUN_CORS_ORIGINS env var into a list of origins.
+    """Parse PICOSHOGUN_CORS_ORIGINS (or SHOGUN_CORS_ORIGINS) env var into a list of origins.
 
     Accepts comma-separated origins, e.g. ``https://app.example.com,https://admin.example.com``.
     Defaults to ``["http://localhost:8765"]`` when the env var is unset.
     In production, set SHOGUN_CORS_ORIGINS to explicit origins — wildcard is insecure.
     """
-    raw = os.environ.get("SHOGUN_CORS_ORIGINS", "").strip()
+    raw = _env("CORS_ORIGINS", "").strip()
     if not raw:
         return ["http://localhost:8765"]
     return [origin.strip() for origin in raw.split(",") if origin.strip()]
@@ -44,15 +58,15 @@ class APIConfig:
 
 @dataclass
 class SecurityConfig:
-    secret_key: str = field(default_factory=lambda: os.environ.get("SHOGUN_SECRET_KEY", "change-me-in-production"))
-    # CRITICAL: Set SHOGUN_SECRET_KEY env var in production! assert_secure() will refuse to start
+    secret_key: str = field(default_factory=lambda: _env("SECRET_KEY", "change-me-in-production"))
+    # CRITICAL: Set PICOSHOGUN_SECRET_KEY (or SHOGUN_SECRET_KEY) env var in production! assert_secure() will refuse to start
     # with the default key. See config.validate() and config.assert_secure().
     jwt_algorithm: str = "HS256"
     jwt_expiration_hours: int = 24
     password_hash_rounds: int = 12
     allowed_hosts: list[str] = field(default_factory=lambda: ["localhost", "127.0.0.1"])
     rate_limit: str = "100/minute"
-    ddos_shield_enabled: bool = field(default_factory=lambda: os.environ.get("SHOGUN_DDOS_SHIELD", "false").lower() == "true")
+    ddos_shield_enabled: bool = field(default_factory=lambda: _env_bool("DDOS_SHIELD", "false"))
     ssl_cert_path: Path | None = None
     ssl_key_path: Path | None = None
 
@@ -75,7 +89,7 @@ class AlertConfig:
     email_smtp_password: str | None = field(default_factory=lambda: os.environ.get("SMTP_PASSWORD"))
     email_smtp_use_ssl: bool = False
     email_smtp_starttls: bool = True
-    email_from: str | None = field(default_factory=lambda: os.environ.get("EMAIL_FROM", "shogun@localhost"))
+    email_from: str | None = field(default_factory=lambda: os.environ.get("EMAIL_FROM", "picoshogun@localhost"))
     email_to: list[str] = field(default_factory=lambda: [
         addr.strip()
         for addr in os.environ.get("EMAIL_TO", "").split(",")
@@ -96,8 +110,8 @@ class OrchestratorConfig:
 
 @dataclass
 class Settings:
-    env: str = field(default_factory=lambda: os.environ.get("SHOGUN_ENV", "development"))
-    debug: bool = field(default_factory=lambda: os.environ.get("SHOGUN_DEBUG", "false").lower() == "true")
+    env: str = field(default_factory=lambda: _env("ENV", "development"))
+    debug: bool = field(default_factory=lambda: _env_bool("DEBUG", "false"))
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     api: APIConfig = field(default_factory=APIConfig)
     security: SecurityConfig = field(default_factory=SecurityConfig)
@@ -116,7 +130,7 @@ class Settings:
             if self.security.secret_key == "change-me-in-production":
                 issues.append("SECURITY: Default secret key in production")
             if not self.security.ssl_cert_path:
-                issues.append("SECURITY: No SSL certificate configured (set SHOGUN_SSL_CERT_PATH or configure TLS termination upstream)")
+                issues.append("SECURITY: No SSL certificate configured (set PICOSHOGUN_SSL_CERT_PATH or configure TLS termination upstream)")
             if self.debug:
                 issues.append("SECURITY: Debug mode enabled in production")
             if "*" in self.security.allowed_hosts:
@@ -142,19 +156,18 @@ class Settings:
         Non-critical issues are logged as warnings.
         Override with SHOGUN_SKIP_SECURE_ASSERT=1 env var (not recommended).
         """
-        import os
         import sys
 
-        if os.environ.get("SHOGUN_SKIP_SECURE_ASSERT") == "1":
-            logger = __import__("logging").getLogger("shogun.config")
-            logger.warning("SECURITY ASSERT SKIPPED: SHOGUN_SKIP_SECURE_ASSERT=1 is set. This bypasses startup security checks.")
+        if _env("SKIP_SECURE_ASSERT", "") == "1":
+            logger = __import__("logging").getLogger("picoshogun.config")
+            logger.warning("SECURITY ASSERT SKIPPED: PICOSHOGUN_SKIP_SECURE_ASSERT=1 is set. This bypasses startup security checks.")
             return
 
         issues = self.validate()
         critical = [i for i in issues if i.startswith("SECURITY:")]
         warnings = [i for i in issues if i.startswith("CONFIG:")]
 
-        logger = __import__("logging").getLogger("shogun.config")
+        logger = __import__("logging").getLogger("picoshogun.config")
         for w in warnings:
             logger.warning(w)
 
@@ -163,8 +176,8 @@ class Settings:
                 logger.critical(issue)
             logger.critical(
                 "FATAL: %d critical security issue(s) detected. "
-                "Refusing to start. Set SHOGUN_SECRET_KEY and other production config. "
-                "Override with SHOGUN_SKIP_SECURE_ASSERT=1 (NOT recommended).",
+                "Refusing to start. Set PICOSHOGUN_SECRET_KEY and other production config. "
+                "Override with PICOSHOGUN_SKIP_SECURE_ASSERT=1 (NOT recommended).",
                 len(critical),
             )
             sys.exit(1)
@@ -180,7 +193,7 @@ class Settings:
         """
         import logging
         from dataclasses import fields as dc_fields
-        logger = logging.getLogger("shogun.config")
+        logger = logging.getLogger("picoshogun.config")
         with open(path) as f:
             data = json.load(f)
 

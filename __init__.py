@@ -1,3 +1,3 @@
-"""Shogun Command Centre — Enterprise security orchestration & intelligence."""
-__version__ = "2.15.0"
+"""PicoShogun — command centre for the Pico Security Series."""
+__version__ = "2.16.0"
 

@@ -9,7 +9,7 @@ from pathlib import Path
 
 BASE = Path("/home/kirk/.picoclaw/workspace")
 HIVE = BASE / "Hivemind-projects"
-SEC = BASE / "Shogun"
+SEC = BASE / "PicoShogun"
 CONFIG = SEC / "config"
 REGISTRY = CONFIG / "project_registry.json"
 
@@ -111,7 +111,7 @@ for pid, meta in registry.items():
 
 # Build output
 output = []
-output.append("# === Shogun Cron Schedule ===")
+output.append("# === PicoShogun Cron Schedule ===")
 output.append(f"# Generated for {len(entries)} projects with executable scripts")
 output.append("")
 
@@ -123,6 +123,6 @@ if comment_lines:
 output.extend(entries)
 output.append("")
 output.append("# === Orchestrator heartbeat ===")
-output.append("*/5 * * * * cd /home/kirk/.picoclaw/workspace/Shogun/orchestrator \u0026\u0026 python3 master.py status \u003e\u003e /dev/null 2\u003e\u00261")
+output.append("*/5 * * * * cd /home/kirk/.picoclaw/workspace/PicoShogun/orchestrator \u0026\u0026 python3 master.py status \u003e\u003e /dev/null 2\u003e\u00261")
 
 print("\n".join(output))

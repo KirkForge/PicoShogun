@@ -1,8 +1,8 @@
-"""OpenTelemetry tracing & metrics integration for Shogun."""
+"""OpenTelemetry tracing & metrics integration for PicoShogun."""
 import logging
 import os
 
-logger = logging.getLogger("shogun.Observability")
+logger = logging.getLogger("picoshogun.Observability")
 
 # ── Tracer setup ─────────────────────────────────────────────────────
 

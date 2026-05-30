@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 from database.manager import db
 
-logger = logging.getLogger("shogun.Scheduler")
+logger = logging.getLogger("picoshogun.Scheduler")
 
 try:
     from croniter import croniter
@@ -31,7 +31,7 @@ class ScheduledJob:
     last_status: str | None
 
 class JobScheduler:
-    """Enterprise job scheduler with cron expressions."""
+    """Job scheduler with cron expressions."""
 
     def __init__(self):
         self.scheduler = sched.scheduler(time.time, time.sleep)

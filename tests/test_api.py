@@ -1,4 +1,4 @@
-"""Tests for the Shogun Command Centre API endpoints."""
+"""Tests for the PicoShogun Command Centre API endpoints."""
 import contextlib
 import os
 import sys
@@ -9,8 +9,8 @@ import pytest
 # Ensure project root is on sys.path
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
-os.environ["SHOGUN_ENV"] = "test"
-os.environ["SHOGUN_SECRET_KEY"] = "test-key-for-pytest"
+os.environ["PICOSHOGUN_ENV"] = "test"
+os.environ["PICOSHOGUN_SECRET_KEY"] = "test-key-for-pytest"
 
 
 @pytest.fixture
@@ -88,7 +88,7 @@ class TestDashboardEndpoint:
         # May return 200 or 404 if front/index.html doesn't exist in test env
         if resp.status_code == 200:
             assert "text/html" in resp.headers.get("content-type", "")
-            assert "Shogun" in resp.text or "Command Centre" in resp.text
+            assert "PicoShogun" in resp.text or "Command Centre" in resp.text or "Shogun" in resp.text
 
     def test_root_redirect_or_html(self, client):
         resp = client.get("/")
@@ -131,8 +131,8 @@ class TestAPIVersion:
 
     def test_api_info(self, client):
         from api.server import app
-        assert app.title == "Shogun Command Centre API"
-        assert app.version == "2.15.0"
+        assert app.title == "PicoShogun Command Centre API"
+        assert app.version == "2.16.0"
 
 
 class TestSecurityHeaders:

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Shogun — Command Centre</title>
+<title>PicoShogun — Command Centre</title>
 <style>
 /* ── Theme Variables ──────────────────────────────────────────────── */
 :root, [data-theme="dark"] {
@@ -161,7 +161,7 @@ kbd{padding:2px 6px;border-radius:4px;border:1px solid var(--border);background:
   <nav class="sidebar">
     <div class="sidebar-logo">
       <div class="icon">S</div>
-      <h1>Shogun</h1>
+      <h1>PicoShogun</h1>
       <span class="ver">v2.13</span>
     </div>
     <div class="nav">
@@ -453,11 +453,11 @@ kbd{padding:2px 6px;border-radius:4px;border:1px solid var(--border);background:
 
 <script>
 // =====================================================================
-// Shogun Command Centre — Enterprise Dashboard v2.13
+// PicoShogun Command Centre — Dashboard v2.16
 // =====================================================================
 
 const API = window.location.origin;
-let token = localStorage.getItem('shogun_token') || '';
+let token = localStorage.getItem('picoshogun_token') || localStorage.getItem('shogun_token') || '';
 let ws = null;
 let wsRetries = 0;
 const MAX_WS_RETRIES = 10;
@@ -467,7 +467,7 @@ let successHistory = [];
 
 // ── Theme ───────────────────────────────────────────────────────────
 function initTheme() {
-  const saved = localStorage.getItem('shogun_theme') || 'dark';
+  const saved = localStorage.getItem('picoshogun_theme') || localStorage.getItem('shogun_theme') || 'dark';
   document.documentElement.setAttribute('data-theme', saved);
   updateThemeIcon(saved);
 }
@@ -475,7 +475,7 @@ function toggleTheme() {
   const cur = document.documentElement.getAttribute('data-theme');
   const next = cur === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', next);
-  localStorage.setItem('shogun_theme', next);
+  localStorage.setItem('picoshogun_theme', next);
   updateThemeIcon(next);
   if (threatHistory.length) drawThreatChart();
 }
@@ -504,12 +504,12 @@ async function doAuth() {
   try {
     if (key) {
       token = key;
-      localStorage.setItem('shogun_token', key);
+      localStorage.setItem('picoshogun_token', key);
     } else {
       const res = await fetch(API + '/auth/login?username=' + encodeURIComponent(user) + '&password=' + encodeURIComponent(pass));
       const data = await res.json();
       token = data.access_token;
-      localStorage.setItem('shogun_token', token);
+      localStorage.setItem('picoshogun_token', token);
     }
     closeAuthModal();
     refreshAll();

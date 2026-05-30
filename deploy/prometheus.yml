@@ -1,13 +1,13 @@
-# Prometheus scrape config for Shogun
+# Prometheus scrape config for PicoShogun
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: "shogun"
+  - job_name: "picoshogun"
     metrics_path: /metrics
     static_configs:
-      - targets: ["shogun:8765"]
+      - targets: ["picoshogun:8765"]
     basic_auth:
       username: admin
       password: changeme

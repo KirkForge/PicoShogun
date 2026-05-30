@@ -1,10 +1,10 @@
-"""Test plugin for Shogun plugin system."""
+"""Test plugin for PicoShogun plugin system."""
 import logging
 from typing import Any
 
 from services.plugin_manager import PluginInterface
 
-logger = logging.getLogger("shogun.Plugin.TestNotifier")
+logger = logging.getLogger("picoshogun.Plugin.TestNotifier")
 
 class TestNotifier(PluginInterface):
     """Logs project completions and alerts to console."""

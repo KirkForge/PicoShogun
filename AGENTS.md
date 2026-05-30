@@ -1,7 +1,18 @@
-
 **See also**: [REPORULES.md](../REPORULES.md) — multi-machine sync, git identity, PAT handling, and new-repo bootstrap.
 
-# AGENTS.md — Shogun
+# AGENTS.md — PicoShogun
+
+## What PicoShogun IS
+- Command centre and firewall for the Pico Security Series (PicoSentry, PicoDome, PicoShogun, PicoWatch)
+- FastAPI REST API + SQLite backend with 12-layer security middleware
+- Orchestrator for running security projects and extracting intelligence
+- Monitoring dashboard (SPA) with auth, rate limiting, and alerting
+
+## What PicoShogun is NOT
+- Not "enterprise-grade" — it's pre-1.0 beta
+- Not a standalone firewall product — it orchestrates PicoDome and PicoSentry
+- Not SOC2 compliant — no audit has been done
+- Not production-hardened for multi-tenant SaaS — org system exists but is minimally tested
 
 ## ⚠️ Mandatory Rules — Read Before Editing
 
@@ -10,6 +21,8 @@
 - **Git identity**: `Henrik Kirk <285947470+KirkForge@users.noreply.github.com>`
 - **Commit format**: `type(scope): message` — feat, fix, docs, refactor, test, chore, wip
 - **Pre-push CI**: `ci-cleandev` hooks block pushes on failure. Fix, don't bypass.
+- **No AI co-authors**: Do not add `Co-authored-by: GLM-5.1` or similar. Henrik Kirk is the sole author.
+- **No inflated claims**: If something is scaffold or stub, say so. Don't call it "enterprise" or "battle-tested" unless it actually is.
 
 ## Python Project Rules
 
@@ -31,6 +44,15 @@
 2. No secrets, no generated files, no cache directories
 3. `git diff --cached` — verify actual content
 4. Let pre-push CI pass before pushing
+
+## Writing Rules
+
+- **Honest docs only** — no "9/10 readiness" scores on scaffolded features
+- **Version labels**: This is pre-1.0 beta. Say so.
+- **Threat models**: Document anything that takes untrusted input
+- **No dead code** implying capabilities the product doesn't have
+- **Product names**: PicoShogun, PicoSentry, PicoDome, PicoWatch — not Shogun, IronDome
+- **Env vars**: `PICOSHOGUN_*` is primary. `SHOGUN_*` is backward compat, supported but deprecated.
 
 ---
 

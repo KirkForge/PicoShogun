@@ -1,4 +1,4 @@
-"""Enhanced orchestrator with enterprise features."""
+"""Orchestrator with async execution and health checks."""
 import json
 import logging
 import os
@@ -19,7 +19,7 @@ from services.intelligence import IntelligenceEngine
 from services.metrics import metrics
 from services.plugin_manager import plugin_manager
 
-logger = logging.getLogger("shogun.Orchestrator")
+logger = logging.getLogger("picoshogun.Orchestrator")
 
 BASE_DIR = Path(__file__).parent.parent
 PROJECTS_DIR = BASE_DIR / "projects"
@@ -40,7 +40,7 @@ class ProjectMeta:
     intelligence_inputs: list[str] | None = None
 
 class EnhancedOrchestrator:
-    """Enterprise-grade orchestrator with async execution, health checks, and metrics."""
+    """Orchestrator with async execution, health checks, and metrics."""
 
     def __init__(self):
         self.registry: dict[str, ProjectMeta] = {}
@@ -583,7 +583,7 @@ class EnhancedOrchestrator:
 
         report = f"""
 ╔══════════════════════════════════════════════════════════════════╗
-║     Shogun Enterprise Security Lab Report                    ║
+║     PicoShogun Security Lab Report                    ║
 ╚══════════════════════════════════════════════════════════════════╝
 
 Generated: {status['timestamp']}

@@ -5,7 +5,7 @@ import logging
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
-logger = logging.getLogger("shogun.Audit")
+logger = logging.getLogger("picoshogun.Audit")
 
 # Lazy imports to avoid circular dependency and premature DB init
 _auth_svc = None
