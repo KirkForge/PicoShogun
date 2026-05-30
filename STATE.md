@@ -1,6 +1,6 @@
 # PicoShogun — Project State
 
-**Version:** 2.16.0 | **Last Updated:** 2026-05-30 | **Git:** `master`
+**Version:** 2.16.0 | **Last Updated:** 2026-05-30 | **Git:** `main`
 
 ---
 
