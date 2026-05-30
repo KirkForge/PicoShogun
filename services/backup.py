@@ -37,7 +37,7 @@ class BackupManager:
 
             # Create metadata
             meta = {
-                "version": "2.0.0",
+                "version": "0.1.0",
                 "created": datetime.now(timezone.utc).isoformat(),
                 "database_size": db_backup.stat().st_size,
                 "include_logs": include_logs

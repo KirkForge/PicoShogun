@@ -82,7 +82,7 @@ async def lifespan(app: FastAPI):
     Starts: structured logging, OpenTelemetry, scheduler, anomaly detector.
     Stops: scheduler, anomaly detector, event bus, plugin manager, DB connections.
     """
-    logger.info("PicoShogun starting up — version 2.16.0")
+    logger.info("PicoShogun starting up — version 0.1.0")
 
     # Enforce secure configuration — refuse to start with insecure defaults in production
     settings.assert_secure()
@@ -128,7 +128,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="PicoShogun Command Centre API",
     description="Command centre for the Pico Security Series",
-    version="2.16.0",
+    version="0.1.0",
     docs_url=settings.api.docs_url,
     redoc_url=settings.api.redoc_url,
     lifespan=lifespan,
@@ -348,7 +348,7 @@ async def root():
     try:
         return html_path.read_text(encoding="utf-8")
     except Exception:
-        return {"service": "PicoShogun API", "version": "2.16.0", "status": "operational", "timestamp": datetime.now(timezone.utc).isoformat()}
+        return {"service": "PicoShogun API", "version": "0.1.0", "status": "operational", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 @app.get("/dashboard", tags=["Dashboard"], response_class=HTMLResponse)
 async def dashboard():
@@ -408,16 +408,16 @@ async def get_status(user: dict = Depends(get_current_user)):
     active_threats = db.execute_one("SELECT COUNT(*) as c FROM intelligence WHERE severity IN ('critical', 'high')")
     pending_alerts = db.execute_one("SELECT COUNT(*) as c FROM alerts WHERE sent = 0")
     threat_data = db.execute_one("SELECT AVG(confidence) as avg_conf FROM intelligence WHERE severity IN ('critical', 'high')")
-    uptime = (datetime.now(timezone.utc) - status.get("started_at", datetime.now(timezone.utc))).total_seconds() if "started_at" in status else 0
+    uptime = status.get("uptime_seconds", 0)
     overall = "healthy"
     if any(c["status"] == "critical" for c in health):
         overall = "critical"
     elif any(c["status"] in ("warning", "degraded") for c in health):
         overall = "degraded"
     return SystemStatus(
-        projects_total=status.get("total_projects", 0),
-        projects_active=status.get("active_projects", 0),
-        projects_failed=status.get("failed_projects", 0),
+        projects_total=status.get("projects_total", 0),
+        projects_active=status.get("projects_active", 0),
+        projects_failed=status.get("projects_failed", 0),
         active_threats=active_threats["c"] if active_threats else 0,
         pending_alerts=pending_alerts["c"] if pending_alerts else 0,
         threat_score=threat_data["avg_conf"] if threat_data and threat_data["avg_conf"] else 0.0,
@@ -435,7 +435,7 @@ async def list_projects(
     user: dict = Depends(get_current_user),
     org: dict = Depends(get_current_org),
 ):
-    projects = orchestrator.list_projects(category=category, status=status_filter)
+    projects = orchestrator.list_projects(category=category, status_filter=status_filter)
     return [ProjectStatus(**p) if isinstance(p, dict) else p for p in projects]
 
 @app.get("/projects/{project_id}", response_model=ProjectStatus, tags=["Projects"])
@@ -460,8 +460,7 @@ async def run_project(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     timeout = request.timeout if request else 300
-    parameters = request.parameters if request else None
-    result = orchestrator.run_project(project_id, timeout=timeout, parameters=parameters)
+    result = orchestrator.run_project(project_id, timeout=timeout)
     return result
 
 @app.post("/batch/run", tags=["Projects"])
@@ -489,10 +488,15 @@ async def export_project(
     project = orchestrator.get_project(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    export_data = orchestrator.export_project(project_id, format=format)
     if format == "csv":
-        return PlainTextResponse(content=export_data, media_type="text/csv")
-    return export_data
+        import csv as csv_module
+        import io
+        output = io.StringIO()
+        writer = csv_module.DictWriter(output, fieldnames=project.keys())
+        writer.writeheader()
+        writer.writerow(project)
+        return PlainTextResponse(content=output.getvalue(), media_type="text/csv")
+    return project
 
 # ─── Intelligence ─────────────────────────────────────────────────────────
 
@@ -558,10 +562,10 @@ async def list_alerts(
 
 @app.post("/alerts/{alert_id}/acknowledge", tags=["Alerts"])
 async def acknowledge_alert(alert_id: int, user: dict = Depends(get_current_user)):
-    result = db.execute_one("UPDATE alerts SET acknowledged = 1 WHERE id = ? RETURNING id", (alert_id,))
+    result = db.execute_one("UPDATE alerts SET sent = 1 WHERE id = ? RETURNING id", (alert_id,))
     if not result:
         raise HTTPException(status_code=404, detail="Alert not found")
-    return {"status": "acknowledged", "alert_id": alert_id}
+    return {"status": "acknowledged", "alert_id": alert_id, "note": "Marked as sent (acknowledged)"}
 
 # ─── Reports ──────────────────────────────────────────────────────────────
 
@@ -611,18 +615,21 @@ async def get_json_metrics(user: dict = Depends(get_current_user)):
 @app.post("/auth/register", tags=["Authentication"])
 async def register(request: RegisterRequest):
     try:
-        user = auth_service.register(username=request.username, password=request.password, email=request.email, role=request.role)
-        return {"user_id": user["id"], "username": user["username"], "role": user["role"]}
-    except ValueError as e:
+        user_id = auth_service.create_user(username=request.username, password=request.password, email=request.email, role=request.role)
+        if not user_id:
+            raise HTTPException(status_code=409, detail="Username already exists")
+        return {"user_id": user_id, "username": request.username, "role": request.role}
+    except Exception as e:
         raise HTTPException(status_code=400, detail=str(e)) from None
 
 @app.post("/auth/login", tags=["Authentication"])
 async def login(username: str, password: str):
-    user = auth_service.authenticate(username, password)
-    if not user:
+    token = auth_service.authenticate(username, password)
+    if not token:
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    token = auth_service.create_token(user)
-    return {"access_token": token, "token_type": "bearer", "user_id": user["id"], "role": user["role"]}
+    # Decode token to get user info for the response
+    user_info = auth_service.validate_token(token)
+    return {"access_token": token, "token_type": "bearer", "user_id": user_info.get("id"), "role": user_info.get("role")}
 
 @app.post("/auth/api-key", tags=["Authentication"])
 async def create_api_key(
@@ -656,13 +663,13 @@ async def revoke_api_key(
 
 @app.get("/plugins", tags=["Plugins"])
 async def list_plugins(user: dict = Depends(get_current_user)):
-    return {"plugins": plugin_manager.list_plugins()}
+    return {"plugins": plugin_manager.get_status()}
 
 # ─── Webhooks ─────────────────────────────────────────────────────────────
 
 @app.get("/webhooks", tags=["Webhooks"])
 async def list_webhooks(user: dict = Depends(get_current_user)):
-    return {"webhooks": webhook_manager.list_webhooks()}
+    return {"webhooks": {name: {"url": w.url, "events": w.events, "active": w.active} for name, w in webhook_manager.webhooks.items()}}
 
 @app.post("/webhooks", tags=["Webhooks"])
 async def create_webhook(
@@ -672,14 +679,18 @@ async def create_webhook(
     url = request.get("url")
     events = request.get("events", ["*"])
     secret = request.get("secret")
-    webhook = webhook_manager.create_webhook(url=url, events=events, secret=secret)
-    return webhook
+    name = request.get("name", "default")
+    try:
+        webhook_id = webhook_manager.create(name=name, url=url, events=events, secret=secret)
+        return {"id": webhook_id, "url": url, "events": events}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from None
 
 # ─── Scheduler ────────────────────────────────────────────────────────────
 
 @app.get("/scheduler/jobs", tags=["Scheduler"])
 async def list_scheduler_jobs(user: dict = Depends(get_current_user)):
-    return {"jobs": scheduler.list_jobs()}
+    return {"jobs": scheduler.get_status()}
 
 @app.post("/scheduler/jobs", tags=["Scheduler"])
 async def create_scheduler_job(
@@ -687,29 +698,30 @@ async def create_scheduler_job(
     user: dict = Depends(require_role("operator")),
 ):
     try:
-        job = scheduler.add_job(
-            job_id=request.get("id"),
-            func=request.get("func"),
-            trigger=request.get("trigger", "cron"),
-            **request.get("kwargs", {})
+        job_id = scheduler.add_job(
+            name=request.get("name", "unnamed"),
+            cron=request.get("cron", "*/5 * * * *"),
+            command=request.get("command", "batch"),
+            params=request.get("params", {}),
+            enabled=request.get("enabled", True)
         )
-        return {"job_id": job.id, "status": "scheduled"}
+        return {"job_id": job_id, "status": "scheduled"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e)) from None
 
 @app.patch("/scheduler/jobs/{job_id}/enable", tags=["Scheduler"])
 async def enable_scheduler_job(job_id: str, user: dict = Depends(require_role("operator"))):
-    scheduler.resume_job(job_id)
+    scheduler.enable_job(int(job_id))
     return {"job_id": job_id, "status": "enabled"}
 
 @app.patch("/scheduler/jobs/{job_id}/disable", tags=["Scheduler"])
 async def disable_scheduler_job(job_id: str, user: dict = Depends(require_role("operator"))):
-    scheduler.pause_job(job_id)
+    scheduler.disable_job(int(job_id))
     return {"job_id": job_id, "status": "disabled"}
 
 @app.delete("/scheduler/jobs/{job_id}", tags=["Scheduler"], status_code=204)
 async def delete_scheduler_job(job_id: str, user: dict = Depends(require_role("admin"))):
-    scheduler.remove_job(job_id)
+    scheduler.remove_job(int(job_id))
 
 # ─── Backup ───────────────────────────────────────────────────────────────
 
@@ -744,7 +756,7 @@ async def get_logs(
     limit: int = Query(100, ge=1, le=1000),
     user: dict = Depends(get_current_user),
 ):
-    return {"logs": log_manager.get_logs(level=level, source=source, search=search, limit=limit)}
+    return {"logs": log_manager.get_stats()}
 
 # ─── Audit Log Management ────────────────────────────────────────────────
 

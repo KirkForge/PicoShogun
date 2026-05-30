@@ -1,4 +1,9 @@
-"""Test plugin for PicoShogun plugin system."""
+"""Discord notifier plugin — LOG-ONLY (does not send to Discord).
+
+This plugin logs alerts to the Python logger instead of sending them
+to Discord. It is a placeholder until a real Discord webhook integration
+is implemented. Do not rely on it for actual notifications.
+"""
 import logging
 from typing import Any
 
@@ -7,7 +12,7 @@ from services.plugin_manager import PluginInterface
 logger = logging.getLogger("picoshogun.Plugin.TestNotifier")
 
 class TestNotifier(PluginInterface):
-    """Logs project completions and alerts to console."""
+    """Logs project completions and alerts to console (NOT a real Discord client)."""
 
     def initialize(self, config: dict[str, Any]) -> bool:
         logger.info("TestNotifier initialized")

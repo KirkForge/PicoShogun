@@ -198,11 +198,12 @@ MIGRATIONS = [
     Migration(4, "add_webhooks_scheduler", """
         CREATE TABLE IF NOT EXISTS webhooks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            url TEXT NOT NULL,
             name TEXT,
+            url TEXT NOT NULL,
             secret TEXT,
-            active BOOLEAN DEFAULT 1,
             events TEXT,
+            active BOOLEAN DEFAULT 1,
+            retries INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
@@ -210,18 +211,18 @@ MIGRATIONS = [
         CREATE TABLE IF NOT EXISTS scheduled_jobs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE NOT NULL,
+            cron_expression TEXT NOT NULL,
             command TEXT NOT NULL,
-            schedule TEXT NOT NULL,
-            active BOOLEAN DEFAULT 1,
+            params TEXT DEFAULT '{}',
+            enabled BOOLEAN DEFAULT 1,
             last_run TIMESTAMP,
             next_run TIMESTAMP,
-            run_count INTEGER DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            last_status TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
         CREATE INDEX IF NOT EXISTS idx_webhooks_active ON webhooks(active);
-        CREATE INDEX IF NOT EXISTS idx_jobs_active ON scheduled_jobs(active, next_run);
+        CREATE INDEX IF NOT EXISTS idx_jobs_active ON scheduled_jobs(enabled, next_run);
     """),
 
     Migration(5, "add_orgs", """

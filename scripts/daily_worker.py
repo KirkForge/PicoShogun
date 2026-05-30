@@ -53,11 +53,18 @@ def update_task_status(content, task_id, new_status, note=""):
         updated = updated.replace("## Completed", f"## Completed\n{task_id}|{datetime.now().strftime('%Y-%m-%d')}|{new_status}|{note}")
     return updated
 
+import shlex
+
 def run_command(cmd, cwd=None, timeout=60):
-    """Run shell command and return (success, output)."""
+    """Run shell command and return (success, output).
+
+    Uses shlex.split() instead of shell=True to prevent shell injection.
+    For commands that require shell features (pipes, redirection), the
+    caller must use subprocess.run() directly with appropriate safeguards.
+    """
     try:
         result = subprocess.run(
-            cmd, shell=True, cwd=cwd or PICOSHOGUN_DIR,
+            shlex.split(cmd), cwd=cwd or PICOSHOGUN_DIR,
             capture_output=True, text=True, timeout=timeout
         )
         return result.returncode == 0, result.stdout + result.stderr

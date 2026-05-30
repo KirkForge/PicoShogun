@@ -1,5 +1,6 @@
 """Authentication and authorization service with JWT and API keys."""
 import hashlib
+import hmac
 import logging
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -45,11 +46,11 @@ class AuthService:
         if HAS_BCRYPT and not hashed.startswith("pbkdf2:"):
             return bcrypt.checkpw(password.encode(), hashed.encode())
 
-        # PBKDF2 verification
+        # PBKDF2 verification (constant-time comparison to prevent timing attacks)
         if hashed.startswith("pbkdf2:"):
             _, salt, hash_value = hashed.split(":")
             check = hashlib.pbkdf2_hmac('sha256', password.encode(), salt.encode(), 100000)
-            return check.hex() == hash_value
+            return hmac.compare_digest(check.hex(), hash_value)
 
         return False
 

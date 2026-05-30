@@ -1,10 +1,11 @@
+import os
 #!/usr/bin/env python3
 """Test AUTH-01 (registration) and AUTH-02 (RBAC) end-to-end."""
 import json
 import subprocess
 import sys
 
-BASE_URL = "http://192.168.1.225:8765"
+BASE_URL = os.environ.get("PICOSHOGUN_TEST_URL", "http://127.0.0.1:8765")
 
 def curl(method, path, data=None, token=None, form=False):
     cmd = ["curl", "-s", "-X", method, f"{BASE_URL}{path}"]

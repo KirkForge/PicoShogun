@@ -2,7 +2,7 @@
   "name": "test_discord_notifier",
   "version": "1.0.0",
   "author": "PicoShogun",
-  "description": "Test plugin that logs project events to console",
+  "description": "Log-only notifier — does NOT send to Discord, logs to Python logger only",
   "entry_point": "notifier",
   "hooks": ["project_complete", "alert"],
   "dependencies": []

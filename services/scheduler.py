@@ -159,7 +159,7 @@ class JobScheduler:
                 orch = EnhancedOrchestrator()
                 result = orch.run_project(job.params.get("project_id"),
                                          job.params.get("timeout", 300))
-                status = result.get("status", "failed")
+                status = "completed" if result.get("success") else "failed"
                 _output = str(result)
 
             elif job.command == "report":

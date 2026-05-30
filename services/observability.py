@@ -43,7 +43,7 @@ def init_telemetry(service_name: str = "picoshogun", endpoint: str | None = None
 
         resource = Resource.create({
             "service.name": service_name,
-            "service.version": "2.13.0",
+            "service.version": "0.1.0",
             "deployment.environment": os.environ.get("SHOGUN_ENV", "development"),
         })
 
@@ -55,7 +55,7 @@ def init_telemetry(service_name: str = "picoshogun", endpoint: str | None = None
             span_exporter = OTLPSpanExporter(endpoint=endpoint)
         _tracer_provider.add_span_processor(BatchSpanProcessor(span_exporter))
         trace.set_tracer_provider(_tracer_provider)
-        _tracer = trace.get_tracer(service_name, "2.13.0")
+        _tracer = trace.get_tracer(service_name, "0.1.0")
 
         # Metrics
         if use_grpc:
@@ -66,7 +66,7 @@ def init_telemetry(service_name: str = "picoshogun", endpoint: str | None = None
         _meter_provider = MeterProvider(resource=resource)
         # Note: PeriodicExportingMetricReader requires additional setup in production
         metrics.set_meter_provider(_meter_provider)
-        _meter = metrics.get_meter(service_name, "2.13.0")
+        _meter = metrics.get_meter(service_name, "0.1.0")
 
         logger.info(f"OpenTelemetry initialized — endpoint={endpoint}, grpc={use_grpc}")
         return True

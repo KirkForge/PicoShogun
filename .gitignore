@@ -83,3 +83,4 @@ credentials.json
 *.db
 *.db.bak-*
 *.db.bak
+.venv
