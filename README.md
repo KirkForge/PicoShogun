@@ -8,14 +8,14 @@ Command centre, firewall, and monitoring for the Pico Security Series. FastAPI +
 
 | Product | Purpose | Repo |
 |---------|---------|------|
-| PicoSentry | Supply chain scanner | KirkForge/PicoSentry |
-| PicoDome | LLM injection protection | KirkForge/PicoDome |
+| PicoSentry | L2 Supply-chain scanner | KirkForge/PicoSentry |
+| PicoDome | L3/L4 Runtime sandbox | KirkForge/PicoDome |
 | **PicoShogun** | **Command centre & firewall** | **KirkForge/PicoShogun** |
-| PicoWatch | Runtime monitor | KirkForge/PicoWatch |
+| PicoWatch | L5-L7 LLM defense | KirkForge/PicoWatch |
 
 ## Status
 
-**Pre-1.0 beta.** Active development started late May 2026. The core API, auth, middleware stack, and orchestration work. The frontend dashboard is functional but rough. Several features are scaffolding — see STATE.md and GAPS.md for what's real vs. aspirational.
+**Pre-1.0 beta.** Active development started late May 2026. The core API, auth, middleware stack, and orchestration work. The frontend dashboard is functional but rough. Several features are honest limitations — see STATE.md and GAPS.md for what's real vs. aspirational.
 
 ## Quick Start
 
@@ -30,9 +30,6 @@ python -m uvicorn api.server:app --reload
 # Or use the entrypoint
 picoshogun
 # (shogun also works as backward compat alias)
-
-# Run batch
-bash scripts/run_category.sh monitoring --parallel 4 --verbose
 ```
 
 ## Environment Variables
@@ -55,18 +52,17 @@ See `.env.example` for the full list.
 
 - **12-layer middleware stack**: SecurityHeaders → RequestID → RequestSizeLimit → DDoSShield → GZip → CORS → CORSHardening → RateLimit → Audit → Timeout → HTTPS → DocsRestriction
 - **Rate limiting**: Per-IP (100/min) + per-org (1000/min) with SQLite persistence
-- **JWT + API keys + RBAC**: Token auth, API key rotation, expired key cleanup
+- **JWT + API keys + RBAC**: 18 permissions across viewer/operator/admin roles, API key rotation, expired key cleanup
 - **Audit log management**: Per-severity retention, purge API, dry-run support
 - **Graceful shutdown**: SIGTERM/SIGINT handlers for Kubernetes pod termination
-- **PicoDome integration**: L1-L4 defense layers (perimeter, validation, sandbox, behavioral)
-- **PicoSentry integration**: Supply chain scanner (246 tests, deterministic)
-- **Project Orchestration**: Run 75+ security projects with async execution
-- **Intelligence Engine**: 16-pattern threat extraction with correlation
-- **Alert Hub**: Multi-channel alerts (Discord/Slack/Email/Syslog)
+- **Pico Series Orchestration**: Run PicoSentry, PicoDome, and PicoWatch via the orchestrator
+- **Intelligence Engine**: 16-pattern threat extraction with FP filtering and correlation
+- **Alert Hub**: Multi-channel alerts (Discord webhook, Slack/Email/Syslog)
 - **Metrics**: Prometheus-compatible with built-in collection
 - **Scheduler**: Cron-based job scheduling
 - **Backup/Restore**: Compressed archives with retention
 - **Event Bus**: Pub/sub with WebSocket real-time streaming
+- **Plugin system**: Dynamic loading with Ed25519 signed manifest verification
 
 ## Security
 
@@ -91,14 +87,18 @@ JWT (PyJWT) for authentication. The legacy simple-token format has been removed 
 ## Architecture
 
 ```
-api/server.py              # FastAPI REST API + WebSocket + Dashboard
+api/server.py              # FastAPI REST API + WebSocket + Dashboard (248 lines)
+api/routers/                # 12 router modules
 config/settings.py         # Dataclass config from env vars (PICOSHOGUN_*)
+config/project_registry.json  # Pico series project definitions
 database/manager.py        # Thread-safe SQLite WAL + migrations + ConnectionPool interface
 services/auth.py           # JWT + API keys + RBAC + expiration enforcement
-services/audit_cleanup.py # Per-severity audit log retention + purge API
+services/orchestrator.py   # Pico series tool runner with concurrency control
+services/intelligence.py   # 16-pattern threat engine with FP filtering
+services/alert_hub.py      # Multi-channel alerts
+services/rbac.py           # 18 permissions, 3 roles
 middleware/                # 12-layer middleware stack
-pico_dome/                 # L1-L4 defense layers (PicoDome integration)
-picosentry/                # Supply chain scanner (246 tests, deterministic)
+plugins/                  # Dynamic plugin loading + signed manifests
 ```
 
 See `STATE.md` for the full architecture diagram.
@@ -129,9 +129,7 @@ Full endpoint list in `STATE.md`.
 ## Testing
 
 ```bash
-python -m pytest tests/ -v                    # Main tests (20)
-python -m pytest picosentry/tests/ -v          # PicoSentry tests (246)
-python -W error::DeprecationWarning -m pytest   # Strict deprecation check
+python -m pytest tests/ -v                    # Main tests (170+)
 ruff check .                                    # Lint
 ```
 

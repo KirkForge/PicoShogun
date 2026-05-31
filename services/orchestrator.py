@@ -3,7 +3,6 @@ import json
 import logging
 import os
 import subprocess
-import sys
 import threading
 import time
 from dataclasses import dataclass
@@ -22,8 +21,15 @@ from services.plugin_manager import plugin_manager
 logger = logging.getLogger("picoshogun.Orchestrator")
 
 BASE_DIR = Path(__file__).parent.parent
-PROJECTS_DIR = BASE_DIR / "projects"
 REGISTRY_PATH = BASE_DIR / "config" / "project_registry.json"
+
+# CLI entrypoints for Pico series tools
+PICO_CLI = {
+    "picosentry": ["picosentry", "scan"],
+    "picodome": ["picodome", "run"],
+    "picowatch": ["picowatch", "analyze"],
+    "picoshogun": ["picoshogun", "status"],
+}
 
 @dataclass
 class ProjectMeta:
@@ -38,6 +44,8 @@ class ProjectMeta:
     version: str = "1.0.0"
     intelligence_outputs: list[str] | None = None
     intelligence_inputs: list[str] | None = None
+    description: str = ""
+    package: str = ""
 
 class EnhancedOrchestrator:
     """Orchestrator with async execution, health checks, and metrics."""
@@ -142,31 +150,15 @@ class EnhancedOrchestrator:
         if not meta:
             return {"error": f"Unknown project: {project_id}"}
 
-        dir_name = project_id.split("_", 1)[1]
-        project_dir = PROJECTS_DIR / dir_name
-
-        if not project_dir.exists():
-            return {"error": f"Project directory not found: {project_dir}"}
-
-        # Find executable
-        main_script = self._find_executable(project_dir)
-        if not main_script:
-            return {"error": "No executable script found"}
-
+        # Use Pico CLI entrypoint if available, fall back to package name
+        cli_args = PICO_CLI.get(project_id, [meta.package or project_id])
         timeout = timeout or settings.orchestrator.default_timeout
 
         with self._semaphore:
-            return self._execute_project(project_id, meta, project_dir, main_script, timeout)
-
-    def _find_executable(self, project_dir: Path) -> Path | None:
-        for ext in [".py", ".sh"]:
-            candidates = list(project_dir.glob(f"*{ext}"))
-            if candidates:
-                return candidates[0]
-        return None
+            return self._execute_project(project_id, meta, cli_args, timeout)
 
     def _execute_project(self, project_id: str, meta: ProjectMeta,
-                        project_dir: Path, script: Path, timeout: int) -> dict[str, Any]:
+                        cli_args: list[str], timeout: int) -> dict[str, Any]:
         # Record start
         run_id = db.execute_insert("""
             INSERT INTO project_runs (project_id, run_start, status)
@@ -183,11 +175,10 @@ class EnhancedOrchestrator:
         start_time = time.time()
 
         try:
-            cmd = [sys.executable, str(script)] if script.suffix == ".py" else ["bash", str(script)]
+            cmd = cli_args
 
             result = subprocess.run(
                 cmd,
-                cwd=str(project_dir),
                 capture_output=True,
                 text=True,
                 timeout=timeout
@@ -521,16 +512,15 @@ class EnhancedOrchestrator:
                 "timestamp": datetime.now(timezone.utc).isoformat()
             })
 
-        # Project directories check
-        if PROJECTS_DIR.exists():
-            project_count = len([d for d in PROJECTS_DIR.iterdir() if d.is_dir()])
-            checks.append({
-                "component": "projects",
-                "status": "healthy",
-                "message": f"{project_count} projects available",
-                "latency_ms": 0,
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            })
+        # Registry check
+        project_count = len(self.registry)
+        checks.append({
+            "component": "projects",
+            "status": "healthy" if project_count > 0 else "warning",
+            "message": f"{project_count} projects in registry",
+            "latency_ms": 0,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
 
         # Store health checks
         for check in checks:
@@ -583,7 +573,7 @@ class EnhancedOrchestrator:
 
         report = f"""
 ╔══════════════════════════════════════════════════════════════════╗
-║     PicoShogun Security Lab Report                    ║
+║     PicoShogun Command Centre Report                  ║
 ╚══════════════════════════════════════════════════════════════════╝
 
 Generated: {status['timestamp']}

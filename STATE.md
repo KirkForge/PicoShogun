@@ -1,6 +1,6 @@
 # PicoShogun — Project State
 
-**Version:** 2.16.0 | **Last Updated:** 2026-05-30 | **Git:** `main`
+**Version:** 0.1.0 | **Last Updated:** 2026-05-31 | **Git:** `main`
 
 ---
 
@@ -8,10 +8,10 @@
 
 | Product | Purpose | Maturity |
 |---------|---------|----------|
-| PicoSentry | Supply chain scanner | 🔶 Beta |
-| PicoDome | LLM injection protection | 🔶 Beta |
+| PicoSentry | L2 Supply-chain scanner | 🟢 Published (v0.16.0) |
+| PicoDome | L3/L4 Runtime sandbox | 🟢 Published (v0.5.0) |
+| PicoWatch | L5-L7 LLM defense | 🟢 Published (v0.7.0) |
 | **PicoShogun** | **Command centre & firewall** | **🔶 Pre-1.0 beta** |
-| PicoWatch | Runtime monitor | ❌ Early dev |
 
 ---
 
@@ -19,30 +19,19 @@
 
 ```
 PicoShogun/
-├── api/server.py            # FastAPI REST API (v2.16) + WebSocket + Dashboard
-│   ├── lifespan context manager (startup/shutdown)
-│   ├── SIGTERM/SIGINT graceful shutdown handlers
-│   ├── SecurityHeadersMiddleware (HSTS, CSP, X-Frame-Options, etc.)
-│   ├── RequestIDMiddleware (X-Request-ID propagation)
-│   ├── RequestSizeLimitMiddleware (10 MB default)
-│   ├── DDoSShieldMiddleware (adaptive rate limiting)
-│   ├── GZipMiddleware
-│   ├── CORSMiddleware (PICOSHOGUN_CORS_ORIGINS env var)
-│   ├── CORSHardeningMiddleware (wildcard blocking in prod)
-│   ├── RateLimitMiddleware (per-IP + per-org, SQLite persistence)
-│   └── AuditMiddleware (request logging)
-├── front/index.html          # Command Centre SPA dashboard
+├── api/server.py            # FastAPI REST API + WebSocket + Dashboard (248 lines)
+│   └── api/routers/         # 12 router modules (admin, auth, health, etc.)
 ├── config/
 │   ├── settings.py           # Dataclass config from env (PICOSHOGUN_* env vars)
 │   ├── logging_config.py     # Structured JSON logging (JSONFormatter)
-│   ├── project_registry.json # 75+ project definitions
-│   └── anomaly_rules.json    # Metric anomaly thresholds
+│   ├── project_registry.json # Pico series project definitions (4 products)
+│   └── anomaly_rules.json   # Metric anomaly thresholds
 ├── database/
 │   └── manager.py            # Thread-safe SQLite WAL + migration framework (7 migrations)
 │                               + ConnectionPool abstract interface (Postgres migration path)
 ├── services/
-│   ├── orchestrator.py       # Async project runner with concurrency control
-│   ├── intelligence.py       # 16-pattern threat engine with correlation
+│   ├── orchestrator.py       # Project runner with concurrency control
+│   ├── intelligence.py       # 16-pattern threat engine with correlation + FP filtering
 │   ├── alert_hub.py          # Multi-channel alerts (Discord/Slack/Email/Syslog)
 │   ├── auth.py               # JWT + API keys + RBAC + expiration enforcement
 │   ├── orgs.py               # Multi-tenant org model with tier limits
@@ -52,11 +41,12 @@ PicoShogun/
 │   ├── scheduler.py          # Cron-based job scheduler (croniter)
 │   ├── backup.py             # Compressed DB + log backups with retention
 │   ├── log_manager.py        # Auto-rotation + compression + cleanup
-│   ├── plugin_manager.py    # Dynamic plugin loading from plugins/
+│   ├── plugin_manager.py    # Dynamic plugin loading + Ed25519 signed manifests
 │   ├── webhooks.py           # HMAC-signed outgoing webhooks with retry
 │   ├── anomaly_detector.py  # Configurable metric anomaly rules engine
 │   ├── audit_cleanup.py     # Per-severity audit log retention + purge API
-│   └── observability.py      # OpenTelemetry tracing + FastAPI instrumentation
+│   ├── observability.py      # OpenTelemetry tracing + FastAPI instrumentation
+│   └── rbac.py               # Permission-based RBAC (18 permissions, 3 roles)
 ├── middleware/
 │   ├── security_headers.py   # Security headers (HSTS, CSP, etc.)
 │   ├── request_id.py         # Request ID / correlation ID
@@ -68,25 +58,20 @@ PicoShogun/
 │   ├── docs_restriction.py   # Block /docs and /redoc in production
 │   ├── audit.py              # Request audit logging
 │   └── ddos_shield.py        # Adaptive DDoS protection
-├── pico_dome/
-│   ├── L1_perimeter/         # DDoS shield (middleware)
-│   ├── L2_validation/        # Supply chain scanner (13 rules, deterministic)
-│   ├── L3_execution/         # Sandbox (seccomp/seatbelt/subprocess)
-│   └── L4_behavioral/        # Behavioral analysis (timing/exfil/entropy/honeypot)
 ├── tests/
-│   └── test_api.py           # API endpoint tests (health, auth, observability)
+│   ├── test_api.py           # API endpoint tests
+│   ├── test_integration.py   # Integration tests
+│   └── load/                 # Locust load testing suite
 ├── deploy/
 │   ├── prometheus.yml        # Prometheus scrape config
 │   └── otel-collector.yml   # OpenTelemetry collector config
 ├── docker-compose.yml        # Docker Compose (picoshogun + prometheus + grafana + otel)
 ├── Dockerfile                # Multi-stage production build
-├── pyproject.toml            # Project config (dependencies, lint, test, asyncio)
-├── .github/workflows/ci.yml # CI pipeline (lint + test + security + docker)
-└── orchestrator/
-    └── master.py             # DEPRECATED — use services/orchestrator.py
+├── pyproject.toml            # Project config (v0.1.0)
+└── .github/workflows/ci.yml # CI pipeline (lint + test + security + docker)
 ```
 
-## API Endpoints (v2.16)
+## API Endpoints
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
@@ -114,28 +99,27 @@ PicoShogun/
 
 - ✅ API server: FastAPI with 55+ endpoints, 12-layer middleware, JWT auth, rate limiting
 - ✅ Database: Thread-safe SQLite WAL, 7 migrations, 15+ tables, backup/restore
-- ✅ Auth: JWT + API keys + RBAC, key rotation, expiration enforcement
+- ✅ Auth: JWT + API keys + RBAC (18 permissions, 3 roles), key rotation, expiration enforcement
 - ✅ Middleware: SecurityHeaders, RequestID, SizeLimit, DDoSShield, GZip, CORS, RateLimit, Audit, Timeout, HTTPS, DocsRestriction
-- ✅ Orchestrator: Async project runner with concurrency control
-- ✅ Intelligence engine: 16 regex patterns with correlation
-- ✅ Alert hub: Discord/Slack/Email/Syslog channels with cooldown/dedup
+- ✅ Orchestrator: Project runner with concurrency control
+- ✅ Intelligence engine: 16 regex patterns with correlation + FP filtering
+- ✅ Alert hub: Multi-channel alerts (Discord webhook delivery, Slack/Email/Syslog)
 - ✅ Scheduler, backup, event bus, WebSocket, metrics, webhooks
 - ✅ Frontend dashboard: Single-page app with Canvas charts
 - ✅ Docker: Multi-stage build, docker-compose with Prometheus/Grafana/OTel profiles
 - ✅ CI: GitHub Actions (lint → test → security → Docker)
-- ✅ PicoSentry: 246 tests passing, deterministic supply chain scanner
+- ✅ RBAC: 18 permissions across viewer/operator/admin roles
 
-## What's COSPLAY (aspirational or misleading)
+## What's COSPLAY (aspirational or honest limitations)
 
 - 🔶 **Organization system** (`services/orgs.py`): Code exists, DB tables exist, not heavily used. Multi-tenant is there but untested at scale.
-- 🔶 **Discord notifier plugin**: Logs to Python logger, doesn't actually send to Discord.
-- 🔶 **Intelligence engine quality**: Regex patterns produce false positives. `classify_failure()` is the most useful part.
-- ❌ **Master CLI** (`orchestrator/master.py`): Deprecated, superseded by `services/orchestrator.py`.
-- 🔶 **Load testing**: No benchmarks yet.
-- 🔶 **Dashboard E2E tests**: No Playwright/Cypress tests.
-- 🔶 **MyPy strict**: Currently `--ignore-missing-imports --no-strict-optional`.
+- 🔶 **Discord notifier plugin**: Real webhook delivery when `DISCORD_WEBHOOK_URL` is set. Falls back to log-only with clear warning.
+- 🔶 **Intelligence engine quality**: Regex patterns with FP filtering. `classify_failure()` is the most useful part.
+- 🔶 **Load testing**: Baseline established (p50 8ms, p99 670ms). No sustained load testing.
+- 🔶 **MyPy strict**: Currently passing clean with 0 errors (54 source files).
 - 🔶 **Rate limit persist**: `persist=True` is off by default.
 - 🔶 **CORS wildcard blocking**: `block_wildcard_in_production=True` not yet enforced.
+- 🔶 **PicoDome license gate**: Format-only validation (requires `shogun-<tier>-<org>-<hash>`, ≥16 char hash). Full HMAC verification requires PicoShogun.
 
 ## Deployment
 

@@ -5,7 +5,7 @@
 ## What PicoShogun IS
 - Command centre and firewall for the Pico Security Series (PicoSentry, PicoDome, PicoShogun, PicoWatch)
 - FastAPI REST API + SQLite backend with 12-layer security middleware
-- Orchestrator for running security projects and extracting intelligence
+- Orchestrator for running Pico series tools and extracting intelligence
 - Monitoring dashboard (SPA) with auth, rate limiting, and alerting
 
 ## What PicoShogun is NOT
