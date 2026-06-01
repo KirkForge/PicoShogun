@@ -143,7 +143,7 @@ class WebhookManager:
         """, (name, url, secret, json.dumps(events)))
 
         self._load_webhooks()
-        logger.info(f"Webhook created: {name} -> {url}")
+        logger.info("Webhook created: %s -> %s", name, url)
         return webhook_id
 
     def delete(self, webhook_id: int) -> bool:
@@ -208,10 +208,10 @@ class WebhookManager:
                     "success": 200 <= response.status_code < 300
                 })
 
-                logger.info(f"Webhook {name}: {response.status_code}")
+                logger.info("Webhook %s: %s", name, response.status_code)
 
             except Exception as e:
-                logger.error(f"Webhook {name} failed: {e}")
+                logger.error("Webhook %s failed: %s", name, e)
                 results.append({
                     "webhook": name,
                     "status": 0,

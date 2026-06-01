@@ -102,8 +102,8 @@ class AuditMiddleware(BaseHTTPMiddleware):
                     )
                 )
             except Exception as e:
-                logger.error(f"Audit DB insert failed: {e}")
+                logger.error("Audit DB insert failed: %s", e)
 
-        logger.info(f"API {method} {path} - {status_code} ({duration:.3f}s) user={_user_id}")
+        logger.info("API %s %s - %s (%.3fs) user=%s", method, path, status_code, duration, _user_id)
 
         return response

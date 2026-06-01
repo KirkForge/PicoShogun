@@ -8,13 +8,13 @@ from fastapi.responses import HTMLResponse
 from api.deps import get_current_user
 from api.models import HealthReadiness, SystemStatus
 from config.version import __version__
-from services.orchestrator import EnhancedOrchestrator
+from services.orchestrator import orchestrator
 
 logger = logging.getLogger("picoshogun.health")
 
 router = APIRouter()
 
-orchestrator = EnhancedOrchestrator()
+
 
 
 @router.get("/", tags=["Health"], response_class=HTMLResponse)
@@ -106,9 +106,9 @@ async def get_status(user: dict = Depends(get_current_user)):
         threat_score = sum(h.get("latency_ms", 0) for h in health) / max(len(health), 1)
 
     return SystemStatus(
-        projects_total=status_data.get("total_projects", 0),
-        projects_active=status_data.get("active_projects", 0),
-        projects_failed=status_data.get("failed_projects", 0),
+        projects_total=status_data.get("projects_total", 0),
+        projects_active=status_data.get("projects_active", 0),
+        projects_failed=status_data.get("projects_failed", 0),
         active_threats=status_data.get("active_threats", 0),
         pending_alerts=status_data.get("pending_alerts", 0),
         threat_score=threat_score,

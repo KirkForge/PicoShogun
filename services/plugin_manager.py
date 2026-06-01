@@ -215,13 +215,13 @@ class PluginManager:
             logger.warning("Ed25519 signature verification failed: BadSignatureError")
             return False
         except Exception as e:
-            logger.warning(f"Ed25519 signature verification failed: {e}")
+            logger.warning("Ed25519 signature verification failed: %s", e)
             return False
 
     def _load_plugins(self):
         """Discover and load all plugins from plugin directory."""
         if not os.path.exists(self.plugin_dir):
-            logger.info(f"Plugin directory not found: {self.plugin_dir}")
+            logger.info("Plugin directory not found: %s", self.plugin_dir)
             return
 
         for entry in os.listdir(self.plugin_dir):
@@ -234,7 +234,7 @@ class PluginManager:
             # Verify plugin_path hasn't escaped the plugin directory via symlinks
             real_plugin_path = os.path.realpath(plugin_path)
             if not real_plugin_path.startswith(self.plugin_dir + os.sep) and real_plugin_path != self.plugin_dir:
-                logger.error(f"Plugin path escapes plugin_dir: {plugin_path} -> {real_plugin_path}")
+                logger.error("Plugin path escapes plugin_dir: %s -> %s", plugin_path, real_plugin_path)
                 continue
 
             try:
@@ -244,12 +244,12 @@ class PluginManager:
                 # Validate manifest before loading
                 issues = self._validate_manifest(meta, manifest_path)
                 if issues:
-                    logger.error(f"Plugin '{entry}' manifest validation failed: {'; '.join(issues)}")
+                    logger.error("Plugin '%s' manifest validation failed: %s", entry, '; '.join(issues))
                     continue
 
                 self._load_plugin(plugin_path, meta)
             except Exception as e:
-                logger.error(f"Failed to load plugin {entry}: {e}")
+                logger.error("Failed to load plugin %s: %s", entry, e)
 
     def _load_plugin(self, path: str, meta: dict):
         """Load a single plugin by its manifest."""
@@ -262,9 +262,9 @@ class PluginManager:
         if os.path.exists(module_file):
             with open(module_file, "rb") as f:
                 module_checksum = hashlib.sha256(f.read()).hexdigest()
-            logger.info(f"Plugin '{name}' entry module checksum: sha256:{module_checksum[:16]}")
+            logger.info("Plugin '%s' entry module checksum: sha256:%s", name, module_checksum[:16])
         else:
-            logger.warning(f"Plugin '{name}' entry module not found at {module_file}")
+            logger.warning("Plugin '%s' entry module not found at %s", name, module_file)
 
         # Ed25519 signature verification
         require_signed = os.environ.get("PICOSHOGUN_REQUIRE_SIGNED_PLUGINS", "").lower() in ("1", "true", "yes")
@@ -273,21 +273,21 @@ class PluginManager:
 
         if require_signed:
             if not sig_hex or not pub_key_hex:
-                logger.error(f"Plugin '{name}': PICOSHOGUN_REQUIRE_SIGNED_PLUGINS=1 but no signature/public_key in manifest")
+                logger.error("Plugin '%s': PICOSHOGUN_REQUIRE_SIGNED_PLUGINS=1 but no signature/public_key in manifest", name)
                 return
             if not module_checksum:
-                logger.error(f"Plugin '{name}': cannot verify signature — entry module not found")
+                logger.error("Plugin '%s': cannot verify signature — entry module not found", name)
                 return
             if not self.verify_manifest_signature(meta, module_checksum, sig_hex, pub_key_hex):
-                logger.error(f"Plugin '{name}': Ed25519 signature verification FAILED — refusing to load")
+                logger.error("Plugin '%s': Ed25519 signature verification FAILED — refusing to load", name)
                 return
-            logger.info(f"Plugin '{name}': Ed25519 signature verified")
+            logger.info("Plugin '%s': Ed25519 signature verified", name)
         elif sig_hex and pub_key_hex and module_checksum and HAS_NACL:
             # Optional: verify if signature is present but not required
             if self.verify_manifest_signature(meta, module_checksum, sig_hex, pub_key_hex):
-                logger.info(f"Plugin '{name}': Ed25519 signature verified (optional)")
+                logger.info("Plugin '%s': Ed25519 signature verified (optional)", name)
             else:
-                logger.warning(f"Plugin '{name}': Ed25519 signature present but INVALID — loading anyway (not required)")
+                logger.warning("Plugin '%s': Ed25519 signature present but INVALID — loading anyway (not required)", name)
 
         # Add plugin path to sys.path (scoped — removed in finally)
         sys.path.insert(0, path)
@@ -305,7 +305,7 @@ class PluginManager:
                     break
 
             if plugin_class is None:
-                logger.error(f"Plugin '{name}': no class implementing PluginInterface found in module '{entry}'")
+                logger.error("Plugin '%s': no class implementing PluginInterface found in module '%s'", name, entry)
                 return
 
             instance = plugin_class()
@@ -329,11 +329,11 @@ class PluginManager:
                     if hook in self.hooks:
                         self.hooks[hook].append(name)
 
-                logger.info(f"Plugin loaded: {name} v{self.metadata[name].version}")
+                logger.info("Plugin loaded: %s v%s", name, self.metadata[name].version)
             else:
-                logger.warning(f"Plugin '{name}' initialize() returned False — skipped")
+                logger.warning("Plugin '%s' initialize() returned False — skipped", name)
         except Exception as e:
-            logger.error(f"Failed to load plugin '{name}': {e}")
+            logger.error("Failed to load plugin '%s': %s", name, e)
         finally:
             # Always remove the plugin path from sys.path to prevent leakage
             if path in sys.path:
@@ -342,7 +342,7 @@ class PluginManager:
     def dispatch(self, hook: str, **kwargs):
         """Dispatch event to all plugins registered for a hook."""
         if hook not in VALID_HOOKS:
-            logger.warning(f"Dispatch called with unknown hook '{hook}' — ignoring")
+            logger.warning("Dispatch called with unknown hook '%s' — ignoring", hook)
             return []
 
         results = []
@@ -358,7 +358,7 @@ class PluginManager:
                     if result:
                         results.append({"plugin": plugin_name, "result": result})
             except Exception as e:
-                logger.error(f"Plugin {plugin_name} hook {hook} failed: {e}")
+                logger.error("Plugin %s hook %s failed: %s", plugin_name, hook, e)
 
         return results
 
@@ -384,9 +384,9 @@ class PluginManager:
         for name, plugin in self.plugins.items():
             try:
                 plugin.shutdown()
-                logger.info(f"Plugin unloaded: {name}")
+                logger.info("Plugin unloaded: %s", name)
             except Exception as e:
-                logger.error(f"Plugin {name} shutdown failed: {e}")
+                logger.error("Plugin %s shutdown failed: %s", name, e)
 
         self.plugins.clear()
         self.metadata.clear()

@@ -38,7 +38,7 @@ def _parse_cors_origins() -> list[str]:
 class DatabaseConfig:
     backend: str = field(default_factory=lambda: _env("DATABASE_BACKEND", "sqlite"))
     url: str = field(default_factory=lambda: _env("DATABASE_URL", ""))
-    path: Path = BASE_DIR / "picoshogun.db"
+    path: Path = field(default_factory=lambda: Path(_env("DATABASE_PATH", str(BASE_DIR / "picoshogun.db"))))
     backup_dir: Path = BASE_DIR / "backups"
     max_connections: int = 10
     timeout: int = 30
@@ -52,7 +52,7 @@ class DatabaseConfig:
 class APIConfig:
     host: str = "127.0.0.1"
     port: int = 8765
-    workers: int = 4
+    workers: int = field(default_factory=lambda: int(_env("API_WORKERS", "1")))
     reload: bool = False
     cors_origins: list[str] = field(default_factory=_parse_cors_origins)
     api_prefix: str = "/api/v1"
@@ -86,16 +86,16 @@ class LoggingConfig:
 class AlertConfig:
     discord_webhook: str | None = field(default_factory=lambda: os.environ.get("DISCORD_WEBHOOK_URL"))
     slack_webhook: str | None = field(default_factory=lambda: os.environ.get("SLACK_WEBHOOK_URL"))
-    email_smtp_host: str | None = field(default_factory=lambda: os.environ.get("SMTP_HOST"))
-    email_smtp_port: int = int(os.environ.get("SMTP_PORT", "587"))
-    email_smtp_user: str | None = field(default_factory=lambda: os.environ.get("SMTP_USER"))
-    email_smtp_password: str | None = field(default_factory=lambda: os.environ.get("SMTP_PASSWORD"))
-    email_smtp_use_ssl: bool = False
-    email_smtp_starttls: bool = True
-    email_from: str | None = field(default_factory=lambda: os.environ.get("EMAIL_FROM", "picoshogun@localhost"))
+    email_smtp_host: str | None = field(default_factory=lambda: _env("SMTP_HOST"))
+    email_smtp_port: int = field(default_factory=lambda: int(_env("SMTP_PORT", "587")))
+    email_smtp_user: str | None = field(default_factory=lambda: _env("SMTP_USER"))
+    email_smtp_password: str | None = field(default_factory=lambda: _env("SMTP_PASSWORD"))
+    email_smtp_use_ssl: bool = field(default_factory=lambda: _env_bool("SMTP_USE_SSL", "false"))
+    email_smtp_starttls: bool = field(default_factory=lambda: _env_bool("SMTP_STARTTLS", "true"))
+    email_from: str | None = field(default_factory=lambda: _env("EMAIL_FROM", "picoshogun@localhost"))
     email_to: list[str] = field(default_factory=lambda: [
         addr.strip()
-        for addr in os.environ.get("EMAIL_TO", "").split(",")
+        for addr in _env("EMAIL_TO", "").split(",")
         if addr.strip()
     ])
     cooldown_seconds: int = 300

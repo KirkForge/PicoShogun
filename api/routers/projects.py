@@ -8,13 +8,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from api.deps import get_current_user, require_role
 from api.models import AlertResponse, BatchRunRequest, IntelligenceItem, ProjectRunRequest, ProjectStatus
 from database.manager import db
-from services.orchestrator import EnhancedOrchestrator
+from services.orchestrator import orchestrator
 
 logger = logging.getLogger("picoshogun.projects")
 
 router = APIRouter()
 
-orchestrator = EnhancedOrchestrator()
+
 
 
 @router.get("/projects", response_model=list[ProjectStatus], tags=["Projects"])
@@ -171,9 +171,11 @@ async def list_alerts(
 @router.post("/alerts/{alert_id}/acknowledge", tags=["Alerts"])
 async def acknowledge_alert(alert_id: int, user: dict = Depends(get_current_user)):
     """Acknowledge (mark as read) an alert."""
-    result = db.execute_one("UPDATE alerts SET sent = 1 WHERE id = ?", (alert_id,))
-    if not result:
+    # Check alert exists first
+    alert = db.execute_one("SELECT id FROM alerts WHERE id = ?", (alert_id,))
+    if not alert:
         raise HTTPException(status_code=404, detail=f"Alert {alert_id} not found")
+    db.execute_insert("UPDATE alerts SET sent = 1 WHERE id = ?", (alert_id,))
     return {"status": "acknowledged", "alert_id": alert_id}
 
 

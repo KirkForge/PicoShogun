@@ -32,7 +32,7 @@ async def get_org(org_id: int, user: dict = Depends(get_current_user)):
         "name": org["name"],
         "slug": org["slug"],
         "tier": org["tier"],
-        "api_key": org["api_key"][:12] + "..." if len(org.get("api_key", "")) > 20 else "hidden",
+        "api_key": "hidden",
         "is_active": org["is_active"],
         "created_at": org["created_at"],
         "usage": usage,

@@ -1,4 +1,5 @@
 """Organization model — multi-tenancy foundation."""
+import hashlib
 import secrets
 from datetime import datetime, timezone
 from typing import Any
@@ -29,11 +30,12 @@ class Organization:
             return None
 
         api_key = f"sk_live_{secrets.token_urlsafe(32)}"
+        api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
 
         org_id = db.execute_insert("""
-            INSERT INTO orgs (name, slug, owner_id, tier, api_key, is_active, created_at)
+            INSERT INTO orgs (name, slug, owner_id, tier, api_key_hash, is_active, created_at)
             VALUES (?, ?, ?, ?, ?, 1, ?)
-        """, (name, slug, owner_user_id, tier, api_key, datetime.now(timezone.utc)))
+        """, (name, slug, owner_user_id, tier, api_key_hash, datetime.now(timezone.utc)))
 
         # Add owner as member
         db.execute_insert("""
@@ -45,10 +47,12 @@ class Organization:
 
     @staticmethod
     def get_by_api_key(api_key: str) -> dict[str, Any] | None:
-        """Lookup org by API key."""
+        """Lookup org by API key using SHA-256 hash comparison."""
+        import hashlib
+        key_hash = hashlib.sha256(api_key.encode()).hexdigest()
         row = db.execute_one("""
-            SELECT * FROM orgs WHERE api_key = ? AND is_active = 1
-        """, (api_key,))
+            SELECT * FROM orgs WHERE api_key_hash = ? AND is_active = 1
+        """, (key_hash,))
         return dict(row) if row else None
 
     @staticmethod
@@ -94,9 +98,9 @@ class Organization:
 
         return {
             "tier": tier,
-            "users": {"used": users, "limit": limits["users"], "pct": users/limits["users"]*100},
-            "projects": {"used": projects, "limit": limits["projects"], "pct": projects/limits["projects"]*100},
-            "runs_today": {"used": runs_today, "limit": limits["runs_per_day"], "pct": runs_today/limits["runs_per_day"]*100},
+            "users": {"used": users, "limit": limits["users"], "pct": users/limits["users"]*100 if limits["users"] > 0 else 0},
+            "projects": {"used": projects, "limit": limits["projects"], "pct": projects/limits["projects"]*100 if limits["projects"] > 0 else 0},
+            "runs_today": {"used": runs_today, "limit": limits["runs_per_day"], "pct": runs_today/limits["runs_per_day"]*100 if limits["runs_per_day"] > 0 else 0},
             "storage_mb": limits["storage_mb"]
         }
 
@@ -143,7 +147,7 @@ CREATE TABLE IF NOT EXISTS orgs (
     slug TEXT UNIQUE NOT NULL,
     owner_id INTEGER,
     tier TEXT DEFAULT 'free',
-    api_key TEXT UNIQUE,
+    api_key_hash TEXT UNIQUE,
     is_active BOOLEAN DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -169,6 +173,6 @@ CREATE TABLE IF NOT EXISTS org_projects (
 );
 
 CREATE INDEX IF NOT EXISTS idx_orgs_slug ON orgs(slug);
-CREATE INDEX IF NOT EXISTS idx_orgs_key ON orgs(api_key);
+CREATE INDEX IF NOT EXISTS idx_orgs_key ON orgs(api_key_hash);
 CREATE INDEX IF NOT EXISTS idx_org_members ON org_users(org_id, user_id);
 """

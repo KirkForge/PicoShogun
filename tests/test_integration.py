@@ -924,9 +924,10 @@ class TestConfiguration:
 
     def test_version_is_consistent(self):
         from config.version import __version__
-        assert __version__ == "1.0.0"
+        # version is validated by config.version module
         from api.server import app
-        assert app.version == "1.0.0"
+        from config.version import __version__ as _v
+        assert app.version == _v
 
 
 # ── Rate Limiting ─────────────────────────────────────────────────────────

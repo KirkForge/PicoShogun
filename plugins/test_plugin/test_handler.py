@@ -14,10 +14,10 @@ class TestHandler(PluginInterface):
         return True
 
     def on_project_complete(self, project_id: str, result: dict) -> None:
-        logger.info(f"[TestPlugin] Project {project_id} completed: {result.get('status')}")
+        logger.info("[TestPlugin] Project %s completed: %s", project_id, result.get('status'))
 
     def on_alert(self, alert: dict) -> dict | None:
-        logger.info(f"[TestPlugin] Alert: {alert.get('message', '')}")
+        logger.info("[TestPlugin] Alert: %s", alert.get('message', ''))
         return alert
 
     def health_check(self) -> dict:

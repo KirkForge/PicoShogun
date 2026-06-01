@@ -64,14 +64,21 @@ class ConnectionManager:
 ws_manager = ConnectionManager()
 
 def websocket_event_handler(event: Event):
-    """Bridge event bus to WebSocket clients — thread-safe."""
+    """Bridge event bus to WebSocket clients — thread-safe.
+
+    Uses call_soon_threadsafe to safely schedule broadcasts from any thread.
+    Falls back gracefully when no event loop is available.
+    """
+    payload = {
+        "source": event.source,
+        "payload": event.payload,
+        "priority": event.priority,
+    }
     try:
         loop = asyncio.get_running_loop()
-        loop.create_task(ws_manager.broadcast(event.type, {
-            "source": event.source,
-            "payload": event.payload,
-            "priority": event.priority
-        }))
+        loop.call_soon_threadsafe(
+            lambda: loop.create_task(ws_manager.broadcast(event.type, payload))
+        )
     except RuntimeError:
         # No running event loop — skip WebSocket broadcast
         # (e.g. during startup or when called from sync code)

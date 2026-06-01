@@ -177,12 +177,41 @@ class IntelligenceEngine:
         return stripped.startswith(("import ", "from ", "require(", "include(", "#include"))
 
     def _is_inside_quotes(self, text: str, match_start: int, match_end: int) -> bool:
-        """Check if match is inside a quoted string (import/require/code context)."""
+        """Check if match is inside a quoted string (import/require/code context).
+
+        Walks backwards from the match to find the nearest unescaped opening
+        quote, handling escaped quotes (\', \") correctly.
+        """
         before = text[:match_start]
-        # Walk backwards to find the nearest opening quote
-        single_quotes = before.count("'")
-        double_quotes = before.count('"')
-        return (single_quotes % 2 == 1) or (double_quotes % 2 == 1)
+        # Walk backwards to find the nearest unescaped opening quote
+        i = len(before) - 1
+        while i >= 0:
+            ch = before[i]
+            if ch == '"':
+                # Check if escaped
+                num_backslashes = 0
+                j = i - 1
+                while j >= 0 and before[j] == '\\':
+                    num_backslashes += 1
+                    j -= 1
+                if num_backslashes % 2 == 0:
+                    return True  # Inside double-quoted string
+                i -= 1
+                continue
+            if ch == "'":
+                num_backslashes = 0
+                j = i - 1
+                while j >= 0 and before[j] == '\\':
+                    num_backslashes += 1
+                    j -= 1
+                if num_backslashes % 2 == 0:
+                    return True  # Inside single-quoted string
+                i -= 1
+                continue
+            if ch == '\n':
+                break  # Reached start of line — not inside quotes
+            i -= 1
+        return False
 
     def _is_in_banner_context(self, text: str, match_start: int) -> bool:
         """Check if the match appears inside a service banner (informational, not a threat)."""
@@ -225,11 +254,19 @@ class IntelligenceEngine:
         return ip.strip() in self.SAFE_IPS or self._is_private_ip(ip.strip())
 
     def _is_safe_domain(self, domain: str) -> bool:
-        """Check if domain is known-safe."""
+        """Check if domain is known-safe.
+
+        Matches exact SAFE_DOMAINS and exact MODULE_FALSE_POSITIVES names.
+        Does NOT match arbitrary subdomains like "socket.evil.com" which
+        could bypass the check.
+        """
         d = domain.strip().lower()
         if d in self.SAFE_DOMAINS:
             return True
-        return any(d.startswith(mod + '.') for mod in self.MODULE_FALSE_POSITIVES)
+        # Only match exact module names (e.g., "socket") not subdomains
+        # like "socket.evil.com" which could be a real domain
+        first_component = d.split(".")[0]
+        return first_component in self.MODULE_FALSE_POSITIVES and d.count(".") == 0
 
     def _is_filename_keyword(self, text: str, match_start: int, match_end: int) -> bool:
         """Check if a keyword match is actually part of a filename or identifier."""
@@ -385,7 +422,7 @@ class IntelligenceEngine:
 
         self._update_threat_score(project_id, severity, data)
 
-        logger.info(f"Intelligence from {project_id}: {intel_type} [{severity}] (conf: {confidence:.2f})")
+        logger.info("Intelligence from %s: %s [%s] (conf: %.2f)", project_id, intel_type, severity, confidence)
 
     def _update_threat_score(self, project_id: str, severity: str, data: dict):
         """Update composite threat score with exponential decay."""
@@ -401,7 +438,7 @@ class IntelligenceEngine:
 
         total = sum(self.threat_scores.values())
         level = self._threat_level(total)
-        logger.info(f"Aggregate threat: {total:.1f} [{level}] ({len(self.threat_scores)} sources)")
+        logger.info("Aggregate threat: %.1f [%s] (%s sources)", total, level, len(self.threat_scores))
 
     def _threat_level(self, score: float) -> str:
         if score >= 50:

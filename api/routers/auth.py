@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from api.deps import auth_service, get_current_user
 from api.models import RegisterRequest
+from pydantic import BaseModel
 
 logger = logging.getLogger("picoshogun.auth")
 
@@ -43,15 +44,20 @@ async def login(username: str, password: str):
     }
 
 
+class CreateAPIKeyRequest(BaseModel):
+    """Request body for creating an API key."""
+    name: str = "default"
+    permissions: str = "read"
+
+
 @router.post("/api-key", tags=["Authentication"])
 async def create_api_key(
-    request: dict,
+    request: CreateAPIKeyRequest,
     user: dict = Depends(get_current_user),
 ):
     """Create a new API key."""
-    key_name = request.get("name", "default")
-    api_key = auth_service.create_api_key(user["id"], name=key_name)
-    return {"api_key": api_key, "name": key_name}
+    api_key = auth_service.create_api_key(user["id"], name=request.name, permissions=request.permissions)
+    return {"api_key": api_key, "name": request.name, "permissions": request.permissions}
 
 
 @router.post("/api-key/{key_id}/rotate", tags=["Authentication"])

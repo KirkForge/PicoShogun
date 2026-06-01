@@ -33,6 +33,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         response.headers["Content-Security-Policy"] = self.csp
-        response.headers["X-Request-ID"] = request.headers.get("X-Request-ID", "")
+        response.headers["X-Request-ID"] = getattr(request.state, "request_id", request.headers.get("X-Request-ID", ""))
 
         return response

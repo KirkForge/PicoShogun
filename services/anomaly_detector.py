@@ -184,21 +184,19 @@ class AnomalyDetector:
         """
         try:
             rows = self.db.execute("""
-                SELECT status FROM health_checks
+                SELECT component, status FROM health_checks
                 ORDER BY created_at DESC
-                LIMIT 20
             """)
             if not rows:
                 return 0.0
-            # Get unique latest statuses per component
-            seen = set()
-            statuses = []
-            for r in reversed(rows):
-                comp_status = r[0]
-                if comp_status not in seen:
-                    seen.add(comp_status)
-                    statuses.append(comp_status)
+            # Get latest status per component (most recent first)
+            latest_by_component: dict[str, str] = {}
+            for r in rows:
+                component, status = r[0], r[1]
+                if component not in latest_by_component:
+                    latest_by_component[component] = status
 
+            statuses = list(latest_by_component.values())
             if any(s == "critical" for s in statuses):
                 return 2.0
             elif any(s in ("warning", "degraded", "disabled") for s in statuses):
@@ -307,7 +305,7 @@ class AnomalyDetector:
             try:
                 self._run_check_cycle()
             except Exception as e:
-                logger.error(f"Anomaly detection cycle failed: {e}", exc_info=True)
+                logger.error("Anomaly detection cycle failed: %s", e, exc_info=True)
             time.sleep(self._check_interval)
 
     def start(self):

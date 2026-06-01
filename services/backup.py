@@ -61,7 +61,7 @@ class BackupManager:
 
             backup_size = backup_path.stat().st_size
 
-            logger.info(f"Backup created: {backup_path} ({backup_size} bytes)")
+            logger.info("Backup created: %s (%s bytes)", backup_path, backup_size)
 
             return {
                 "path": str(backup_path),
@@ -71,7 +71,7 @@ class BackupManager:
             }
 
         except Exception as e:
-            logger.error(f"Backup failed: {e}")
+            logger.error("Backup failed: %s", e)
             return None
 
         finally:
@@ -84,13 +84,13 @@ class BackupManager:
         backup_path = Path(backup_path)
 
         if not backup_path.exists():
-            logger.error(f"Backup not found: {backup_path}")
+            logger.error("Backup not found: %s", backup_path)
             return False
 
         # Safety check
         if not force:
             current_db_size = self.db_path.stat().st_size if self.db_path.exists() else 0
-            logger.warning(f"About to restore over database ({current_db_size} bytes). Use force=True to confirm.")
+            logger.warning("About to restore over database (%s bytes). Use force=True to confirm.", current_db_size)
             return False
 
         temp_dir = self.backup_dir / f"restore_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
@@ -102,7 +102,7 @@ class BackupManager:
                 for member in tar.getmembers():
                     member_path = os.path.normpath(member.name)
                     if member_path.startswith('..') or os.path.isabs(member.name):
-                        logger.warning(f"Skipping unsafe path in archive: {member.name}")
+                        logger.warning("Skipping unsafe path in archive: %s", member.name)
                         continue
                     tar.extract(member, str(temp_dir))
 
@@ -111,7 +111,7 @@ class BackupManager:
             if meta_path.exists():
                 with open(meta_path) as f:
                     meta = json.load(f)
-                logger.info(f"Restoring backup from {meta['created']}")
+                logger.info("Restoring backup from %s", meta['created'])
 
             # Restore database
             db_backup = temp_dir / "database.sqlite3"
@@ -136,7 +136,7 @@ class BackupManager:
             return True
 
         except Exception as e:
-            logger.error(f"Restore failed: {e}")
+            logger.error("Restore failed: %s", e)
             return False
 
         finally:
@@ -173,7 +173,7 @@ class BackupManager:
             if backup_file.stat().st_ctime < cutoff:
                 backup_file.unlink()
                 removed += 1
-                logger.info(f"Removed old backup: {backup_file.name}")
+                logger.info("Removed old backup: %s", backup_file.name)
 
         return removed
 
