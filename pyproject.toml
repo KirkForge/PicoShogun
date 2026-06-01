@@ -6,29 +6,37 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "picoshogun"
-version = "0.1.0"
+version = "1.0.0"
 description = "Command centre for the Pico Security Series — security orchestration, firewall, and monitoring"
 readme = "README.md"
 license = "BUSL-1.1"
 license-files = ["LICENSE*", "COMMERCIAL-LICENSE.md"]
 requires-python = ">=3.10"
-authors = [
-    {name = "Henrik Kirk", email = "285947470+KirkForge@users.noreply.github.com"},
-]
+authors = [{name = "Henrik Kirk", email = "kirk@kirkforge.dev"}]
+maintainers = [{name = "KirkForge", email = "kirk@kirkforge.dev"}]
 keywords = [
     "security", "orchestration", "command-centre", "fastapi", "firewall",
     "supply-chain", "anomaly-detection", "monitoring",
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: System Administrators",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Framework :: FastAPI",
     "Topic :: Security",
     "Topic :: System :: Monitoring",
+    "Topic :: Software Development :: Quality Assurance",
+    "Environment :: Console",
+    "Framework :: Pytest",
+    "Typing :: Typed",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Operating System :: OS Independent",
 ]
 
 dependencies = [
@@ -44,6 +52,18 @@ dependencies = [
     "croniter>=1.0.0",
     "pyyaml>=6.0",
 ]
+
+
+
+[project.urls]
+Homepage = "https://github.com/KirkForge/PicoShogun"
+Documentation = "https://github.com/KirkForge/PicoShogun#readme"
+Repository = "https://github.com/KirkForge/PicoShogun"
+Issues = "https://github.com/KirkForge/PicoShogun/issues"
+Changelog = "https://github.com/KirkForge/PicoShogun/blob/main/CHANGELOG.md"
+"Release Notes" = "https://github.com/KirkForge/PicoShogun/releases"
+"Source Code" = "https://github.com/KirkForge/PicoShogun"
+"Bug Tracker" = "https://github.com/KirkForge/PicoShogun/issues"
 
 [project.optional-dependencies]
 observability = [

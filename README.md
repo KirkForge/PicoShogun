@@ -2,7 +2,12 @@
 
 # PicoShogun — Command Centre for the Pico Security Series
 
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support%20my%20hardware-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/KirkForge)
+[![CI](https://github.com/KirkForge/PicoShogun/actions/workflows/ci.yml/badge.svg)](https://github.com/KirkForge/PicoShogun/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/picoshogun)](https://pypi.org/project/picoshogun/)
+[![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
+[![Tests](https://img.shields.io/badge/tests-170%20passing-brightgreen)](https://github.com/KirkForge/PicoShogun)
+[![License: BUSL-1.1](https://img.shields.io/badge/license-BUSL--1.1-blue)](LICENSE)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support%20my%20hardware-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/kirkforge)
 
 Command centre, firewall, and monitoring for the Pico Security Series. FastAPI + SQLite + Python 3.12.
 

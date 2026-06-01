@@ -271,13 +271,21 @@ def main() -> None:
     signal.signal(signal.SIGTERM, _graceful_shutdown)
     signal.signal(signal.SIGINT, _graceful_shutdown)
 
-    uvicorn.run(
-        app,
-        host=settings.api.host,
-        port=settings.api.port,
-        workers=settings.api.workers,
-        reload=settings.api.reload,
-    )
+    # Uvicorn requires import string (not app object) when workers > 1 or reload is enabled
+    if settings.api.workers > 1 or settings.api.reload:
+        uvicorn.run(
+            "api.server:app",
+            host=settings.api.host,
+            port=settings.api.port,
+            workers=settings.api.workers,
+            reload=settings.api.reload,
+        )
+    else:
+        uvicorn.run(
+            app,
+            host=settings.api.host,
+            port=settings.api.port,
+        )
 
 
 if __name__ == "__main__":
