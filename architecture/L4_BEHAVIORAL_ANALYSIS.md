@@ -406,6 +406,7 @@ canary_files:
   - path: "/home/user/.env"
     content: |
       API_KEY=sk-canary-shogun-token-00000000
+      DATABASE_URL=postgres://canary:canary@canary.picoshogun.internal:5432/fake
     rule: L4-HONEY-001
 
   - path: "/home/user/.ssh/id_rsa"
@@ -634,7 +635,7 @@ POST /api/v1/pipeline
 1. **L3 Integration**: L4 consumes `SandboxResult` (L3 output) as input. No L3 changes needed.
 2. **L2 Integration**: L2 findings auto-generate L3 policies. L4 baselines can be scoped per L2 finding type.
 3. **API**: `POST /api/v1/behavioral/analyze` — submit trace + baseline key, get verdict
-4. **CLI**: `picoshogun L4 analyze --trace t.json --baseline b.json`
+4. **CLI**: `picodome L4_behavioral.cli analyze --trace t.json --baseline b.json`
 5. **CI/CD**: Exit code 0=NORMAL, 1=SUSPICIOUS, 2=MALICIOUS, 3=UNKNOWN (no baseline), 4=error
 6. **Webhook**: SUSPICIOUS/MALICIOUS verdicts → AlertHub → Discord/Slack/Email
 7. **SARIF**: Same format as L2/L3, extended with `behavioralFindings` property
