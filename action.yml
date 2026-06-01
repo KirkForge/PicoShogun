@@ -1,0 +1,213 @@
+name: PicoShogun — Command Centre
+description: Orchestration, firewall, and monitoring for the Pico Security Series in CI pipelines
+author: KirkForge
+branding:
+  icon: terminal
+  color: gray-dark
+
+inputs:
+  mode:
+    description: Run mode — api (start server), health (check health), scan (orchestrated scan), or gate (firewall gate)
+    required: false
+    default: 'gate'
+  target:
+    description: Target path to scan (for scan/gate modes)
+    required: false
+    default: '.'
+  fail-on:
+    description: Minimum severity to fail the build (low, medium, high, critical)
+    required: false
+    default: 'high'
+  format:
+    description: Output format (json, table, sarif)
+    required: false
+    default: 'json'
+  output:
+    description: Output file path for results
+    required: false
+    default: 'picoshogun-results.json'
+  sentry-version:
+    description: PicoSentry version to use in orchestrated scan
+    required: false
+    default: '0.16.0'
+  dome-version:
+    description: PicoDome version to use in orchestrated scan
+    required: false
+    default: '0.5.0'
+  watch-version:
+    description: PicoWatch version to use in orchestrated scan
+    required: false
+    default: '0.7.0'
+  shogun-version:
+    description: PicoShogun version to use
+    required: false
+    default: '0.1.0'
+  api-port:
+    description: Port for API server (for api mode)
+    required: false
+    default: '8765'
+  secret-key:
+    description: Secret key for JWT signing (required for api mode in production)
+    required: false
+    default: ''
+  exit-code:
+    description: Exit with non-zero code on findings (true/false)
+    required: false
+    default: 'true'
+
+outputs:
+  findings:
+    description: Number of findings across all Pico tools
+    value: ${{ steps.shogun.outputs.findings }}
+  result:
+    description: Gate result (pass/fail)
+    value: ${{ steps.shogun.outputs.result }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Cache Pico tools
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-picoshogun-${{ inputs.shogun-version }}-sentry-${{ inputs.sentry-version }}-dome-${{ inputs.dome-version }}-watch-${{ inputs.watch-version }}
+
+    - name: Install Pico Security Series
+      shell: bash
+      run: |
+        pip install "picosentry==${{ inputs.sentry-version }}" "picodome==${{ inputs.dome-version }}" "picowatch==${{ inputs.watch-version }}" "picoshogun==${{ inputs.shogun-version }}"
+        echo "PicoSentry: $(picosentry --version)"
+        echo "PicoDome: $(picodome --version)"
+        echo "PicoWatch: $(picowatch --version)"
+        echo "PicoShogun: $(picoshogun --version 2>&1 || echo 'installed')"
+
+    - name: Run PicoShogun
+      id: shogun
+      shell: bash
+      run: |
+        set -o pipefail
+
+        MODE="${{ inputs.mode }}"
+        FINDINGS=0
+        RESULT="pass"
+
+        if [ "$MODE" = "api" ]; then
+          # Start API server (background for integration tests)
+          if [ -n "${{ inputs.secret-key }}" ]; then
+            export PICOSHOGUN_SECRET_KEY="${{ inputs.secret-key }}"
+          fi
+          picoshogun --port "${{ inputs.api-port }}" &
+          SHOGUN_PID=$!
+          echo "PicoShogun API started on port ${{ inputs.api-port }} (PID: $SHOGUN_PID)"
+          # Give it time to start
+          sleep 3
+          # Health check
+          if curl -sf http://localhost:${{ inputs.api-port }}/health > /dev/null 2>&1; then
+            echo "API health check: OK"
+          else
+            echo "API health check: FAILED (may still be starting)"
+          fi
+          echo "findings=0" >> "$GITHUB_OUTPUT"
+          echo "result=pass" >> "$GITHUB_OUTPUT"
+          exit 0
+
+        elif [ "$MODE" = "health" ]; then
+          # Quick health check of installed tools
+          echo "PicoSentry: $(picosentry --version)"
+          echo "PicoDome: $(picodome --version)"
+          echo "PicoWatch: $(picowatch --version)"
+          echo "findings=0" >> "$GITHUB_OUTPUT"
+          echo "result=pass" >> "$GITHUB_OUTPUT"
+          exit 0
+
+        elif [ "$MODE" = "scan" ] || [ "$MODE" = "gate" ]; then
+          # Orchestrated scan: run all Pico tools against the target
+          TARGET="${{ inputs.target }}"
+          TOTAL_FINDINGS=0
+
+          # 1. PicoSentry — static supply-chain scan
+          echo "::group::PicoSentry — Supply-chain scan"
+          SENTRY_EXIT=0
+          picosentry scan "$TARGET" --format "${{ inputs.format }}" --output "picosentry-ci.json" --fail-on "${{ inputs.fail-on }}" --exit-code 2>&1 | tee sentry-output.txt || SENTRY_EXIT=$?
+          SENTRY_FINDINGS=$(python3 -c "import json; d=json.load(open('picosentry-ci.json')); print(len(d.get('findings', [])))" 2>/dev/null || echo 0)
+          echo "PicoSentry: $SENTRY_FINDINGS findings (exit: $SENTRY_EXIT)"
+          TOTAL_FINDINGS=$((TOTAL_FINDINGS + SENTRY_FINDINGS))
+          echo "::endgroup::"
+
+          # 2. PicoDome — runtime sandbox (if package.json or lockfile present)
+          echo "::group::PicoDome — Runtime sandbox"
+          if [ -f "$TARGET/package.json" ] || [ -f "$TARGET/pnpm-lock.yaml" ]; then
+            DOME_EXIT=0
+            picodome pipeline --allow-runtime node --timeout 30 --format json --output "picodome-ci.json" npm install --ignore-scripts 2>&1 | tee dome-output.txt || DOME_EXIT=$?
+            DOME_FINDINGS=$(python3 -c "import json; d=json.load(open('picodome-ci.json')); print(len(d.get('findings', d.get('violations', []))))" 2>/dev/null || echo 0)
+            echo "PicoDome: $DOME_FINDINGS findings (exit: $DOME_EXIT)"
+            TOTAL_FINDINGS=$((TOTAL_FINDINGS + DOME_FINDINGS))
+          else
+            echo "PicoDome: skipped (no package.json or pnpm-lock.yaml)"
+          fi
+          echo "::endgroup::"
+
+          # 3. PicoWatch — LLM defense (check for .picowatch configs or prompt files)
+          echo "::group::PicoWatch — LLM defense"
+          WATCH_EXIT=0
+          PROMPT_FILES=$(find "$TARGET" -name "*.prompt" -o -name "*.prompt.txt" -o -name ".picowatch-scan" 2>/dev/null | head -5)
+          if [ -n "$PROMPT_FILES" ]; then
+            for pf in $PROMPT_FILES; do
+              picowatch scan-prompt --file "$pf" 2>&1 | tee -a watch-output.txt || WATCH_EXIT=$?
+            done
+          else
+            echo "PicoWatch: no prompt files found (skipped)"
+          fi
+          echo "::endgroup::"
+
+          # Gate decision
+          FINDINGS=$TOTAL_FINDINGS
+          if [ "$SENTRY_EXIT" -ne 0 ] || [ "$DOME_EXIT" -ne 0 ] || [ "$WATCH_EXIT" -ne 0 ]; then
+            RESULT="fail"
+          fi
+
+          echo "findings=$FINDINGS" >> "$GITHUB_OUTPUT"
+          echo "result=$RESULT" >> "$GITHUB_OUTPUT"
+
+          # Combine results into single output
+          python3 -c "
+          import json
+          combined = {'gate': '${{ inputs.mode }}', 'findings': $FINDINGS, 'result': '$RESULT', 'tools': {}}
+          try:
+            combined['tools']['picosentry'] = json.load(open('picosentry-ci.json'))
+          except: pass
+          try:
+            combined['tools']['picodome'] = json.load(open('picodome-ci.json'))
+          except: pass
+          json.dump(combined, open('${{ inputs.output }}', 'w'), indent=2)
+          " 2>/dev/null || true
+
+          if [ "${{ inputs.exit-code }}" = "true" ] && [ "$RESULT" = "fail" ]; then
+            echo "::error::PicoShogun gate FAILED — $FINDINGS total findings (threshold: ${{ inputs.fail-on }})"
+            exit 1
+          fi
+
+        else
+          echo "::error::Unknown mode: $MODE. Use api, health, scan, or gate."
+          exit 1
+        fi
+
+    - name: Summary
+      shell: bash
+      run: |
+        echo "## PicoShogun Command Centre" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "- **Mode:** ${{ inputs.mode }}" >> "$GITHUB_STEP_SUMMARY"
+        echo "- **Findings:** ${{ steps.shogun.outputs.findings }}" >> "$GITHUB_STEP_SUMMARY"
+        echo "- **Result:** ${{ steps.shogun.outputs.result }}" >> "$GITHUB_STEP_SUMMARY"
+        echo "- **Threshold:** ${{ inputs.fail-on }}" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "### Tools" >> "$GITHUB_STEP_SUMMARY"
+        echo "- PicoSentry v${{ inputs.sentry-version }} (L2 Supply-chain)" >> "$GITHUB_STEP_SUMMARY"
+        echo "- PicoDome v${{ inputs.dome-version }} (L3/L4 Runtime)" >> "$GITHUB_STEP_SUMMARY"
+        echo "- PicoWatch v${{ inputs.watch-version }} (L5-L7 LLM Defense)" >> "$GITHUB_STEP_SUMMARY"
