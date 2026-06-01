@@ -12,6 +12,10 @@ env:
   PICOSHOGUN_ENV: test
   PICOSHOGUN_SECRET_KEY: ci-test-key-not-for-production-at-least-32b!
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # ── Lint ─────────────────────────────────────────────────────────
   lint:
@@ -40,7 +44,7 @@ jobs:
     needs: lint
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
