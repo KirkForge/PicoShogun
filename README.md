@@ -151,4 +151,4 @@ docker run -d -p 8765:8765 \
 
 ## License
 
-BUSL-1.1
+Business Source License 1.1 (BUSL-1.1) — source-available; production use allowed except for competitive offerings. Commercial use that competes with KirkForge's paid products requires a separate commercial license. After 3 years, converts to Apache-2.0. See [LICENSE](LICENSE), [LICENSE-SUMMARY.md](LICENSE-SUMMARY.md), and [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md).
