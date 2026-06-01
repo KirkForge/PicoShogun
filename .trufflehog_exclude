@@ -1,10 +1,8 @@
 .venv/
-iron_dome/
-picosentry/
-architecture/
-secdev_kimi\.db
+picoshogun\.db
 __pycache__/
 \.git/
 node_modules/
 picoshogun\.db
 backups/
+architecture/L4_BEHAVIORAL_ANALYSIS.md
