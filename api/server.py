@@ -83,8 +83,11 @@ async def lifespan(app: FastAPI):
 
     # Start background services
     anomaly_detector.start()
-    scheduler.start()
-    logger.info("Anomaly detector and scheduler started")
+    if settings.orchestrator.schedule_enabled:
+        scheduler.start()
+        logger.info("Anomaly detector and scheduler started")
+    else:
+        logger.info("Anomaly detector started (scheduler disabled by schedule_enabled=False)")
 
     # Cleanup expired API keys on startup
     expired_count = auth_service.cleanup_expired_keys()
@@ -99,6 +102,18 @@ async def lifespan(app: FastAPI):
         params={},
         enabled=True,
     )
+
+    # Schedule periodic health checks at configured interval
+    health_interval = settings.orchestrator.health_check_interval
+    if health_interval > 0:
+        scheduler.add_job(
+            name="health_check",
+            cron=f"*/{health_interval // 60} * * * *" if health_interval >= 60 else "* * * * *",
+            command="health_check",
+            params={},
+            enabled=True,
+        )
+        logger.info("Periodic health checks scheduled every %d seconds", health_interval)
 
     yield  # Application is running
 
@@ -223,33 +238,6 @@ except Exception:
 
 # ─── Entry point ─────────────────────────────────────────────────────────
 
-if __name__ == "__main__":
-   import signal
-
-   import uvicorn
-
-   def _graceful_shutdown(signum, frame):
-       """Handle SIGTERM/SIGINT by stopping background services before exit."""
-       sig_name = signal.strsignal(signum) or str(signum)
-       logger.info("Received %s — initiating graceful shutdown", sig_name)
-       anomaly_detector.stop()
-       scheduler.stop()
-       event_bus.shutdown()
-       plugin_manager.unload_all()
-       db.close()
-       logger.info("Graceful shutdown complete — exiting")
-       raise SystemExit(0)
-
-   signal.signal(signal.SIGTERM, _graceful_shutdown)
-   signal.signal(signal.SIGINT, _graceful_shutdown)
-
-   uvicorn.run(
-       app,
-       host=settings.api.host,
-       port=settings.api.port,
-       workers=settings.api.workers,
-       reload=settings.api.reload,
-   )
 def main() -> None:
     """CLI entry point — starts the PicoShogun server with signal handling."""
     import signal
@@ -272,6 +260,13 @@ def main() -> None:
     signal.signal(signal.SIGINT, _graceful_shutdown)
 
     # Uvicorn requires import string (not app object) when workers > 1 or reload is enabled
+    # Build SSL kwargs if cert/key configured
+    ssl_kwargs = {}
+    if settings.security.ssl_cert_path and settings.security.ssl_key_path:
+        ssl_kwargs["ssl_certfile"] = str(settings.security.ssl_cert_path)
+        ssl_kwargs["ssl_keyfile"] = str(settings.security.ssl_key_path)
+        logger.info("TLS enabled: cert=%s", settings.security.ssl_cert_path)
+
     if settings.api.workers > 1 or settings.api.reload:
         uvicorn.run(
             "api.server:app",
@@ -279,12 +274,14 @@ def main() -> None:
             port=settings.api.port,
             workers=settings.api.workers,
             reload=settings.api.reload,
+            **ssl_kwargs,
         )
     else:
         uvicorn.run(
             app,
             host=settings.api.host,
             port=settings.api.port,
+            **ssl_kwargs,
         )
 
 

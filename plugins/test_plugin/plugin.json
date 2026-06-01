@@ -1,6 +1,6 @@
 {
   "name": "test_plugin",
-  "version": "0.1.0",
+  "version": "1.0.1",
   "author": "PicoShogun",
   "description": "Test plugin to verify dynamic loading works end-to-end",
   "entry_point": "test_handler",

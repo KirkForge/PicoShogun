@@ -41,7 +41,7 @@ class ProjectMeta:
     cron_schedule: str
     estimated_duration: int
     status: str = "pending"
-    version: str = "1.0.0"
+    version: str = "1.0.1"
     intelligence_outputs: list[str] | None = None
     intelligence_inputs: list[str] | None = None
     description: str = ""
@@ -67,7 +67,7 @@ class EnhancedOrchestrator:
                 data = json.load(f)
                 for pid, pdict in data.items():
                     self.registry[pid] = ProjectMeta(**pdict)
-            logger.info(f"Loaded {len(self.registry)} projects from registry")
+            logger.info("Loaded %s projects from registry", len(self.registry))
 
     def _init_projects_db(self):
         """Sync registry to database."""
@@ -202,7 +202,7 @@ class EnhancedOrchestrator:
                         AND run_start > datetime('now', '-1 hour')
                     """, (project_id,))
                     if retry_count and retry_count["c"] < settings.orchestrator.retry_max:
-                        logger.info(f"Will retry {project_id} after {settings.orchestrator.retry_delay}s")
+                        logger.info("Will retry %s after %ss", project_id, settings.orchestrator.retry_delay)
 
             # Update run record
             db.execute_insert("""
@@ -272,7 +272,7 @@ class EnhancedOrchestrator:
                                             "exit_code": result.returncode
                                         })
 
-            logger.info(f"{project_id}: {status} in {duration:.1f}s")
+            logger.info("%s: %s in %.1fs", project_id, status, duration)
 
             return {
                 "success": result.returncode == 0,

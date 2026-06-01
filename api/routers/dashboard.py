@@ -6,13 +6,13 @@ from fastapi import APIRouter, Depends
 
 from api.deps import get_current_user
 from database.manager import db
-from services.orchestrator import EnhancedOrchestrator
+from services.orchestrator import orchestrator
 
 logger = logging.getLogger("picoshogun.dashboard")
 
 router = APIRouter()
 
-orchestrator = EnhancedOrchestrator()
+
 
 
 @router.get("/dashboard/summary", tags=["Dashboard"])

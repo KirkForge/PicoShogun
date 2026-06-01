@@ -55,7 +55,7 @@ See `.env.example` for the full list.
 
 ## Features
 
-- **12-layer middleware stack**: SecurityHeaders → RequestID → RequestSizeLimit → DDoSShield → GZip → CORS → CORSHardening → RateLimit → Audit → Timeout → HTTPS → DocsRestriction
+- **12-layer middleware stack**: CORSHardening → DocsRestriction → HTTPSEnforcement → RequestTimeout → SecurityHeaders → RequestID → RequestSizeLimit → DDoSShield → GZip → CORS → RateLimit → Audit
 - **Rate limiting**: Per-IP (100/min) + per-org (1000/min) with SQLite persistence
 - **JWT + API keys + RBAC**: 18 permissions across viewer/operator/admin roles, API key rotation, expired key cleanup
 - **Audit log management**: Per-severity retention, purge API, dry-run support

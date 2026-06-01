@@ -46,7 +46,7 @@ def init_telemetry(service_name: str = "picoshogun", endpoint: str | None = None
         resource = Resource.create({
             "service.name": service_name,
             "service.version": __version__,
-            "deployment.environment": os.environ.get("SHOGUN_ENV", "development"),
+            "deployment.environment": os.environ.get("PICOSHOGUN_ENV", os.environ.get("SHOGUN_ENV", "development")),
         })
 
         # Tracing
@@ -71,14 +71,14 @@ def init_telemetry(service_name: str = "picoshogun", endpoint: str | None = None
         metrics.set_meter_provider(_meter_provider)
         _meter = metrics.get_meter(service_name, __version__)
 
-        logger.info(f"OpenTelemetry initialized — endpoint={endpoint}, grpc={use_grpc}")
+        logger.info("OpenTelemetry initialized — endpoint=%s, grpc=%s", endpoint, use_grpc)
         return True
 
     except ImportError:
         logger.info("opentelemetry packages not installed — tracing disabled")
         return False
     except Exception as e:
-        logger.warning(f"Failed to initialize OTEL: {e}")
+        logger.warning("Failed to initialize OTEL: %s", e)
         return False
 
 
@@ -162,7 +162,7 @@ def setup_fastapi_instrumentation(app):
         logger.info("FastAPIInstrumentor not available — skipping auto-instrumentation")
         return False
     except Exception as e:
-        logger.warning(f"FastAPI instrumentation failed: {e}")
+        logger.warning("FastAPI instrumentation failed: %s", e)
         return False
 
 

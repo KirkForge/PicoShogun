@@ -52,7 +52,7 @@ async def get_logs(
     user: dict = Depends(get_current_user),
 ):
     """Query log entries with optional filtering."""
-    return {"logs": log_manager.get_stats()}
+    return {"entries": log_manager.query(level=level, source=source, search=search, limit=limit)}
 
 
 @router.get("/audit/stats", tags=["Audit"])

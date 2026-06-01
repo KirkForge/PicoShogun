@@ -78,7 +78,7 @@ class AuthService:
         # Generate token
         token = self._generate_token(user["id"], username, user["role"])
 
-        logger.info(f"User {username} authenticated")
+        logger.info("User %s authenticated", username)
         return token
 
     def _generate_token(self, user_id: int, username: str, role: str) -> str:
@@ -150,7 +150,7 @@ class AuthService:
             VALUES (?, ?, ?, ?)
         """, (username, password_hash, email, role))
 
-        logger.info(f"User created: {username} (role: {role})")
+        logger.info("User created: %s (role: %s)", username, role)
         return user_id
 
     def create_api_key(self, user_id: int, name: str,
@@ -166,7 +166,7 @@ class AuthService:
             VALUES (?, ?, ?, ?, ?)
         """, (key_hash, user_id, name, permissions, expires))
 
-        logger.info(f"API key created for user {user_id}: {name}")
+        logger.info("API key created for user %s: %s", user_id, name)
         return api_key
 
     def validate_api_key(self, api_key: str) -> dict[str, Any] | None:
@@ -242,7 +242,7 @@ class AuthService:
             VALUES (?, ?, ?, ?, ?)
         """, (key_hash, user_id, key["name"] or "rotated-key", key["permissions"] or "read", expires))
 
-        logger.info(f"API key rotated for user {user_id}, key_id {key_id}")
+        logger.info("API key rotated for user %s, key_id %s", user_id, key_id)
         return new_api_key
 
     def check_permission(self, user: dict[str, Any], required: str) -> bool:

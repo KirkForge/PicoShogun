@@ -49,7 +49,7 @@ class LogManager:
             # Compress old files
             self._compress_old(target)
 
-            logger.info(f"Rotated: {target.name} ({size} bytes)")
+            logger.info("Rotated: %s (%s bytes)", target.name, size)
             return str(target)
 
     def _rotate_files(self, target: Path):
@@ -96,7 +96,7 @@ class LogManager:
                     removed += 1
 
         if removed > 0:
-            logger.info(f"Cleaned up {removed} old log files")
+            logger.info("Cleaned up %s old log files", removed)
 
         return removed
 
@@ -126,6 +126,43 @@ class LogManager:
                 for f in sorted(files, key=lambda p: p.stat().st_mtime, reverse=True)
             ]
         }
+
+    def query(self, level: str | None = None, source: str | None = None,
+              search: str | None = None, limit: int = 100) -> list[dict]:
+        """Query log entries from log files with optional filtering.
+
+        Args:
+            level: Filter by log level (INFO, WARNING, ERROR, etc.)
+            source: Filter by source/logger name
+            search: Text search within log messages
+            limit: Maximum entries to return
+        """
+        import re
+
+        entries = []
+        level_pattern = re.compile(rf"^{level}", re.IGNORECASE) if level else None
+
+        for log_file in self._get_log_files():
+            if log_file.suffix != ".log":
+                continue
+            try:
+                with open(log_file) as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        if level_pattern and not level_pattern.search(line):
+                            continue
+                        if source and source.lower() not in line.lower():
+                            continue
+                        if search and search.lower() not in line.lower():
+                            continue
+                        entries.append({"file": log_file.name, "line": line})
+                        if len(entries) >= limit:
+                            return entries
+            except Exception:
+                continue
+        return entries
 
     def auto_rotate(self) -> None:
         """Check and rotate all oversized logs."""

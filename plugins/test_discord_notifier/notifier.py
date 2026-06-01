@@ -58,7 +58,7 @@ class DiscordNotifier(PluginInterface):
     def health_check(self) -> dict:
         return {
             "status": "healthy",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "webhook_configured": bool(self.webhook_url),
         }
 

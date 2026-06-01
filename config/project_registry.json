@@ -53,7 +53,7 @@
     "cron_schedule": "*/5 * * * *",
     "estimated_duration": 10,
     "status": "active",
-    "version": "0.1.0",
+    "version": "1.0.1",
     "description": "Command centre, firewall, and monitoring for the Pico Security Series",
     "package": "picoshogun",
     "intelligence_outputs": ["correlated_alert", "aggregate_threat_score"],

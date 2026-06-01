@@ -223,7 +223,8 @@ class TestAPIVersion:
     def test_api_info(self, client):
         from api.server import app
         assert app.title == "PicoShogun Command Centre API"
-        assert app.version == "1.0.0"
+        from config.version import __version__
+        assert app.version == __version__
 
 
 class TestSecurityHeaders:

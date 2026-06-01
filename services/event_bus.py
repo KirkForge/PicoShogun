@@ -40,7 +40,7 @@ class EventBus:
             if persistent:
                 self.persistent_subscribers[event_type].append(sub_id)
 
-        logger.debug(f"Subscriber {sub_id} registered for {event_type}")
+        logger.debug("Subscriber %s registered for %s", sub_id, event_type)
         return sub_id
 
     def unsubscribe(self, event_type: str, callback: Callable) -> bool:
@@ -81,9 +81,9 @@ class EventBus:
             try:
                 callback(event)
             except Exception as e:
-                logger.error(f"Event handler failed for {event_type}: {e}")
+                logger.error("Event handler failed for %s: %s", event_type, e)
 
-        logger.debug(f"Event published: {event_type} ({event.id})")
+        logger.debug("Event published: %s (%s)", event_type, event.id)
         return event
 
     def get_history(self, event_type: str = None, limit: int = 100) -> list[Event]:

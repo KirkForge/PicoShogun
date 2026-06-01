@@ -47,7 +47,7 @@ class AlertHub:
             # Check cooldown
             for prev in self.recent_alerts.get(key, []):
                 if (now - prev).total_seconds() < self.cooldown_seconds:
-                    logger.debug(f"Alert suppressed: {key}")
+                    logger.debug("Alert suppressed: %s", key)
                     return False
 
             self.recent_alerts[key].append(now)
@@ -80,13 +80,13 @@ class AlertHub:
                 """, (alert_ids[i],))
                 success = True
             except Exception as e:
-                logger.error(f"Alert delivery failed ({channel}): {e}")
+                logger.error("Alert delivery failed (%s): %s", channel, e)
                 # Increment retry count
                 db.execute("""
                     UPDATE alerts SET retry_count = retry_count + 1 WHERE id = ?
                 """, (alert_ids[i],))
 
-        logger.info(f"ALERT [{severity.upper()}] {project_id}: {message[:100]}")
+        logger.info("ALERT [%s] %s: %s", severity.upper(), project_id, message[:100])
         return success
 
     def _get_default_channels(self) -> list[str]:
@@ -147,7 +147,7 @@ class AlertHub:
                 headers={"Content-Type": "application/json"}
             )
         except Exception as e:
-            logger.error(f"Discord webhook failed: {e}")
+            logger.error("Discord webhook failed: %s", e)
 
     def _slack_notify(self, project_id: str, severity: str, message: str,
                      metadata: dict | None = None):
@@ -190,7 +190,7 @@ class AlertHub:
                 timeout=5
             )
         except Exception as e:
-            logger.error(f"Slack webhook failed: {e}")
+            logger.error("Slack webhook failed: %s", e)
 
     def _email_notify(self, project_id: str, severity: str, message: str):
         """Send email notification via SMTP with TLS/auth support."""
@@ -240,30 +240,45 @@ Time: {datetime.now(timezone.utc).isoformat()}
 
             server.send_message(msg)
             server.quit()
-            logger.info(f"Email alert sent to {len(settings.alerts.email_to)} recipients")
+            logger.info("Email alert sent to %s recipients", len(settings.alerts.email_to))
 
         except Exception as e:
-            logger.error(f"Email notification failed: {e}")
+            logger.error("Email notification failed: %s", e)
 
     def _syslog_notify(self, project_id: str, severity: str, message: str):
-        """Log to syslog."""
-        import syslog
+        """Log to syslog (Unix) or Python logging (Windows/cross-platform fallback)."""
+        import sys
 
-        levels = {
-            "critical": syslog.LOG_CRIT,
-            "high": syslog.LOG_ERR,
-            "medium": syslog.LOG_WARNING,
-            "low": syslog.LOG_NOTICE,
-            "info": syslog.LOG_INFO
+        # Map PicoShogun severity to Python logging levels
+        _logging_levels = {
+            "critical": 50,   # logging.CRITICAL
+            "high": 40,       # logging.ERROR
+            "medium": 30,     # logging.WARNING
+            "low": 20,        # logging.INFO
+            "info": 20,       # logging.INFO
         }
 
-        try:
-            syslog.syslog(
-                levels.get(severity, syslog.LOG_INFO),
-                f"PicoShogun[{project_id}]: [{severity.upper()}] {message[:500]}"
-            )
-        except Exception:
-            pass  # Syslog might not be available
+        if sys.platform != "win32":
+            try:
+                import syslog
+                levels = {
+                    "critical": syslog.LOG_CRIT,
+                    "high": syslog.LOG_ERR,
+                    "medium": syslog.LOG_WARNING,
+                    "low": syslog.LOG_NOTICE,
+                    "info": syslog.LOG_INFO
+                }
+                syslog.syslog(
+                    levels.get(severity, syslog.LOG_INFO),
+                    f"PicoShogun[{project_id}]: [{severity.upper()}] {message[:500]}"
+                )
+                return
+            except ImportError:
+                pass  # Fall through to logging fallback
+
+        # Fallback: use Python logging (works on all platforms)
+        log_level = _logging_levels.get(severity, 20)
+        logger.log(log_level, "PicoShogun[%s]: [%s] %s", project_id, severity.upper(), message[:500])
 
     def get_alert_stats(self, hours: int = 24) -> dict[str, Any]:
         """Get alert statistics."""

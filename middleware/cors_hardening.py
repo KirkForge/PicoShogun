@@ -22,21 +22,22 @@ class CORSHardeningMiddleware(BaseHTTPMiddleware):
 
     def __init__(self, app, block_wildcard_in_production: bool = False):
         super().__init__(app)
-        self._warned = False
         self.block_wildcard_in_production = block_wildcard_in_production
 
     async def dispatch(self, request: Request, call_next):
         if settings.is_production() and "*" in settings.api.cors_origins:
-            if not self._warned:
-                logger.warning(
-                    "CORS misconfiguration: wildcard origin with credentials in production. "
-                    "Set SHOGUN_CORS_ORIGINS env var to explicit origins."
-                )
-                self._warned = True
+            logger.warning(
+                "CORS misconfiguration: wildcard origin with credentials in production. "
+                "Set PICOSHOGUN_CORS_ORIGINS env var to explicit origins. "
+                "Origin=%s Path=%s",
+                request.headers.get("origin", ""),
+                request.url.path,
+            )
 
             if self.block_wildcard_in_production:
                 origin = request.headers.get("origin", "")
-                if origin and origin not in settings.api.cors_origins:
+                # Block null/empty origins (file://, sandboxed iframes)
+                if origin == "null" or (origin and origin not in settings.api.cors_origins):
                     return JSONResponse(
                         {"error": "CORS origin not allowed"},
                         status_code=403,

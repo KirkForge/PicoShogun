@@ -8,6 +8,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from config.settings import settings
 from database.manager import db
 
 logger = logging.getLogger("picoshogun.Scheduler")
@@ -84,7 +85,7 @@ class JobScheduler:
         if self.running:
             self._schedule_job(job_id)
 
-        logger.info(f"Job added: {name} ({cron})")
+        logger.info("Job added: %s (%s)", name, cron)
         return job_id
 
     def remove_job(self, job_id: int) -> bool:
@@ -95,7 +96,7 @@ class JobScheduler:
         db.execute_insert("DELETE FROM scheduled_jobs WHERE id = ?", (job_id,))
         del self.jobs[job_id]
 
-        logger.info(f"Job removed: {job_id}")
+        logger.info("Job removed: %s", job_id)
         return True
 
     def enable_job(self, job_id: int) -> bool:
@@ -149,14 +150,14 @@ class JobScheduler:
         if not job:
             return
 
-        logger.info(f"Executing job: {job.name}")
+        logger.info("Executing job: %s", job.name)
 
         try:
             status = "failed"
 
             # Reject unknown commands at execution time as well
             if job.command not in self.ALLOWED_COMMANDS:
-                logger.error(f"Rejected unknown command: {job.command!r}")
+                logger.error("Rejected unknown command: %r", job.command)
                 db.execute_insert("""
                     UPDATE scheduled_jobs
                     SET last_run = ?, last_status = 'rejected'
@@ -170,7 +171,7 @@ class JobScheduler:
                 # Reject categories with path separators or shell metacharacters
                 _unsafe_chars = set("/\\;&$`()" )
                 if any(c in _unsafe_chars for c in category) or "\n" in category or "\r" in category:
-                    logger.error(f"Rejected unsafe category param: {category!r}")
+                    logger.error("Rejected unsafe category param: %r", category)
                     db.execute_insert("""
                         UPDATE scheduled_jobs
                         SET last_run = ?, last_status = 'rejected'
@@ -187,17 +188,15 @@ class JobScheduler:
                 _output = result.stdout + result.stderr
 
             elif job.command == "run":
-                from services.orchestrator import EnhancedOrchestrator
-                orch = EnhancedOrchestrator()
-                run_result = orch.run_project(job.params.get("project_id"),
+                from services.orchestrator import orchestrator as _orch
+                run_result = _orch.run_project(job.params.get("project_id"),
                                          job.params.get("timeout", 300))
                 status = "completed" if run_result.get("success") else "failed"
-                _output = str(run_result)
+                _output = str(backup_result)
 
             elif job.command == "report":
-                from services.orchestrator import EnhancedOrchestrator
-                orch = EnhancedOrchestrator()
-                _report = orch.generate_summary_report()
+                from services.orchestrator import orchestrator as _orch
+                _report = _orch.generate_summary_report()
                 status = "completed"
 
             elif job.command == "backup":
@@ -205,7 +204,7 @@ class JobScheduler:
                 bm = BackupManager()
                 backup_result = bm.create_backup()
                 status = "completed" if backup_result else "failed"
-                _output = str(run_result)
+                _output = str(backup_result)
 
             elif job.command == "cleanup":
                 from services.auth import AuthService
@@ -214,7 +213,7 @@ class JobScheduler:
                 from services.log_manager import log_manager
                 log_manager.auto_rotate()
                 from services.audit_cleanup import purge_audit_logs
-                purge_audit_logs()
+                purge_audit_logs(retention_days=settings.database.audit_retention_days)
                 status = "completed"
                 _output = f"Cleaned up {expired} expired API keys, rotated logs, purged audit entries"
 
@@ -228,10 +227,10 @@ class JobScheduler:
             job.last_run = datetime.now()
             job.last_status = status
 
-            logger.info(f"Job {job.name} completed: {status}")
+            logger.info("Job %s completed: %s", job.name, status)
 
         except Exception as e:
-            logger.error(f"Job {job.name} failed: {e}")
+            logger.error("Job %s failed: %s", job.name, e)
             db.execute_insert("""
                 UPDATE scheduled_jobs
                 SET last_run = ?, last_status = 'failed'
@@ -276,7 +275,7 @@ class JobScheduler:
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
 
-        logger.info(f"Scheduler started with {len(self.jobs)} jobs")
+        logger.info("Scheduler started with %s jobs", len(self.jobs))
 
     def _run(self):
         """Run the scheduler loop."""

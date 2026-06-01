@@ -233,7 +233,7 @@ MIGRATIONS = [
             slug TEXT UNIQUE NOT NULL,
             owner_id INTEGER,
             tier TEXT DEFAULT 'free',
-            api_key TEXT UNIQUE,
+            api_key_hash TEXT UNIQUE,
             is_active BOOLEAN DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -259,7 +259,7 @@ MIGRATIONS = [
         );
 
         CREATE INDEX IF NOT EXISTS idx_orgs_slug ON orgs(slug);
-        CREATE INDEX IF NOT EXISTS idx_orgs_key ON orgs(api_key);
+        CREATE INDEX IF NOT EXISTS idx_orgs_key ON orgs(api_key_hash);
         CREATE INDEX IF NOT EXISTS idx_org_members ON org_users(org_id, user_id);
     """),
 
@@ -288,6 +288,12 @@ MIGRATIONS = [
 
         CREATE INDEX IF NOT EXISTS idx_anomaly_alerts_rule ON anomaly_alerts(rule_id, created_at);
         CREATE INDEX IF NOT EXISTS idx_anomaly_alerts_severity ON anomaly_alerts(severity, created_at);
+    """),
+
+    Migration(8, "orgs_api_key_to_hash", """
+        -- No-op: column rename handled in Python _migrate_orgs_api_key_hash()
+        -- This placeholder ensures migration 8 is recorded as applied.
+        SELECT 1;
     """)]
 
 
@@ -356,6 +362,26 @@ class DatabaseManager:
             conn.commit()
             return cursor.lastrowid
 
+    def _migrate_orgs_api_key_hash(self):
+        """Rename api_key column to api_key_hash if needed (migration 8)."""
+        # Check if orgs table exists
+        try:
+            cols = self.execute("PRAGMA table_info(orgs)")
+            if not cols:
+                return  # Table doesn't exist yet
+            col_names = [row["name"] for row in cols]
+            if "api_key" in col_names and "api_key_hash" not in col_names:
+                # SQLite 3.25+ supports RENAME COLUMN
+                self.execute("ALTER TABLE orgs RENAME COLUMN api_key TO api_key_hash")
+                logger.info("Renamed orgs.api_key → orgs.api_key_hash")
+            elif "api_key" in col_names and "api_key_hash" in col_names:
+                # Both columns exist (shouldn't happen) — drop the old one
+                # SQLite doesn't support DROP COLUMN before 3.35.0, so recreate
+                logger.warning("Both api_key and api_key_hash exist in orgs — skipping rename")
+        except Exception as e:
+            # Fresh install or table doesn't exist — nothing to do
+            logger.debug("orgs migration check skipped: %s", e)
+
     def _init_migrations(self):
         """Initialize and run pending migrations."""
         self.execute("""
@@ -373,7 +399,7 @@ class DatabaseManager:
 
         for migration in MIGRATIONS:
             if migration.version > current:
-                logger.info(f"Applying migration {migration.version}: {migration.name}")
+                logger.info("Applying migration %s: %s", migration.version, migration.name)
                 for stmt in migration.sql.split(";"):
                     stmt = stmt.strip()
                     if stmt:
@@ -383,14 +409,16 @@ class DatabaseManager:
                             # Allow idempotent migration: ignore duplicate column/index errors
                             err_str = str(e).lower()
                             if "duplicate column" in err_str or "already exists" in err_str:
-                                logger.debug(f"Migration idempotent skip: {e}")
+                                logger.debug("Migration idempotent skip: %s", e)
                             else:
                                 raise
                 self.execute_insert(
                     "INSERT INTO schema_version (version, name) VALUES (?, ?)",
                     (migration.version, migration.name)
                 )
-                logger.info(f"Migration {migration.version} applied")
+                logger.info("Migration %s applied", migration.version)
+        # Post-migration: rename api_key column if needed
+        self._migrate_orgs_api_key_hash()
 
     def backup(self) -> Path:
         """Create a backup of the database (SQLite only)."""
@@ -401,7 +429,7 @@ class DatabaseManager:
 
         if isinstance(self._pool, SQLitePool):
             self._pool.backup(backup_path)
-            logger.info(f"Database backed up to {backup_path}")
+            logger.info("Database backed up to %s", backup_path)
         else:
             logger.warning("Backup is only supported for SQLite backend. Use pg_dump for Postgres.")
         return backup_path
