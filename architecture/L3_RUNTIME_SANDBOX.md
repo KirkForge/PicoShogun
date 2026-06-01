@@ -269,7 +269,7 @@ pico_dome/
 ## Integration Points
 
 1. **API**: `POST /api/v1/sandboxes` — accepts command + policy, returns SandboxResult
-2. **CLI**: `picodome L3_execution.cli run --policy default.yml -- ./command`
+2. **CLI**: `picoshogun L3 run --policy default.yml -- ./command`
 3. **CI/CD**: Exit code 0=ALLOW, 1=DENY, 2=AUDIT (needs review), 3=error
 4. **L2 Integration**: L2 findings can auto-generate L3 policies (e.g., "package X has post-install script → sandbox it")
 5. **Webhook**: DENY/AUDIT verdicts → AlertHub → Discord/Slack/Email

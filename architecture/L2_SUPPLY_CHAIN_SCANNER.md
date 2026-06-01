@@ -136,7 +136,7 @@ pico_dome/
 ## Integration Points
 
 1. **API**: `POST /api/v1/scans` — accepts project path or tarball, returns ScanResult
-2. **CLI**: `picodome L2_validation.cli scan ./project`
+2. **CLI**: `picoshogun L2 scan --project ./project`
 3. **CI/CD**: Exit code 0=clean, 1=findings, 2=error. SARIF output for GitHub Security tab.
 4. **Webhook**: Scan complete → AlertHub → Discord/Slack/Email notification
 
